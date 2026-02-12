@@ -38,7 +38,7 @@ This document summarizes the current branch changes compared to `main`, with foc
 - Actions are implemented in:
   - `backend/app/(auth)/actions.ts`
 - Auth data source:
-  - Supabase `public.users` table (email + password + role + soft delete check).
+  - Supabase `public.admin` table (email + password + role + soft delete check).
 
 ### 2) Password Security
 
