@@ -4,28 +4,13 @@ import { Eye, Grip } from "lucide-react";
 import { redirect } from "next/navigation";
 import { loginAction } from "@/app/(auth)/actions";
 import { getAuthSession } from "@/lib/auth/session";
+import { QueryToasts } from "@/components/providers/QueryToasts";
 
-type PageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-function readParam(
-  params: Record<string, string | string[] | undefined>,
-  key: string,
-) {
-  const value = params[key];
-  return Array.isArray(value) ? value[0] : value;
-}
-
-export default async function LoginPage({ searchParams }: PageProps) {
+export default async function LoginPage() {
   const session = await getAuthSession();
   if (session) {
     redirect("/admin");
   }
-
-  const params = await searchParams;
-  const error = readParam(params, "error");
-  const success = readParam(params, "success");
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-hidden bg-white dark:bg-black lg:flex-row">
@@ -62,6 +47,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
 
       <div className="relative flex w-full flex-col items-center justify-center p-6 lg:w-1/2 lg:p-8 lg:pt-24 xl:p-12">
         <div className="w-full max-w-sm space-y-6 lg:max-w-md lg:space-y-8">
+          <QueryToasts scope="login" keys={["error", "success"]} />
           <div className="flex justify-center lg:justify-start">
             <div className="flex items-center gap-2 font-medium">
               <Grip className="h-5 w-5 lg:h-6 lg:w-6" />
@@ -77,17 +63,6 @@ export default async function LoginPage({ searchParams }: PageProps) {
               Enter your email and password to access your account
             </p>
           </div>
-
-          {error ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-          {success ? (
-            <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              {success}
-            </p>
-          ) : null}
 
           <form action={loginAction} className="space-y-5 lg:space-y-6">
             <div className="space-y-4">

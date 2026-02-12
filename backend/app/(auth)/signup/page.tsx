@@ -4,27 +4,13 @@ import { Eye, Grip } from "lucide-react";
 import { redirect } from "next/navigation";
 import { signupAction } from "@/app/(auth)/actions";
 import { getAuthSession } from "@/lib/auth/session";
+import { QueryToasts } from "@/components/providers/QueryToasts";
 
-type PageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-function readParam(
-  params: Record<string, string | string[] | undefined>,
-  key: string,
-) {
-  const value = params[key];
-  return Array.isArray(value) ? value[0] : value;
-}
-
-export default async function SignupPage({ searchParams }: PageProps) {
+export default async function SignupPage() {
   const session = await getAuthSession();
   if (session) {
     redirect("/admin");
   }
-
-  const params = await searchParams;
-  const error = readParam(params, "error");
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-hidden bg-white dark:bg-black lg:flex-row">
@@ -61,6 +47,7 @@ export default async function SignupPage({ searchParams }: PageProps) {
 
       <div className="relative flex w-full flex-col items-center justify-center p-8 lg:w-1/2">
         <div className="w-full max-w-md space-y-8">
+          <QueryToasts scope="signup" keys={["error", "success"]} />
           <div className="flex justify-center lg:justify-start">
             <div className="flex items-center gap-2 font-medium">
               <Grip className="h-6 w-6" />
@@ -74,12 +61,6 @@ export default async function SignupPage({ searchParams }: PageProps) {
               Enter your details to create your account
             </p>
           </div>
-
-          {error ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
 
           <form action={signupAction} className="space-y-6">
             <div className="space-y-4">

@@ -1,23 +1,24 @@
-export function getSupabaseUrl() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("supabase-config");
+
+function requireEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    logger.error("Missing required environment variable", { name });
+    throw new Error(`Missing ${name}`);
   }
-  return url;
+  return value;
+}
+
+export function getSupabaseUrl() {
+  return requireEnv("NEXT_PUBLIC_SUPABASE_URL");
 }
 
 export function getSupabaseAnonKey() {
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  }
-  return anonKey;
+  return requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
 
 export function getSupabaseServiceRoleKey() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return serviceRoleKey;
+  return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
