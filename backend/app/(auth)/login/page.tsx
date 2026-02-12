@@ -3,47 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Eye, Grip } from "lucide-react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
-function LoginContent() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-
-    // Check if the system query param is set to 'restaurant'
-    const isRestaurant = searchParams.get('system') === 'restaurant';
-
-    const toggleSystem = () => {
-        if (isRestaurant) {
-            router.push('/login');
-        } else {
-            router.push('/login?system=restaurant');
-        }
-    };
-
+export default function LoginPage() {
     return (
         <div className="flex min-h-screen w-full flex-col lg:flex-row overflow-hidden bg-white dark:bg-black">
             {/* Mobile Header Image */}
             <div className="relative h-32 w-full shrink-0 lg:hidden">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={isRestaurant ? "restaurant-img-mobile" : "hotel-img-mobile"}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.5 }}
-                        className="absolute inset-0"
-                    >
-                        <Image
-                            src={isRestaurant ? "/authbg-rest.jpg" : "/authbg.jpg"}
-                            alt="Abstract Background"
-                            fill
-                            className="object-cover"
-                            priority
-                        />
-                    </motion.div>
-                </AnimatePresence>
+                <Image
+                    src="/authbg.jpg"
+                    alt="Abstract Background"
+                    fill
+                    className="object-cover"
+                    priority
+                />
                 <div className="absolute inset-0 bg-black/20" />
             </div>
 
@@ -51,24 +23,13 @@ function LoginContent() {
             <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 text-white lg:flex">
                 {/* Abstract Background Image */}
                 <div className="absolute inset-0 z-0">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={isRestaurant ? "restaurant-img-desktop" : "hotel-img-desktop"}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="absolute inset-0"
-                        >
-                            <Image
-                                src={isRestaurant ? "/authbg-rest.jpg" : "/authbg.jpg"}
-                                alt="Abstract Background"
-                                fill
-                                className="object-cover"
-                                priority
-                            />
-                        </motion.div>
-                    </AnimatePresence>
+                    <Image
+                        src="/authbg.jpg"
+                        alt="Abstract Background"
+                        fill
+                        className="object-cover"
+                        priority
+                    />
                     {/* Gradient Overlay for text readability */}
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
                 </div>
@@ -78,36 +39,16 @@ function LoginContent() {
                     <p className="text-xs lg:text-sm font-medium tracking-widest uppercase opacity-80">
                         Mounterra Innovations
                     </p>
-                    <div className="h-1px w-12 bg-white/50" />
+                    <div className="h-px w-12 bg-white/50" />
                 </div>
 
                 {/* Bottom Text */}
                 <div className="relative z-10 max-w-lg">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={isRestaurant ? "restaurant-text" : "hotel-text"}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <h1 className="font-serif text-4xl lg:text-5xl xl:text-6xl leading-tight">
-                                {isRestaurant ? (
-                                    <>
-                                        Restaurant <br />
-                                        Management <br />
-                                        System
-                                    </>
-                                ) : (
-                                    <>
-                                        Hotel <br />
-                                        Management <br />
-                                        System
-                                    </>
-                                )}
-                            </h1>
-                        </motion.div>
-                    </AnimatePresence>
+                    <h1 className="font-serif text-4xl lg:text-5xl xl:text-6xl leading-tight">
+                        Hotel <br />
+                        Management <br />
+                        System
+                    </h1>
                     <p className="mt-4 lg:mt-6 text-xs lg:text-sm opacity-80 leading-relaxed max-w-sm">
                         Demonstration Build. Designed for evaluation purposes only. All guest data and financial records shown are fictional.
                     </p>
@@ -116,27 +57,12 @@ function LoginContent() {
 
             {/* Right Side - Login Form */}
             <div className="relative flex w-full flex-col items-center justify-center p-6 lg:p-8 lg:pt-24 xl:p-12 lg:w-1/2">
-
-
                 <div className="w-full max-w-sm lg:max-w-md space-y-6 lg:space-y-8">
                     {/* Logo */}
                     <div className="flex justify-center lg:justify-start">
                         <div className="flex items-center gap-2 font-medium">
                             <Grip className="h-5 w-5 lg:h-6 lg:w-6" />
-                            <AnimatePresence mode="wait">
-                                <motion.span
-                                    key={isRestaurant ? "restaurant-header" : "hotel-header"}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 10 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="text-sm lg:text-base"
-                                >
-                                    {isRestaurant
-                                        ? "Demo Portal - Restaurant Management"
-                                        : "Demo Portal - Hotel Booking"}
-                                </motion.span>
-                            </AnimatePresence>
+                            <span className="text-sm lg:text-base">Demo Portal - Hotel Booking</span>
                         </div>
                     </div>
 
@@ -222,19 +148,12 @@ function LoginContent() {
                         </div>
 
                         <div className="space-y-3">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (isRestaurant) {
-                                        router.push("/restaurant");
-                                    } else {
-                                        router.push("/dashboard");
-                                    }
-                                }}
+                            <Link
+                                href="/dashboard"
                                 className="flex w-full justify-center rounded-lg bg-black px-3 py-3 xl:py-4 text-xs lg:text-sm font-semibold leading-6 text-white shadow-sm hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:bg-white dark:text-black dark:hover:bg-gray-200"
                             >
                                 Sign In
-                            </button>
+                            </Link>
 
                             <button
                                 type="button"
@@ -277,33 +196,12 @@ function LoginContent() {
                         </div>
 
                         <div className="text-center text-sm font-medium text-gray-500">
-                            Don`&apos;`t have an account?{' '}
-                            <Link href={isRestaurant ? "/signup?system=restaurant" : "/signup"} className="font-semibold text-black hover:underline dark:text-white">Sign Up</Link>
+                            Don&apos;t have an account?{" "}
+                            <Link href="/signup" className="font-semibold text-black hover:underline dark:text-white">Sign Up</Link>
                         </div>
                     </form>
                 </div>
-
-                {/* Switch System Button */}
-                <div className="mt-8 w-full flex justify-center lg:absolute lg:top-8 lg:right-8 lg:mt-0 lg:w-auto lg:justify-end">
-                    <button
-                        onClick={toggleSystem}
-                        className="text-[10px] lg:text-xs font-medium text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors text-center lg:text-right leading-tight whitespace-nowrap"
-                    >
-                        {isRestaurant
-                            ? <>Switch to Hotel <br className="lg:hidden" /> Operations System &rarr;</>
-                            : <>Switch to Restaurant <br className="lg:hidden" /> Management System &rarr;</>
-                        }
-                    </button>
-                </div>
             </div>
         </div>
-    );
-}
-
-export default function LoginPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <LoginContent />
-        </Suspense>
     );
 }
