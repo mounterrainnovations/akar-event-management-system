@@ -30,21 +30,41 @@ function parseLimitQuery(value: string | null) {
   return parsed;
 }
 
+// Helper to get CORS headers
+function getCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "http://localhost:3001",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: getCorsHeaders() });
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ section: string }> },
 ) {
   const { section } = await context.params;
+
+  // Add CORS headers to error responses too
   if (!isWebsiteSection(section)) {
     return NextResponse.json(
       { error: "Invalid section" },
       {
         status: 400,
+        headers: getCorsHeaders(),
       },
     );
   }
 
-  const onlyActive = parseBooleanQuery(request.nextUrl.searchParams.get("active"), true);
+  const onlyActive = parseBooleanQuery(
+    request.nextUrl.searchParams.get("active"),
+    true,
+  );
   const limit = parseLimitQuery(request.nextUrl.searchParams.get("limit"));
 
   try {
@@ -58,6 +78,7 @@ export async function GET(
       status: 200,
       headers: {
         "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+        ...getCorsHeaders(),
       },
     });
   } catch (error) {
@@ -71,6 +92,7 @@ export async function GET(
       { error: "Unable to fetch website media" },
       {
         status: 500,
+        headers: getCorsHeaders(),
       },
     );
   }
