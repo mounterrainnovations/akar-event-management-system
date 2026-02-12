@@ -1,13 +1,116 @@
-export default function AdminPage() {
+import { redirect } from "next/navigation";
+import { getAuthSession } from "@/lib/auth/session";
+import { logoutAction } from "@/app/(auth)/actions";
+import { QueryToasts } from "@/components/providers/QueryToasts";
+import { Button } from "@/components/ui/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Image, SignOut } from "@phosphor-icons/react/dist/ssr";
+import { listSectionMediaState } from "@/lib/media/website-media-service";
+import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
+
+const navItems = [
+  { title: "Media", icon: Image, active: true },
+];
+
+export default async function AdminPage() {
+  const session = await getAuthSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const highlightsSection = await listSectionMediaState({
+    userId: session.sub,
+    section: "highlights",
+  });
+
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
-      <section className="w-full max-w-xl rounded-2xl border border-black/10 bg-white p-10 shadow-sm">
-        <h1 className="text-4xl">Admin</h1>
-        <p className="mt-4 text-black/70">
-          Admin area placeholder. Replace this with authentication and dashboard
-          modules.
-        </p>
-      </section>
-    </main>
+    <SidebarProvider>
+      <QueryToasts scope="admin" keys={["success", "info", "error"]} />
+
+      <Sidebar variant="inset" collapsible="icon">
+        <SidebarHeader className="px-2 py-3">
+          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent px-0.5 py-2">
+            <div className="flex h-8 w-8 p-0.5 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+              AW
+            </div>
+            <div className="truncate group-data-[collapsible=icon]:hidden">
+              <p className="text-sm font-semibold text-sidebar-accent-foreground">AWG</p>
+              <p className="text-xs text-sidebar-foreground/70">Admin Control</p>
+            </div>
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton isActive={item.active} tooltip={item.title}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarSeparator />
+
+        <SidebarFooter className="px-2 pb-3">
+          <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3 text-sm">
+            <p className="truncate font-medium text-sidebar-accent-foreground">{session.email}</p>
+            <p className="mt-0.5 text-xs uppercase tracking-wide text-sidebar-foreground/70">
+              {session.role}
+            </p>
+          </div>
+          <form action={logoutAction}>
+            <Button
+              type="submit"
+              variant="outline"
+              className="mt-2 w-full justify-start border-sidebar-border bg-transparent"
+            >
+              <SignOut />
+              <span>Sign out</span>
+            </Button>
+          </form>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-3 border-b px-4">
+          <SidebarTrigger />
+          <div>
+            <p className="text-sm text-muted-foreground">Section</p>
+            <h1 className="text-base font-semibold">Media</h1>
+          </div>
+        </header>
+
+        <section className="p-4">
+          <MediaSectionManager
+            title="Highlights"
+            description="Manage images of Highlight Section"
+            section={highlightsSection}
+          />
+        </section>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
