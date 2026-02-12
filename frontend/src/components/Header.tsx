@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, User } from 'lucide-react';
+import { Menu, X, User, Ticket, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 const primaryNavItems = [
     { name: 'Work', href: '/work' },
@@ -21,17 +22,30 @@ const secondaryNavItems = [
 
 export default function Header() {
     const pathname = usePathname();
-    const isEventPage = pathname?.startsWith('/event');
+    const isEventPage = pathname === '/event';
+    const isWorkPage = pathname === '/work';
+    const isContactPage = pathname === '/contact';
+    const isHighlightsPage = pathname === '/highlights';
+    const isAboutPage = pathname === '/about';
+    const isEventsPage = pathname === '/events';
+    const isPublicationsPage = pathname === '/Publications';
+    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage;
+
     const [isHidden, setIsHidden] = useState(false);
     const [isPastHero, setIsPastHero] = useState(false);
     const [lastScrollY, setLastScrollY] = useState(0);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { user, isAuthenticated, openAuthModal, logout } = useAuth();
+    const { showToast } = useToast();
+
+    const handleLogout = async () => {
+        await logout();
+        showToast('Signed out successfully.', 'info');
+    };
 
     useEffect(() => {
         const handleScroll = () => {
             const currentScrollY = window.scrollY;
-
 
             // Check if past hero section (roughly one viewport height)
             setIsPastHero(currentScrollY > window.innerHeight * 0.7);
@@ -47,9 +61,8 @@ export default function Header() {
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, [lastScrollY]);
-
-    const textColor = isPastHero ? 'text-[#1a1a1a]' : 'text-white';
-    const separatorBg = isPastHero ? 'bg-[#1a1a1a]' : 'bg-white';
+    const textColor = isDarkTextPage ? 'text-[#1a1a1a]' : (!isPastHero ? 'text-white' : 'text-[#1a1a1a]');
+    const separatorBg = isDarkTextPage ? 'bg-[#1a1a1a]' : (!isPastHero ? 'bg-white' : 'bg-[#1a1a1a]');
 
     return (
         <>
@@ -77,6 +90,7 @@ export default function Header() {
                             AKAR WOMEN GROUP
                         </span>
                     </Link>
+
 
                     {/* Desktop Nav */}
                     <nav className="hidden md:flex items-center">
@@ -119,15 +133,35 @@ export default function Header() {
                                     </button>
 
                                     {/* Dropdown */}
-                                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right">
-                                        <div className="px-4 py-2 border-b border-gray-100">
-                                            <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] py-2 border border-black/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right translate-y-2 group-hover:translate-y-0">
+                                        <div className="px-5 py-4 border-b border-black/5 mb-1">
+                                            <p className="text-xs font-black uppercase tracking-widest text-black/20 mb-1">Signed in as</p>
+                                            <p className="text-sm font-bold text-[#1a1a1a] truncate">{user.name}</p>
                                         </div>
-                                        <button
-                                            onClick={logout}
-                                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition-colors"
+
+                                        <Link
+                                            href="/my-bookings"
+                                            className="flex items-center gap-3 px-5 py-3 text-sm font-bold text-[#1a1a1a]/60 hover:text-[#1a1a1a] hover:bg-black/5 transition-all"
                                         >
+                                            <Ticket className="w-4 h-4" />
+                                            My Bookings
+                                        </Link>
+
+                                        <Link
+                                            href="/settings"
+                                            className="flex items-center gap-3 px-5 py-3 text-sm font-bold text-[#1a1a1a]/60 hover:text-[#1a1a1a] hover:bg-black/5 transition-all"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            Settings
+                                        </Link>
+
+                                        <div className="h-[1px] bg-black/5 my-1 mx-5" />
+
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-all text-left"
+                                        >
+                                            <X className="w-4 h-4" />
                                             Sign out
                                         </button>
                                     </div>
@@ -135,7 +169,7 @@ export default function Header() {
                             ) : (
                                 <button
                                     onClick={openAuthModal}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-full border ${isPastHero ? 'border-gray-900/10 hover:bg-gray-900/5' : 'border-white/20 hover:bg-white/10'} transition-all duration-300 group`}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-full border ${(isPastHero || isDarkTextPage) ? 'border-gray-900/10 hover:bg-gray-900/5' : 'border-white/20 hover:bg-white/10'} transition-all duration-300 group`}
                                     aria-label="Login"
                                 >
                                     <User className={`w-4 h-4 ${textColor} group-hover:scale-110 transition-transform`} />
@@ -143,6 +177,8 @@ export default function Header() {
                             )}
                         </div>
                     </nav>
+
+
 
                     {/* Mobile Toggle */}
                     <button

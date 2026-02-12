@@ -31,7 +31,7 @@ export default function EventPage() {
             </div>
 
             {/* Event Details Content - Third */}
-            <section className="bg-white pb-24 px-4 md:px-12 lg:px-16" id="details">
+            <section className="bg-white pb-48 px-4 md:px-12 lg:px-16" id="details">
                 <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-16">
                     {/* Left Column - Main Content */}
                     <div className="lg:col-span-2 space-y-16">

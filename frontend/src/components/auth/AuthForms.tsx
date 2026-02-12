@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { AuthInput } from './AuthInput';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 interface AuthFormsProps {
     mode: 'login' | 'register';
@@ -12,9 +13,11 @@ interface AuthFormsProps {
 }
 
 export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
-    const { login, googleLogin } = useAuth();
+    const { login, signUp, googleLogin } = useAuth();
+    const { showToast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Form states
     const [email, setEmail] = useState('');
@@ -24,17 +27,44 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        login(email);
-        setIsLoading(false);
+        setError(null);
+
+        try {
+            if (mode === 'register') {
+                const result = await signUp(email, password, name);
+                if (result.error) {
+                    setError(result.error);
+                } else {
+                    // Sign-up successful — show toast and switch to login
+                    showToast('Account created successfully! Please sign in.', 'success');
+                    setName('');
+                    setPassword('');
+                    onToggleMode(); // Switch to login tab
+                }
+            } else {
+                const result = await login(email, password);
+                if (result.error) {
+                    setError(result.error);
+                } else {
+                    showToast('Welcome back! You are now signed in.', 'success');
+                }
+            }
+        } catch {
+            setError('An unexpected error occurred. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleGoogleLogin = async () => {
         setGoogleLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        googleLogin();
-        setGoogleLoading(false);
+        setError(null);
+        try {
+            await googleLogin();
+        } catch {
+            setError('Google login failed. Please try again.');
+            setGoogleLoading(false);
+        }
     };
 
     return (
@@ -49,6 +79,14 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
                         : 'Enter your details to get started'}
                 </p>
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    <AlertCircle size={16} className="flex-shrink-0" />
+                    <span>{error}</span>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {mode === 'register' && (

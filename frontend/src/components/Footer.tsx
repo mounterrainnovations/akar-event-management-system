@@ -1,12 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { instrumentSerif } from '@/lib/fonts';
 import { ArrowUpRight, Instagram, Linkedin, Twitter } from 'lucide-react';
 
 export default function Footer() {
+    const pathname = usePathname();
+    const isWhitePage = pathname === '/work' || pathname === '/event' || pathname === '/contact' || pathname === '/highlights' || pathname === '/about' || pathname === '/events';
+
     return (
-        <footer className="relative w-full z-10 pt-24 bg-transparent">
+        <footer className={`relative w-full z-10 ${isWhitePage ? 'bg-white' : ''}`}>
             {/* Main Content Section - Solid Dark Background with Rounded Top */}
             <div className="bg-[#111111] text-white py-16 rounded-t-[3rem]">
                 <div className="max-w-[95vw] md:max-w-7xl mx-auto px-4 md:px-12 lg:px-16">
