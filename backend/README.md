@@ -1,5 +1,20 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Auth setup (Supabase `public.users`)
+
+`/signup` and `/login` are wired to the `public.users` table using the Supabase service role client.
+
+Required env vars:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+AUTH_SESSION_SECRET=...
+```
+
+`AUTH_SESSION_SECRET` is used to sign the httpOnly session cookie.
+
 ## Getting Started
 
 First, run the development server:
