@@ -4,6 +4,14 @@ import { isWebsiteSection } from "@/lib/media/website-sections";
 import { getLogger } from "@/lib/logger";
 
 const logger = getLogger("api-website-media");
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "https://www.akarwomengroup.com",
+  "https://akarwomengroup.com",
+  "https://akar-event-management-system.vercel.app",
+  "https://admin.akarwomengroup.com",
+];
 
 function parseBooleanQuery(value: string | null, defaultValue: boolean) {
   if (value === null) {
@@ -30,18 +38,28 @@ function parseLimitQuery(value: string | null) {
   return parsed;
 }
 
+function resolveAllowedOrigin(request: NextRequest) {
+  const origin = request.headers.get("origin") ?? "";
+  const isAllowed =
+    allowedOrigins.includes(origin) ||
+    /^https:\/\/akar-event-management-system.*\.vercel\.app$/.test(origin);
+  return isAllowed ? origin : null;
+}
+
 // Helper to get CORS headers
-function getCorsHeaders() {
+function getCorsHeaders(request: NextRequest) {
+  const origin = resolveAllowedOrigin(request);
   return {
-    "Access-Control-Allow-Origin": "http://localhost:3001",
+    ...(origin && { "Access-Control-Allow-Origin": origin }),
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
+    ...(origin && { "Access-Control-Allow-Credentials": "true" }),
+    Vary: "Origin",
   };
 }
 
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: getCorsHeaders() });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: getCorsHeaders(request) });
 }
 
 export async function GET(
@@ -56,7 +74,7 @@ export async function GET(
       { error: "Invalid section" },
       {
         status: 400,
-        headers: getCorsHeaders(),
+        headers: getCorsHeaders(request),
       },
     );
   }
@@ -78,7 +96,7 @@ export async function GET(
       status: 200,
       headers: {
         "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
-        ...getCorsHeaders(),
+        ...getCorsHeaders(request),
       },
     });
   } catch (error) {
@@ -92,7 +110,7 @@ export async function GET(
       { error: "Unable to fetch website media" },
       {
         status: 500,
-        headers: getCorsHeaders(),
+        headers: getCorsHeaders(request),
       },
     );
   }
