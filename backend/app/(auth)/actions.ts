@@ -46,7 +46,7 @@ export async function signupAction(formData: FormData) {
   const passwordHash = await hashPassword(password);
 
   const { data, error } = await supabase
-    .from("users")
+    .from("admin")
     .insert({
       email,
       password: passwordHash,
@@ -86,7 +86,7 @@ export async function loginAction(formData: FormData) {
 
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
-    .from("users")
+    .from("admin")
     .select("id,email,password,role,deleted_at")
     .eq("email", email)
     .is("deleted_at", null)

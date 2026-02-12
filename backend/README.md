@@ -1,8 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Auth setup (Supabase `public.users`)
+## Auth setup (Supabase `public.admin`)
 
-`/signup` and `/login` are wired to the `public.users` table using the Supabase service role client.
+`/signup` and `/login` are wired to the `public.admin` table using the Supabase service role client.
 
 Required env vars:
 
@@ -38,6 +38,30 @@ Optional override:
 ```bash
 # Advanced: directly override winston level if needed
 LOG_LEVEL=debug
+```
+
+## Media upload setup (public bucket)
+
+Media upload utilities are implemented for reusable usage across the app.
+
+Key files:
+
+- `backend/lib/media/constants.ts`
+- `backend/lib/media/service.ts`
+- `backend/app/admin/actions.ts`
+
+Behavior:
+
+- Uses public Supabase Storage bucket: `mediaBucket`
+- Uploads file to Storage with user-scoped path
+- Inserts metadata row into `public.media`
+- Rolls back storage object if DB insert fails
+
+Optional env:
+
+```bash
+# defaults to mediaBucket
+SUPABASE_MEDIA_BUCKET=mediaBucket
 ```
 
 ## Getting Started

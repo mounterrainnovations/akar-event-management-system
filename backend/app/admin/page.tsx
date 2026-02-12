@@ -20,6 +20,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Image, SignOut } from "@phosphor-icons/react/dist/ssr";
+import { listSectionMediaState } from "@/lib/media/website-media-service";
+import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
 
 const navItems = [
   { title: "Media", icon: Image, active: true },
@@ -30,6 +32,10 @@ export default async function AdminPage() {
   if (!session) {
     redirect("/login");
   }
+  const highlightsSection = await listSectionMediaState({
+    userId: session.sub,
+    section: "highlights",
+  });
 
   return (
     <SidebarProvider>
@@ -98,10 +104,11 @@ export default async function AdminPage() {
         </header>
 
         <section className="p-4">
-          <div className="min-h-[420px] rounded-xl border bg-card p-4">
-            <h2 className="text-lg font-semibold">Media</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Empty section. Ready for phase-2 buildout.</p>
-          </div>
+          <MediaSectionManager
+            title="Highlights"
+            description="Manage images of Highlight Section"
+            section={highlightsSection}
+          />
         </section>
       </SidebarInset>
     </SidebarProvider>
