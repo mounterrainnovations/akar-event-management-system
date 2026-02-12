@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 import { instrumentSerif } from '@/lib/fonts';
 
@@ -13,7 +14,7 @@ const heroLines = [
 const secondLines = [
     ['We', 'create', 'strategies,', 'brand', 'systems,'],
     ['digital', 'products,', 'and', 'experiences', 'for', 'the'],
-    ["world&apos;s", 'most', 'disruptive', 'thinkers.'],
+    ["world apos", 'most', 'disruptive', 'thinkers.'],
 ];
 
 const events = [
@@ -183,7 +184,7 @@ export default function Home() {
             </section>
 
             {/* Current Events Section */}
-            <section className="min-h-screen py-[120px] px-4 md:px-12 lg:px-16">
+            <section className="min-h-screen py-[120px] pb-[144px] px-4 md:px-12 lg:px-16">
                 <div className="w-full">
                     {/* Section Heading + See All */}
                     <motion.div
@@ -222,10 +223,11 @@ export default function Home() {
                             >
                                 {/* Event Image */}
                                 <div className="relative h-[200px] overflow-hidden">
-                                    <img
+                                    <Image
                                         src="https://images.unsplash.com/photo-1464047736614-af63643285bf?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.1.0"
                                         alt={event.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                                     />
                                     {/* Tag */}
                                     <span className="absolute top-4 left-4 px-3 py-1 text-xs font-medium tracking-wider uppercase rounded-full bg-white/70 backdrop-blur-sm border border-white/40 text-[#1a1a1a]">

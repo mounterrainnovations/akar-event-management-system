@@ -1,4 +1,15 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/signup/route": "app/api/auth/signup/route.js",
+  "/auth/callback/route": "app/auth/callback/route.js",
+  "/Publications/page": "app/Publications/page.js",
+  "/about/page": "app/about/page.js",
+  "/event/page": "app/event/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/highlights/page": "app/highlights/page.js",
+  "/events/page": "app/events/page.js",
   "/page": "app/page.js",
-  "/event/page": "app/event/page.js"
+  "/work/page": "app/work/page.js",
+  "/my-bookings/page": "app/my-bookings/page.js",
+  "/settings/page": "app/settings/page.js"
 }
