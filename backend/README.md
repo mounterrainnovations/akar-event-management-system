@@ -15,6 +15,31 @@ AUTH_SESSION_SECRET=...
 
 `AUTH_SESSION_SECRET` is used to sign the httpOnly session cookie.
 
+## Logging controls
+
+Logging is configured in `backend/lib/logger.ts` and supports three modes plus a global on/off switch.
+
+```bash
+# Global toggle (default: true). Set false to disable all logs.
+LOG_ENABLED=true
+
+# Mode options: basic | errors | full (default: basic)
+LOG_MODE=basic
+```
+
+Modes:
+
+- `basic`: standard operational logs (`info` and above)
+- `errors`: only error logs
+- `full`: verbose logs for development/debugging
+
+Optional override:
+
+```bash
+# Advanced: directly override winston level if needed
+LOG_LEVEL=debug
+```
+
 ## Getting Started
 
 First, run the development server:

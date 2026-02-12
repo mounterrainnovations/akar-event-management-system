@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, Grip } from "lucide-react";
+import { DotsNine, Eye } from "@phosphor-icons/react/dist/ssr";
 import { redirect } from "next/navigation";
 import { signupAction } from "@/app/(auth)/actions";
 import { getAuthSession } from "@/lib/auth/session";
@@ -34,13 +34,12 @@ export default async function SignupPage() {
 
         <div className="relative z-10 max-w-lg">
           <h1 className="font-serif text-6xl leading-tight">
-            Hotel <br />
+            AWG <br />
             Management <br />
             System
           </h1>
           <p className="mt-6 max-w-sm text-sm leading-relaxed opacity-80">
-            Demonstration Build. Designed for evaluation purposes only. All guest data and financial
-            records shown are fictional.
+            Designed for the best. By the Best
           </p>
         </div>
       </div>
@@ -50,8 +49,8 @@ export default async function SignupPage() {
           <QueryToasts scope="signup" keys={["error", "success"]} />
           <div className="flex justify-center lg:justify-start">
             <div className="flex items-center gap-2 font-medium">
-              <Grip className="h-6 w-6" />
-              <span>Demo Portal - Hotel Booking</span>
+              <DotsNine className="h-6 w-6" />
+              <span>Admin Portal - AWG</span>
             </div>
           </div>
 

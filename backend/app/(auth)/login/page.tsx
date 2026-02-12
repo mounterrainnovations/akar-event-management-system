@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, Grip } from "lucide-react";
+import { DotsNine, Eye } from "@phosphor-icons/react/dist/ssr";
 import { redirect } from "next/navigation";
 import { loginAction } from "@/app/(auth)/actions";
 import { getAuthSession } from "@/lib/auth/session";
@@ -34,13 +34,12 @@ export default async function LoginPage() {
 
         <div className="relative z-10 max-w-lg">
           <h1 className="font-serif text-4xl leading-tight lg:text-5xl xl:text-6xl">
-            Hotel <br />
+            AWG <br />
             Management <br />
             System
           </h1>
           <p className="mt-4 max-w-sm text-xs leading-relaxed opacity-80 lg:mt-6 lg:text-sm">
-            Demonstration Build. Designed for evaluation purposes only. All guest data and financial
-            records shown are fictional.
+            Designed for the best. By the Best
           </p>
         </div>
       </div>
@@ -50,8 +49,8 @@ export default async function LoginPage() {
           <QueryToasts scope="login" keys={["error", "success"]} />
           <div className="flex justify-center lg:justify-start">
             <div className="flex items-center gap-2 font-medium">
-              <Grip className="h-5 w-5 lg:h-6 lg:w-6" />
-              <span className="text-sm lg:text-base">Demo Portal - Hotel Booking</span>
+              <DotsNine className="h-5 w-5 lg:h-6 lg:w-6" />
+              <span className="text-sm lg:text-base">Admin Portal - AWG</span>
             </div>
           </div>
 

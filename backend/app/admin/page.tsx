@@ -2,6 +2,28 @@ import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth/session";
 import { logoutAction } from "@/app/(auth)/actions";
 import { QueryToasts } from "@/components/providers/QueryToasts";
+import { Button } from "@/components/ui/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Image, SignOut } from "@phosphor-icons/react/dist/ssr";
+
+const navItems = [
+  { title: "Media", icon: Image, active: true },
+];
 
 export default async function AdminPage() {
   const session = await getAuthSession();
@@ -10,23 +32,78 @@ export default async function AdminPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-20">
+    <SidebarProvider>
       <QueryToasts scope="admin" keys={["success", "info", "error"]} />
-      <h1 className="text-3xl font-semibold">Admin Dashboard</h1>
-      <p className="mt-4 text-gray-600">
-        Logged in as <span className="font-medium text-gray-900">{session.email}</span>
-      </p>
-      <p className="mt-1 text-gray-600">
-        Role: <span className="font-medium text-gray-900">{session.role}</span>
-      </p>
-      <form action={logoutAction} className="mt-8">
-        <button
-          type="submit"
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          Sign out
-        </button>
-      </form>
-    </main>
+
+      <Sidebar variant="inset" collapsible="icon">
+        <SidebarHeader className="px-2 py-3">
+          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent px-0.5 py-2">
+            <div className="flex h-8 w-8 p-0.5 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+              AW
+            </div>
+            <div className="truncate group-data-[collapsible=icon]:hidden">
+              <p className="text-sm font-semibold text-sidebar-accent-foreground">AWG</p>
+              <p className="text-xs text-sidebar-foreground/70">Admin Control</p>
+            </div>
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton isActive={item.active} tooltip={item.title}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarSeparator />
+
+        <SidebarFooter className="px-2 pb-3">
+          <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3 text-sm">
+            <p className="truncate font-medium text-sidebar-accent-foreground">{session.email}</p>
+            <p className="mt-0.5 text-xs uppercase tracking-wide text-sidebar-foreground/70">
+              {session.role}
+            </p>
+          </div>
+          <form action={logoutAction}>
+            <Button
+              type="submit"
+              variant="outline"
+              className="mt-2 w-full justify-start border-sidebar-border bg-transparent"
+            >
+              <SignOut />
+              <span>Sign out</span>
+            </Button>
+          </form>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-3 border-b px-4">
+          <SidebarTrigger />
+          <div>
+            <p className="text-sm text-muted-foreground">Section</p>
+            <h1 className="text-base font-semibold">Media</h1>
+          </div>
+        </header>
+
+        <section className="p-4">
+          <div className="min-h-[420px] rounded-xl border bg-card p-4">
+            <h2 className="text-lg font-semibold">Media</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Empty section. Ready for phase-2 buildout.</p>
+          </div>
+        </section>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
