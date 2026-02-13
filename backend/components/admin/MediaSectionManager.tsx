@@ -13,16 +13,6 @@ type MediaSectionManagerProps = {
   section: WebsiteSectionState;
 };
 
-function formatFileSize(fileSize: number) {
-  if (fileSize < 1024) {
-    return `${fileSize} B`;
-  }
-  if (fileSize < 1024 * 1024) {
-    return `${(fileSize / 1024).toFixed(1)} KB`;
-  }
-  return `${(fileSize / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function MediaSectionManager({ title, description, section }: MediaSectionManagerProps) {
   const canUpload = section.totalCount < section.maxAllowed;
   const uploadRemaining = section.maxAllowed - section.totalCount;
@@ -84,12 +74,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
               </div>
               <div className="space-y-2 p-3">
                 <p className="truncate text-sm font-medium">{item.fileName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {item.mimeType} • {formatFileSize(item.fileSize)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Order #{item.displayOrder} • {item.isActive ? "Visible" : "Hidden"}
-                </p>
+                <p className="text-xs text-muted-foreground">{item.isActive ? "Visible" : "Hidden"}</p>
                 <div className="flex gap-2">
                   <form action={toggleSectionMediaAction} className="flex-1">
                     <input type="hidden" name="websiteMediaId" value={item.id} />

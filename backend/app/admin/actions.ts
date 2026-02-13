@@ -8,12 +8,12 @@ import {
   toggleSectionMediaVisibility,
   uploadFilesToSection,
 } from "@/lib/media/website-media-service";
-import { type WebsiteSection } from "@/lib/media/website-sections";
+import { isWebsiteSection, type WebsiteSection } from "@/lib/media/website-sections";
 
 const logger = getLogger("admin-actions");
 
 function parseSection(value: FormDataEntryValue | null): WebsiteSection | null {
-  if (value === "highlights") {
+  if (typeof value === "string" && isWebsiteSection(value)) {
     return value;
   }
   return null;
@@ -63,7 +63,6 @@ export async function toggleSectionMediaAction(formData: FormData) {
   try {
     await toggleSectionMediaVisibility({
       websiteMediaId,
-      userId: session.sub,
     });
   } catch (error) {
     logger.error("Section media toggle failed", {
@@ -91,7 +90,6 @@ export async function deleteSectionMediaAction(formData: FormData) {
   try {
     await deleteSectionMediaItem({
       websiteMediaId,
-      userId: session.sub,
     });
   } catch (error) {
     logger.error("Section media delete failed", {
