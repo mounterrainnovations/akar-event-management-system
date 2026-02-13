@@ -1,14 +1,24 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { instrumentSerif } from '@/lib/fonts';
 import JourneySection from '@/components/JourneySection';
 
+const heroImages = [
+    '/1.jpg',
+    '/2.jpg',
+    '/3.jpg',
+    '/4.jpg',
+    '/5.jpg',
+    '/6.jpg',
+    '/7.jpg',
+];
+
 const heroLines = [
-    ['Akar', 'Women', 'Group', 'is', 'a', 'dynamic', 'platform'],
+    ['Akar', 'Women', 'Group', 'is', 'a', 'compassionate', 'platform'],
     ['dedicated', 'to', 'women', 'empowerment', 'and'],
     ['holistic', 'child', 'development.'],
 ];
@@ -21,13 +31,13 @@ const secondLines = [
 
 const events = [
     {
-        title: 'Women in Leadership Summit',
+        title: 'Young Leaders Summit',
         date: 'March 15, 2026',
         time: '10:00 AM — 4:00 PM',
         location: 'Grand Ballroom, New Delhi',
         description: 'An immersive day of talks, panels, and networking celebrating women who lead with vision and purpose.',
         tag: 'Leadership',
-        image: 'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?q=80&w=2069&auto=format&fit=crop'
+        image: 'https://images.unsplash.com/photo-1533222481259-ce20eda1e20b?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
     },
     {
         title: 'Youth Empowerment Workshop',
@@ -36,16 +46,16 @@ const events = [
         location: 'Community Center, Mumbai',
         description: 'Hands-on workshop designed to equip young minds with skills in communication, creativity, and confidence.',
         tag: 'Workshop',
-        image: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?q=80&w=2070&auto=format&fit=crop'
+        image: 'https://images.unsplash.com/flagged/photo-1574097656146-0b43b7660cb6?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
     },
     {
-        title: 'Annual Charity Gala',
+        title: 'Age of New Women: Talk Session',
         date: 'April 12, 2026',
         time: '7:00 PM — 11:00 PM',
         location: 'The Oberoi, Bangalore',
         description: 'An elegant evening of dining, performances, and fundraising to support education initiatives across India.',
         tag: 'Fundraiser',
-        image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=2070&auto=format&fit=crop'
+        image: 'https://images.unsplash.com/photo-1661534424056-6589e239546b?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
     },
     {
         title: 'Health & Wellness Camp',
@@ -97,7 +107,15 @@ const wordAnim = {
 
 export default function Home() {
     const [activeEvent, setActiveEvent] = useState(0);
+    const [heroIndex, setHeroIndex] = useState(0);
     const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setHeroIndex((prev) => (prev + 1) % heroImages.length);
+        }, 5000); // Change slide every 5 seconds
+        return () => clearInterval(interval);
+    }, []);
 
     const scroll = (direction: 'left' | 'right') => {
         if (mobileScrollRef.current) {
@@ -116,17 +134,31 @@ export default function Home() {
             {/* New Hero Section */}
             <section className="min-h-screen flex items-start justify-center pt-[87px] pb-8 relative">
                 <motion.div
-                    className="relative w-[90vw] h-[80vh] rounded-[40px] overflow-hidden"
+                    className="relative w-[90vw] h-[80vh] rounded-[40px] overflow-hidden bg-black"
                 >
-                    <Image
-                        src="/imageform.png.webp"
-                        alt="Hero Image"
-                        fill
-                        className="object-cover"
-                        priority
-                    />
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div
+                            key={heroIndex}
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '-100%' }}
+                            transition={{ duration: 1, ease: [0.32, 0.72, 0, 1] }}
+                            className="absolute inset-0 w-full h-full"
+                        >
+                            <Image
+                                src={heroImages[heroIndex]}
+                                alt="Hero Image"
+                                fill
+                                className="object-cover"
+                                priority={true}
+                            />
+                            {/* Overlay for better text visibility if needed */}
+                            <div className="absolute inset-0 bg-black/20" />
+                        </motion.div>
+                    </AnimatePresence>
+
                     <motion.div
-                        className="absolute bottom-0 left-0 w-full p-8 md:p-12 pt-32 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end items-center text-center"
+                        className="absolute bottom-0 left-0 w-full p-8 md:p-12 pt-32 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end items-center text-center z-10"
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}

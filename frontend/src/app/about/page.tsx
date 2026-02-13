@@ -79,7 +79,7 @@ export default function AboutPage() {
                             className="text-2xl md:text-3xl lg:text-4xl leading-relaxed font-light text-[#1a1a1a]"
                         >
                             <p className="mb-12">
-                                <span className={`${instrumentSerif.className} text-4xl md:text-5xl italic`}>Akar Women Group</span> is a dynamic platform dedicated to women empowerment and holistic child development. Founded with the vision of creating a supportive ecosystem, the group brings together inspiring women from diverse fields to learn, grow, and uplift one another.
+                                <span className={`${instrumentSerif.className} text-4xl md:text-5xl italic`}>Akar Women Group</span> is a compassionate platform dedicated to women empowerment and holistic child development. Founded with the vision of creating a supportive ecosystem, the group brings together inspiring women from diverse fields to learn, grow, and uplift one another.
                             </p>
                             <p className="mb-12 text-[#1a1a1a]/80">
                                 Through events, workshops, community initiatives, and meaningful collaborations, Akar Women Group nurtures leadership, confidence, and social responsibility—while also focusing on the growth and values of the next generation.
