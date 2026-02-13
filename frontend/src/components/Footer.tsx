@@ -12,7 +12,7 @@ export default function Footer() {
     return (
         <footer className={`relative w-full z-10 ${isWhitePage ? 'bg-white' : ''}`}>
             {/* Main Content Section - Solid Dark Background with Rounded Top */}
-            <div className="bg-[#111111] text-white py-16 rounded-t-[3rem]">
+            <div className="bg-[#483D3F] text-white py-16 rounded-t-[3rem]">
                 <div className="max-w-[95vw] md:max-w-7xl mx-auto px-4 md:px-12 lg:px-16">
 
                     {/* 1. Large CTA Section with Socials */}
@@ -22,7 +22,7 @@ export default function Footer() {
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
                             <div className="space-y-8">
                                 <p className="font-montserrat text-white/60 text-lg md:text-xl max-w-md font-light">
-                                    Ready to accelerate your next big idea? Reach out to us and let&apos;s create something extraordinary.
+                                    Join our movement to empower women and nurture the next generation. Together, let&apos;s build a brighter future.
                                 </p>
 
                                 {/* Social Icons integrated here */}
@@ -72,7 +72,7 @@ export default function Footer() {
                         <div className="space-y-6">
                             <h3 className="font-montserrat text-xs uppercase tracking-widest text-white/40 font-bold">Newsletter</h3>
                             <p className="font-montserrat text-white/60 text-sm mb-4">
-                                Insights on design and technology, delivered to your inbox.
+                                Stay updated with our latest events and community initiatives.
                             </p>
                             <form className="flex w-full border-b border-white/20 pb-2 focus-within:border-white transition-colors">
                                 <input
@@ -113,6 +113,6 @@ export default function Footer() {
                     </div>
                 </div>
             </div>
-        </footer>
+        </footer >
     );
 }
