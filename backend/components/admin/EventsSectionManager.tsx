@@ -72,6 +72,15 @@ function keepPaymentStatusField(paymentStatus?: PaymentStatus) {
   return paymentStatus ? <input type="hidden" name="paymentStatus" value={paymentStatus} /> : null;
 }
 
+function ActionContextFields(params: { includeDeleted: boolean; paymentStatus?: PaymentStatus }) {
+  return (
+    <>
+      {keepDeletedField(params.includeDeleted)}
+      {keepPaymentStatusField(params.paymentStatus)}
+    </>
+  );
+}
+
 function fieldLabel(label: string, required = false) {
   return (
     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -196,8 +205,7 @@ export async function EventsSectionManager({
           <h2 className="text-lg font-semibold">Create Event</h2>
           <p className="mt-1 text-sm text-muted-foreground">Create root event record.</p>
           <form action={createEventAction} className="mt-4 grid gap-3 md:grid-cols-2">
-            {keepDeletedField(includeDeleted)}
-            {keepPaymentStatusField(paymentStatus)}
+            <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
             <SectionField label="Event Name" required>
               <Input name="name" required />
@@ -280,8 +288,7 @@ export async function EventsSectionManager({
               {selectedEvent.event.deleted_at ? (
                 <form action={restoreEventAction}>
                   <input type="hidden" name="eventId" value={selectedEvent.event.id} />
-                  {keepDeletedField(includeDeleted)}
-                  {keepPaymentStatusField(paymentStatus)}
+                  <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
                   <Button type="submit" variant="outline">
                     Restore Event
                   </Button>
@@ -289,8 +296,7 @@ export async function EventsSectionManager({
               ) : (
                 <form action={archiveEventAction}>
                   <input type="hidden" name="eventId" value={selectedEvent.event.id} />
-                  {keepDeletedField(includeDeleted)}
-                  {keepPaymentStatusField(paymentStatus)}
+                  <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
                   <Button type="submit" variant="destructive">
                     Archive Event
                   </Button>
@@ -310,8 +316,7 @@ export async function EventsSectionManager({
           {!selectedEvent.event.deleted_at ? (
             <form action={updateEventAction} className="grid gap-3 rounded-lg border p-4 md:grid-cols-2">
               <input type="hidden" name="eventId" value={selectedEvent.event.id} />
-              {keepDeletedField(includeDeleted)}
-              {keepPaymentStatusField(paymentStatus)}
+              <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
               <SectionField label="Event Name" required>
                 <Input name="name" defaultValue={selectedEvent.event.name} required />
@@ -409,8 +414,7 @@ export async function EventsSectionManager({
               {!selectedEvent.event.deleted_at && (
                 <form action={createEventTicketAction} className="grid gap-2 rounded-lg border p-3 md:grid-cols-2">
                   <input type="hidden" name="eventId" value={selectedEvent.event.id} />
-                  {keepDeletedField(includeDeleted)}
-                  {keepPaymentStatusField(paymentStatus)}
+                  <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
                   <SectionField label="Status (ticket_status)" required>
                     <select name="status" className={enumSelectClassName()} defaultValue="active" required>
@@ -458,8 +462,7 @@ export async function EventsSectionManager({
                     <form key={ticket.id} action={updateEventTicketAction} className="space-y-2 rounded-lg border p-3">
                       <input type="hidden" name="eventId" value={selectedEvent.event.id} />
                       <input type="hidden" name="ticketId" value={ticket.id} />
-                      {keepDeletedField(includeDeleted)}
-                      {keepPaymentStatusField(paymentStatus)}
+                      <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
                       <div className="grid gap-2 md:grid-cols-2">
                         <SectionField label="Status (ticket_status)" required>
@@ -542,8 +545,7 @@ export async function EventsSectionManager({
               {!selectedEvent.event.deleted_at && (
                 <form action={createEventCouponAction} className="grid gap-2 rounded-lg border p-3 md:grid-cols-2">
                   <input type="hidden" name="eventId" value={selectedEvent.event.id} />
-                  {keepDeletedField(includeDeleted)}
-                  {keepPaymentStatusField(paymentStatus)}
+                  <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
                   <SectionField label="Code" required>
                     <Input name="code" required />
@@ -592,8 +594,7 @@ export async function EventsSectionManager({
                     <form key={coupon.id} action={updateEventCouponAction} className="space-y-2 rounded-lg border p-3">
                       <input type="hidden" name="eventId" value={selectedEvent.event.id} />
                       <input type="hidden" name="couponId" value={coupon.id} />
-                      {keepDeletedField(includeDeleted)}
-                      {keepPaymentStatusField(paymentStatus)}
+                      <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
                       <div className="grid gap-2 md:grid-cols-2">
                         <SectionField label="Code" required>
@@ -691,8 +692,7 @@ export async function EventsSectionManager({
               {!selectedEvent.event.deleted_at && (
                 <form action={createEventFormFieldAction} className="grid gap-2 rounded-lg border p-3 md:grid-cols-2">
                   <input type="hidden" name="eventId" value={selectedEvent.event.id} />
-                  {keepDeletedField(includeDeleted)}
-                  {keepPaymentStatusField(paymentStatus)}
+                  <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
                   <SectionField label="Field Name" required>
                     <Input name="fieldName" required />
@@ -734,8 +734,7 @@ export async function EventsSectionManager({
                     <form key={field.id} action={updateEventFormFieldAction} className="space-y-2 rounded-lg border p-3">
                       <input type="hidden" name="eventId" value={selectedEvent.event.id} />
                       <input type="hidden" name="formFieldId" value={field.id} />
-                      {keepDeletedField(includeDeleted)}
-                      {keepPaymentStatusField(paymentStatus)}
+                      <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
 
                       <div className="grid gap-2 md:grid-cols-2">
                         <SectionField label="Field Name" required>
@@ -846,8 +845,7 @@ export async function EventsSectionManager({
                         <form action={verifyEventRegistrationAction} className="mt-2">
                           <input type="hidden" name="eventId" value={selectedEvent.event.id} />
                           <input type="hidden" name="registrationId" value={registration.id} />
-                          {keepDeletedField(includeDeleted)}
-                          {keepPaymentStatusField(paymentStatus)}
+                          <ActionContextFields includeDeleted={includeDeleted} paymentStatus={paymentStatus} />
                           <Button type="submit" variant="outline">
                             Verify Registrant
                           </Button>

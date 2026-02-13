@@ -224,6 +224,17 @@ export type FormFieldWriteInput = {
 
 const logger = getLogger("events-service");
 
+const EVENT_SELECT_FIELDS =
+  "id,name,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required";
+const TICKET_SELECT_FIELDS =
+  "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at";
+const COUPON_SELECT_FIELDS =
+  "id,event_id,code,discount_type,discount_value,usage_limit,used_count,valid_from,valid_until,is_active,created_at,updated_at,deleted_at";
+const FORM_FIELD_SELECT_FIELDS =
+  "id,event_id,field_name,label,field_type,is_required,options,display_order,created_at";
+const REGISTRATION_SELECT_FIELDS =
+  "id,event_id,ticket_id,user_id,coupon_id,quantity,total_amount,discount_amount,final_amount,payment_status,form_response,created_at,is_verified";
+
 function toNumber(value: string | number | null | undefined) {
   if (typeof value === "number") {
     return value;
@@ -314,6 +325,45 @@ function mapEventWriteInput(input: EventWriteInput) {
   };
 }
 
+function mapTicketWriteInput(input: TicketWriteInput, includeEventId: boolean) {
+  return {
+    ...(includeEventId ? { event_id: input.eventId } : {}),
+    description: input.description ?? null,
+    price: input.price,
+    quantity: input.quantity ?? null,
+    sold_count: input.soldCount ?? 0,
+    discount_start: input.discountStart ?? null,
+    discount_end: input.discountEnd ?? null,
+    ...(input.status ? { status: input.status } : {}),
+  };
+}
+
+function mapCouponWriteInput(input: CouponWriteInput, includeEventId: boolean) {
+  return {
+    ...(includeEventId ? { event_id: input.eventId } : {}),
+    code: input.code,
+    discount_type: input.discountType,
+    discount_value: input.discountValue,
+    usage_limit: input.usageLimit ?? null,
+    used_count: input.usedCount ?? 0,
+    valid_from: input.validFrom ?? null,
+    valid_until: input.validUntil ?? null,
+    is_active: input.isActive ?? true,
+  };
+}
+
+function mapFormFieldWriteInput(input: FormFieldWriteInput, includeEventId: boolean) {
+  return {
+    ...(includeEventId ? { event_id: input.eventId } : {}),
+    field_name: input.fieldName,
+    label: input.label,
+    field_type: input.fieldType,
+    is_required: input.isRequired ?? false,
+    options: input.options ?? null,
+    display_order: input.displayOrder ?? 0,
+  };
+}
+
 async function syncRegistrationVerificationMode(params: {
   eventId: string;
   verificationRequired: boolean;
@@ -359,9 +409,7 @@ export async function listEventAdminSummaries(params?: { includeDeleted?: boolea
 
   let eventQuery = supabase
     .from("events")
-    .select(
-      "id,name,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required",
-    )
+    .select(EVENT_SELECT_FIELDS)
     .order("created_at", { ascending: false });
 
   if (!includeDeleted) {
@@ -482,9 +530,7 @@ export async function getEventAdminDetail(params: {
 
   let eventQuery = supabase
     .from("events")
-    .select(
-      "id,name,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required",
-    )
+    .select(EVENT_SELECT_FIELDS)
     .eq("id", eventId);
 
   if (!includeDeletedEvent) {
@@ -507,23 +553,19 @@ export async function getEventAdminDetail(params: {
   ] = await Promise.all([
     supabase
       .from("event_tickets")
-      .select(
-        "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at",
-      )
+      .select(TICKET_SELECT_FIELDS)
       .eq("event_id", eventId)
       .order("created_at", { ascending: true })
       .returns<TicketRow[]>(),
     supabase
       .from("event_coupons")
-      .select(
-        "id,event_id,code,discount_type,discount_value,usage_limit,used_count,valid_from,valid_until,is_active,created_at,updated_at,deleted_at",
-      )
+      .select(COUPON_SELECT_FIELDS)
       .eq("event_id", eventId)
       .order("created_at", { ascending: true })
       .returns<CouponRow[]>(),
     supabase
       .from("event_form_fields")
-      .select("id,event_id,field_name,label,field_type,is_required,options,display_order,created_at")
+      .select(FORM_FIELD_SELECT_FIELDS)
       .eq("event_id", eventId)
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: true })
@@ -537,9 +579,7 @@ export async function getEventAdminDetail(params: {
 
   const { data: registrations, error: registrationError } = await supabase
     .from("event_registrations")
-    .select(
-      "id,event_id,ticket_id,user_id,coupon_id,quantity,total_amount,discount_amount,final_amount,payment_status,form_response,created_at,is_verified",
-    )
+    .select(REGISTRATION_SELECT_FIELDS)
     .eq("event_id", eventId)
     .order("created_at", { ascending: false })
     .returns<RegistrationRow[]>();
@@ -704,17 +744,7 @@ export async function restoreEvent(params: { eventId: string }) {
 
 export async function createEventTicket(input: TicketWriteInput) {
   const supabase = createSupabaseAdminClient();
-
-  const payload = {
-    event_id: input.eventId,
-    description: input.description ?? null,
-    price: input.price,
-    quantity: input.quantity ?? null,
-    sold_count: input.soldCount ?? 0,
-    discount_start: input.discountStart ?? null,
-    discount_end: input.discountEnd ?? null,
-    ...(input.status ? { status: input.status } : {}),
-  };
+  const payload = mapTicketWriteInput(input, true);
 
   const { error } = await supabase.from("event_tickets").insert(payload);
   if (error) {
@@ -726,16 +756,7 @@ export async function createEventTicket(input: TicketWriteInput) {
 export async function updateEventTicket(params: { ticketId: string; input: TicketWriteInput }) {
   const { ticketId, input } = params;
   const supabase = createSupabaseAdminClient();
-
-  const payload = {
-    description: input.description ?? null,
-    price: input.price,
-    quantity: input.quantity ?? null,
-    sold_count: input.soldCount ?? 0,
-    discount_start: input.discountStart ?? null,
-    discount_end: input.discountEnd ?? null,
-    ...(input.status ? { status: input.status } : {}),
-  };
+  const payload = mapTicketWriteInput(input, false);
 
   const { error } = await supabase
     .from("event_tickets")
@@ -767,18 +788,7 @@ export async function softDeleteEventTicket(params: { ticketId: string }) {
 
 export async function createEventCoupon(input: CouponWriteInput) {
   const supabase = createSupabaseAdminClient();
-
-  const payload = {
-    event_id: input.eventId,
-    code: input.code,
-    discount_type: input.discountType,
-    discount_value: input.discountValue,
-    usage_limit: input.usageLimit ?? null,
-    used_count: input.usedCount ?? 0,
-    valid_from: input.validFrom ?? null,
-    valid_until: input.validUntil ?? null,
-    is_active: input.isActive ?? true,
-  };
+  const payload = mapCouponWriteInput(input, true);
 
   const { error } = await supabase.from("event_coupons").insert(payload);
   if (error) {
@@ -790,17 +800,7 @@ export async function createEventCoupon(input: CouponWriteInput) {
 export async function updateEventCoupon(params: { couponId: string; input: CouponWriteInput }) {
   const { couponId, input } = params;
   const supabase = createSupabaseAdminClient();
-
-  const payload = {
-    code: input.code,
-    discount_type: input.discountType,
-    discount_value: input.discountValue,
-    usage_limit: input.usageLimit ?? null,
-    used_count: input.usedCount ?? 0,
-    valid_from: input.validFrom ?? null,
-    valid_until: input.validUntil ?? null,
-    is_active: input.isActive ?? true,
-  };
+  const payload = mapCouponWriteInput(input, false);
 
   const { error } = await supabase
     .from("event_coupons")
@@ -832,16 +832,7 @@ export async function softDeleteEventCoupon(params: { couponId: string }) {
 
 export async function createEventFormField(input: FormFieldWriteInput) {
   const supabase = createSupabaseAdminClient();
-
-  const payload = {
-    event_id: input.eventId,
-    field_name: input.fieldName,
-    label: input.label,
-    field_type: input.fieldType,
-    is_required: input.isRequired ?? false,
-    options: input.options ?? null,
-    display_order: input.displayOrder ?? 0,
-  };
+  const payload = mapFormFieldWriteInput(input, true);
 
   const { error } = await supabase.from("event_form_fields").insert(payload);
   if (error) {
@@ -856,15 +847,7 @@ export async function updateEventFormField(params: {
 }) {
   const { formFieldId, input } = params;
   const supabase = createSupabaseAdminClient();
-
-  const payload = {
-    field_name: input.fieldName,
-    label: input.label,
-    field_type: input.fieldType,
-    is_required: input.isRequired ?? false,
-    options: input.options ?? null,
-    display_order: input.displayOrder ?? 0,
-  };
+  const payload = mapFormFieldWriteInput(input, false);
 
   const { error } = await supabase.from("event_form_fields").update(payload).eq("id", formFieldId);
 

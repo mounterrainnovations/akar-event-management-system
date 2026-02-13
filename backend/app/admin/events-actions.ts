@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getAuthSession } from "@/lib/auth/session";
+import { getAuthSession, type SessionPayload } from "@/lib/auth/session";
 import { getLogger } from "@/lib/logger";
 import {
   isDiscountType,
@@ -35,6 +35,12 @@ const logger = getLogger("admin-events-actions");
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
+type EventsActionContext = {
+  eventId?: string;
+  includeDeleted: boolean;
+  paymentStatus?: PaymentStatus;
+};
+
 function toAdminEventsUrl(params?: {
   eventId?: string;
   includeDeleted?: boolean;
@@ -64,12 +70,78 @@ function toAdminEventsUrl(params?: {
   return `/admin?${searchParams.toString()}`;
 }
 
-async function ensureSession() {
+function redirectSuccess(params: {
+  ctx: EventsActionContext;
+  success: string;
+  eventId?: string;
+  includeDeleted?: boolean;
+}) {
+  redirect(
+    toAdminEventsUrl({
+      eventId: params.eventId ?? params.ctx.eventId,
+      includeDeleted: params.includeDeleted ?? params.ctx.includeDeleted,
+      paymentStatus: params.ctx.paymentStatus,
+      success: params.success,
+    }),
+  );
+}
+
+function redirectError(params: {
+  ctx: EventsActionContext;
+  session: SessionPayload;
+  action: string;
+  defaultMessage: string;
+  error: unknown;
+  eventId?: string;
+}) {
+  logger.error(`${params.action} failed`, {
+    userId: params.session.sub,
+    eventId: params.eventId ?? params.ctx.eventId,
+    message: params.error instanceof Error ? params.error.message : "Unknown error",
+  });
+
+  redirect(
+    toAdminEventsUrl({
+      eventId: params.eventId ?? params.ctx.eventId,
+      includeDeleted: params.ctx.includeDeleted,
+      paymentStatus: params.ctx.paymentStatus,
+      error: params.error instanceof Error ? params.error.message : params.defaultMessage,
+    }),
+  );
+}
+
+function requireEventId(ctx: EventsActionContext) {
+  if (!ctx.eventId) {
+    redirect(
+      toAdminEventsUrl({
+        includeDeleted: ctx.includeDeleted,
+        paymentStatus: ctx.paymentStatus,
+        error: "Invalid eventId",
+      }),
+    );
+  }
+  return ctx.eventId;
+}
+
+async function getActionContext(formData: FormData) {
   const session = await getAuthSession();
   if (!session) {
     redirect("/login?error=Please+sign+in+again");
   }
-  return session;
+
+  const eventId = asString(formData, "eventId") || undefined;
+  const includeDeleted = asString(formData, "includeDeleted") === "1";
+  const paymentStatusRaw = asString(formData, "paymentStatus");
+  const paymentStatus = paymentStatusRaw && isPaymentStatus(paymentStatusRaw) ? paymentStatusRaw : undefined;
+
+  return {
+    session,
+    ctx: {
+      eventId,
+      includeDeleted,
+      paymentStatus,
+    } satisfies EventsActionContext,
+  };
 }
 
 function asString(formData: FormData, key: string, required = false) {
@@ -80,10 +152,12 @@ function asString(formData: FormData, key: string, required = false) {
     }
     return "";
   }
+
   const trimmed = value.trim();
   if (required && trimmed.length === 0) {
     throw new Error(`${key} is required`);
   }
+
   return trimmed;
 }
 
@@ -92,10 +166,12 @@ function parseOptionalNumber(formData: FormData, key: string) {
   if (!raw) {
     return null;
   }
+
   const parsed = Number.parseFloat(raw);
   if (!Number.isFinite(parsed)) {
     throw new Error(`Invalid ${key}`);
   }
+
   return parsed;
 }
 
@@ -104,10 +180,12 @@ function parseOptionalInteger(formData: FormData, key: string) {
   if (!raw) {
     return null;
   }
+
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed)) {
     throw new Error(`Invalid ${key}`);
   }
+
   return parsed;
 }
 
@@ -124,10 +202,12 @@ function parseOptionalDate(formData: FormData, key: string) {
   if (!raw) {
     return null;
   }
+
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid ${key}`);
   }
+
   return date.toISOString();
 }
 
@@ -136,6 +216,7 @@ function parseOptionalJson(formData: FormData, key: string): JsonValue | null {
   if (!raw) {
     return null;
   }
+
   try {
     return JSON.parse(raw) as JsonValue;
   } catch {
@@ -158,6 +239,14 @@ function parseEventStatus(formData: FormData, key: string) {
 function parseTicketStatus(formData: FormData, key: string) {
   const raw = asString(formData, key, true);
   if (!isTicketStatus(raw)) {
+    throw new Error(`Invalid ${key}`);
+  }
+  return raw;
+}
+
+function parseDiscountType(formData: FormData, key: string) {
+  const raw = asString(formData, key, true);
+  if (!isDiscountType(raw)) {
     throw new Error(`Invalid ${key}`);
   }
   return raw;
@@ -196,6 +285,7 @@ function parseTicketInput(formData: FormData): TicketWriteInput {
 
   const soldCount = parseOptionalInteger(formData, "soldCount");
   const quantity = parseOptionalInteger(formData, "quantity");
+
   if (quantity !== null && quantity <= 0) {
     throw new Error("quantity must be greater than 0");
   }
@@ -241,13 +331,7 @@ function parseCouponInput(formData: FormData): CouponWriteInput {
   return {
     eventId: asString(formData, "eventId", true),
     code: asString(formData, "code", true),
-    discountType: (() => {
-      const value = asString(formData, "discountType", true);
-      if (!isDiscountType(value)) {
-        throw new Error("Invalid discountType");
-      }
-      return value;
-    })(),
+    discountType: parseDiscountType(formData, "discountType"),
     discountValue: parseRequiredNumber(formData, "discountValue"),
     usageLimit,
     usedCount: usedCount ?? 0,
@@ -269,382 +353,263 @@ function parseFormFieldInput(formData: FormData): FormFieldWriteInput {
   };
 }
 
-function actionContext(formData: FormData) {
-  const eventId = asString(formData, "eventId") || undefined;
-  const includeDeleted = asString(formData, "includeDeleted") === "1";
-  const paymentStatusRaw = asString(formData, "paymentStatus");
-  const paymentStatus = paymentStatusRaw && isPaymentStatus(paymentStatusRaw) ? paymentStatusRaw : undefined;
-  return {
-    eventId,
-    includeDeleted,
-    paymentStatus,
-  };
-}
-
 export async function createEventAction(formData: FormData) {
-  const session = await ensureSession();
-  const { includeDeleted, paymentStatus } = actionContext(formData);
+  const { session, ctx } = await getActionContext(formData);
 
   try {
     const eventId = await createEvent(parseEventInput(formData));
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Event created" }));
+    return redirectSuccess({ ctx, eventId, success: "Event created" });
   } catch (error) {
-    logger.error("createEventAction failed", {
-      userId: session.sub,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "createEventAction",
+      defaultMessage: "Failed to create event",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to create event",
-      }),
-    );
   }
 }
 
 export async function updateEventAction(formData: FormData) {
-  const session = await ensureSession();
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
-  if (!eventId) {
-    redirect(toAdminEventsUrl({ includeDeleted, paymentStatus, error: "Invalid eventId" }));
-  }
+  const { session, ctx } = await getActionContext(formData);
+  const eventId = requireEventId(ctx);
 
   try {
     await updateEvent({ eventId, input: parseEventInput(formData) });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Event updated" }));
+    return redirectSuccess({ ctx, eventId, success: "Event updated" });
   } catch (error) {
-    logger.error("updateEventAction failed", {
-      userId: session.sub,
+    return redirectError({
+      ctx,
+      session,
+      action: "updateEventAction",
+      defaultMessage: "Failed to update event",
       eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to update event",
-      }),
-    );
   }
 }
 
 export async function archiveEventAction(formData: FormData) {
-  const session = await ensureSession();
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
-  if (!eventId) {
-    redirect(toAdminEventsUrl({ includeDeleted, paymentStatus, error: "Invalid eventId" }));
-  }
+  const { session, ctx } = await getActionContext(formData);
+  const eventId = requireEventId(ctx);
 
   try {
     await softDeleteEvent({ eventId });
-    redirect(toAdminEventsUrl({ includeDeleted: true, paymentStatus, success: "Event archived" }));
-  } catch (error) {
-    logger.error("archiveEventAction failed", {
-      userId: session.sub,
-      eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectSuccess({
+      ctx,
+      includeDeleted: true,
+      success: "Event archived",
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to archive event",
-      }),
-    );
+  } catch (error) {
+    return redirectError({
+      ctx,
+      session,
+      action: "archiveEventAction",
+      defaultMessage: "Failed to archive event",
+      eventId,
+      error,
+    });
   }
 }
 
 export async function restoreEventAction(formData: FormData) {
-  const session = await ensureSession();
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
-  if (!eventId) {
-    redirect(toAdminEventsUrl({ includeDeleted, paymentStatus, error: "Invalid eventId" }));
-  }
+  const { session, ctx } = await getActionContext(formData);
+  const eventId = requireEventId(ctx);
 
   try {
     await restoreEvent({ eventId });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Event restored" }));
+    return redirectSuccess({ ctx, eventId, success: "Event restored" });
   } catch (error) {
-    logger.error("restoreEventAction failed", {
-      userId: session.sub,
+    return redirectError({
+      ctx,
+      session,
+      action: "restoreEventAction",
+      defaultMessage: "Failed to restore event",
       eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        includeDeleted,
-        paymentStatus,
-        eventId,
-        error: error instanceof Error ? error.message : "Failed to restore event",
-      }),
-    );
   }
 }
 
 export async function createEventTicketAction(formData: FormData) {
-  const session = await ensureSession();
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
+  const { session, ctx } = await getActionContext(formData);
 
   try {
     await createEventTicket(parseTicketInput(formData));
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Ticket created" }));
+    return redirectSuccess({ ctx, success: "Ticket created" });
   } catch (error) {
-    logger.error("createEventTicketAction failed", {
-      userId: session.sub,
-      eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "createEventTicketAction",
+      defaultMessage: "Failed to create ticket",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to create ticket",
-      }),
-    );
   }
 }
 
 export async function updateEventTicketAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
   const ticketId = asString(formData, "ticketId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
 
   try {
     await updateEventTicket({ ticketId, input: parseTicketInput(formData) });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Ticket updated" }));
+    return redirectSuccess({ ctx, success: "Ticket updated" });
   } catch (error) {
-    logger.error("updateEventTicketAction failed", {
-      userId: session.sub,
-      eventId,
-      ticketId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "updateEventTicketAction",
+      defaultMessage: "Failed to update ticket",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to update ticket",
-      }),
-    );
   }
 }
 
 export async function archiveEventTicketAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
   const ticketId = asString(formData, "ticketId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
 
   try {
     await softDeleteEventTicket({ ticketId });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Ticket archived" }));
+    return redirectSuccess({ ctx, success: "Ticket archived" });
   } catch (error) {
-    logger.error("archiveEventTicketAction failed", {
-      userId: session.sub,
-      eventId,
-      ticketId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "archiveEventTicketAction",
+      defaultMessage: "Failed to archive ticket",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to archive ticket",
-      }),
-    );
   }
 }
 
 export async function createEventCouponAction(formData: FormData) {
-  const session = await ensureSession();
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
+  const { session, ctx } = await getActionContext(formData);
 
   try {
     await createEventCoupon(parseCouponInput(formData));
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Coupon created" }));
+    return redirectSuccess({ ctx, success: "Coupon created" });
   } catch (error) {
-    logger.error("createEventCouponAction failed", {
-      userId: session.sub,
-      eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "createEventCouponAction",
+      defaultMessage: "Failed to create coupon",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to create coupon",
-      }),
-    );
   }
 }
 
 export async function updateEventCouponAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
   const couponId = asString(formData, "couponId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
 
   try {
     await updateEventCoupon({ couponId, input: parseCouponInput(formData) });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Coupon updated" }));
+    return redirectSuccess({ ctx, success: "Coupon updated" });
   } catch (error) {
-    logger.error("updateEventCouponAction failed", {
-      userId: session.sub,
-      eventId,
-      couponId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "updateEventCouponAction",
+      defaultMessage: "Failed to update coupon",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to update coupon",
-      }),
-    );
   }
 }
 
 export async function archiveEventCouponAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
   const couponId = asString(formData, "couponId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
 
   try {
     await softDeleteEventCoupon({ couponId });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Coupon archived" }));
+    return redirectSuccess({ ctx, success: "Coupon archived" });
   } catch (error) {
-    logger.error("archiveEventCouponAction failed", {
-      userId: session.sub,
-      eventId,
-      couponId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "archiveEventCouponAction",
+      defaultMessage: "Failed to archive coupon",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to archive coupon",
-      }),
-    );
   }
 }
 
 export async function createEventFormFieldAction(formData: FormData) {
-  const session = await ensureSession();
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
+  const { session, ctx } = await getActionContext(formData);
 
   try {
     await createEventFormField(parseFormFieldInput(formData));
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Form field created" }));
+    return redirectSuccess({ ctx, success: "Form field created" });
   } catch (error) {
-    logger.error("createEventFormFieldAction failed", {
-      userId: session.sub,
-      eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "createEventFormFieldAction",
+      defaultMessage: "Failed to create form field",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to create form field",
-      }),
-    );
   }
 }
 
 export async function updateEventFormFieldAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
   const formFieldId = asString(formData, "formFieldId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
 
   try {
     await updateEventFormField({ formFieldId, input: parseFormFieldInput(formData) });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Form field updated" }));
+    return redirectSuccess({ ctx, success: "Form field updated" });
   } catch (error) {
-    logger.error("updateEventFormFieldAction failed", {
-      userId: session.sub,
-      eventId,
-      formFieldId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "updateEventFormFieldAction",
+      defaultMessage: "Failed to update form field",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to update form field",
-      }),
-    );
   }
 }
 
 export async function deleteEventFormFieldAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
   const formFieldId = asString(formData, "formFieldId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
 
   try {
     await deleteEventFormField({ formFieldId });
-    redirect(toAdminEventsUrl({ eventId, includeDeleted, paymentStatus, success: "Form field deleted" }));
+    return redirectSuccess({ ctx, success: "Form field deleted" });
   } catch (error) {
-    logger.error("deleteEventFormFieldAction failed", {
-      userId: session.sub,
-      eventId,
-      formFieldId,
-      message: error instanceof Error ? error.message : "Unknown error",
+    return redirectError({
+      ctx,
+      session,
+      action: "deleteEventFormFieldAction",
+      defaultMessage: "Failed to delete form field",
+      error,
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to delete form field",
-      }),
-    );
   }
 }
 
 export async function verifyEventRegistrationAction(formData: FormData) {
-  const session = await ensureSession();
+  const { session, ctx } = await getActionContext(formData);
+  const eventId = requireEventId(ctx);
   const registrationId = asString(formData, "registrationId", true);
-  const { eventId, includeDeleted, paymentStatus } = actionContext(formData);
-
-  if (!eventId) {
-    redirect(toAdminEventsUrl({ includeDeleted, paymentStatus, error: "Invalid eventId" }));
-  }
 
   try {
     await verifyEventRegistration({ eventId, registrationId });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        success: "Registration verified",
-      }),
-    );
-  } catch (error) {
-    logger.error("verifyEventRegistrationAction failed", {
-      userId: session.sub,
+    return redirectSuccess({
+      ctx,
       eventId,
-      registrationId,
-      message: error instanceof Error ? error.message : "Unknown error",
+      success: "Registration verified",
     });
-    redirect(
-      toAdminEventsUrl({
-        eventId,
-        includeDeleted,
-        paymentStatus,
-        error: error instanceof Error ? error.message : "Failed to verify registration",
-      }),
-    );
+  } catch (error) {
+    return redirectError({
+      ctx,
+      session,
+      action: "verifyEventRegistrationAction",
+      defaultMessage: "Failed to verify registration",
+      eventId,
+      error,
+    });
   }
 }
