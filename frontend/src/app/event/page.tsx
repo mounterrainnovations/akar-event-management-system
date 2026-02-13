@@ -24,7 +24,7 @@ export default function EventPage() {
                         </h1>
                         <div className="flex flex-col gap-1 text-[#1a1a1a] text-lg md:text-xl font-medium tracking-wide items-center font-montserrat">
                             <p>October 24, 2026</p>
-                            <p>New York City, NY</p>
+                            <p>Bhopal, MP</p>
                         </div>
                     </div>
                 </section>
@@ -68,11 +68,11 @@ export default function EventPage() {
                                 Location
                             </h3>
                             <p className="font-montserrat text-[#1a1a1a]/80 text-lg mb-4 flex items-center gap-2">
-                                <span className="font-semibold">The Grand Hall</span> — 123 Creative Avenue, New York City, NY 10001
+                                <span className="font-semibold">The Grand Hall</span> — 2nd Floor, 100 Feet Road, Indiranagar, Bhopal, Madhya Pradesh 436572
                             </p>
                             <div className="w-full h-[400px] rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative grayscale hover:grayscale-0 transition-all duration-500">
                                 <iframe
-                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.1841334465492!2d-73.9877312845936!3d40.75890997932681!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c25855c6480299%3A0x55194ec5a1ae072e!2sTimes%20Square!5e0!3m2!1sen!2sus!4v1677685675402!5m2!1sen!2sus"
+                                    src="https://www.google.com/maps?q=The+Grand+Hall+Indiranagar+Bhopal&output=embed"
                                     width="100%"
                                     height="100%"
                                     style={{ border: 0 }}
@@ -114,7 +114,7 @@ export default function EventPage() {
                             <div>
                                 <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Price</p>
                                 <div className="flex items-baseline gap-2">
-                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-5xl`}>$299</p>
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-5xl`}>₹299</p>
                                     <span className="font-montserrat text-sm text-[#1a1a1a]/50">/ person</span>
                                 </div>
                             </div>
