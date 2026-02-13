@@ -22,6 +22,7 @@ import {
 import { Image, SignOut } from "@phosphor-icons/react/dist/ssr";
 import { listSectionMediaState } from "@/lib/media/website-media-service";
 import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
+import { listWebsiteSectionRules } from "@/lib/media/website-sections";
 
 const navItems = [
   { title: "Media", icon: Image, active: true },
@@ -32,10 +33,13 @@ export default async function AdminPage() {
   if (!session) {
     redirect("/login");
   }
-  const highlightsSection = await listSectionMediaState({
-    userId: session.sub,
-    section: "highlights",
-  });
+  const sectionRules = listWebsiteSectionRules();
+  const sectionStates = await Promise.all(
+    sectionRules.map(async (rule) => ({
+      rule,
+      state: await listSectionMediaState({ section: rule.section }),
+    })),
+  );
 
   return (
     <SidebarProvider>
@@ -104,11 +108,16 @@ export default async function AdminPage() {
         </header>
 
         <section className="p-4">
-          <MediaSectionManager
-            title="Highlights"
-            description="Manage images of Highlight Section"
-            section={highlightsSection}
-          />
+          <div className="space-y-4">
+            {sectionStates.map(({ rule, state }) => (
+              <MediaSectionManager
+                key={rule.section}
+                title={rule.label}
+                description={`Manage images for ${rule.label.toLowerCase()} section`}
+                section={state}
+              />
+            ))}
+          </div>
         </section>
       </SidebarInset>
     </SidebarProvider>

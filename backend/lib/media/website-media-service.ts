@@ -192,10 +192,9 @@ export async function uploadFilesToSection(params: {
 }
 
 export async function listSectionMediaState(params: {
-  userId: string;
   section: WebsiteSection;
 }) {
-  const { userId, section } = params;
+  const { section } = params;
   const rules = getSectionRules(section);
   const supabase = createSupabaseAdminClient();
 
@@ -206,14 +205,13 @@ export async function listSectionMediaState(params: {
     )
     .eq("section", section)
     .is("deleted_at", null)
-    .eq("media.user_id", userId)
     .is("media.deleted_at", null)
     .order("display_order", { ascending: true })
     .order("created_at", { ascending: true })
     .returns<WebsiteMediaRow[]>();
 
   if (error) {
-    logger.error("Failed to list section media", { userId, section, message: error.message });
+    logger.error("Failed to list section media", { section, message: error.message });
     throw new Error("Unable to load media section");
   }
 
@@ -314,14 +312,9 @@ export async function listPublicSectionMedia(params: {
 
 export async function toggleSectionMediaVisibility(params: {
   websiteMediaId: string;
-  userId: string;
 }) {
-  const { websiteMediaId, userId } = params;
+  const { websiteMediaId } = params;
   const row = await getWebsiteMediaRowForMutation(websiteMediaId);
-
-  if (row.media.user_id !== userId) {
-    throw new Error("Not authorized for this media item");
-  }
 
   const rules = getSectionRules(row.section);
   const supabase = createSupabaseAdminClient();
@@ -349,12 +342,9 @@ export async function toggleSectionMediaVisibility(params: {
   }
 }
 
-export async function deleteSectionMediaItem(params: { websiteMediaId: string; userId: string }) {
-  const { websiteMediaId, userId } = params;
+export async function deleteSectionMediaItem(params: { websiteMediaId: string }) {
+  const { websiteMediaId } = params;
   const row = await getWebsiteMediaRowForMutation(websiteMediaId);
-  if (row.media.user_id !== userId) {
-    throw new Error("Not authorized for this media item");
-  }
 
   const rules = getSectionRules(row.section);
   if (row.is_active) {
