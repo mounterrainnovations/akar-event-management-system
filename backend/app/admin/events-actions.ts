@@ -33,7 +33,13 @@ import {
 
 const logger = getLogger("admin-events-actions");
 
-type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
 
 type EventsActionContext = {
   eventId?: string;
@@ -97,7 +103,8 @@ function redirectError(params: {
   logger.error(`${params.action} failed`, {
     userId: params.session.sub,
     eventId: params.eventId ?? params.ctx.eventId,
-    message: params.error instanceof Error ? params.error.message : "Unknown error",
+    message:
+      params.error instanceof Error ? params.error.message : "Unknown error",
   });
 
   redirect(
@@ -105,7 +112,10 @@ function redirectError(params: {
       eventId: params.eventId ?? params.ctx.eventId,
       includeDeleted: params.ctx.includeDeleted,
       paymentStatus: params.ctx.paymentStatus,
-      error: params.error instanceof Error ? params.error.message : params.defaultMessage,
+      error:
+        params.error instanceof Error
+          ? params.error.message
+          : params.defaultMessage,
     }),
   );
 }
@@ -132,7 +142,10 @@ async function getActionContext(formData: FormData) {
   const eventId = asString(formData, "eventId") || undefined;
   const includeDeleted = asString(formData, "includeDeleted") === "1";
   const paymentStatusRaw = asString(formData, "paymentStatus");
-  const paymentStatus = paymentStatusRaw && isPaymentStatus(paymentStatusRaw) ? paymentStatusRaw : undefined;
+  const paymentStatus =
+    paymentStatusRaw && isPaymentStatus(paymentStatusRaw)
+      ? paymentStatusRaw
+      : undefined;
 
   return {
     session,
@@ -255,7 +268,11 @@ function parseDiscountType(formData: FormData, key: string) {
 function parseEventInput(formData: FormData): EventWriteInput {
   const registrationStart = parseOptionalDate(formData, "registrationStart");
   const registrationEnd = parseOptionalDate(formData, "registrationEnd");
-  if (registrationStart && registrationEnd && registrationEnd <= registrationStart) {
+  if (
+    registrationStart &&
+    registrationEnd &&
+    registrationEnd <= registrationStart
+  ) {
     throw new Error("registrationEnd must be after registrationStart");
   }
 
@@ -267,8 +284,8 @@ function parseEventInput(formData: FormData): EventWriteInput {
     city: asString(formData, "city", true),
     state: asString(formData, "state", true),
     country: asString(formData, "country", true),
-    about: parseOptionalJson(formData, "about"),
-    termsAndConditions: parseOptionalJson(formData, "termsAndConditions"),
+    about: asString(formData, "about") || null,
+    termsAndConditions: asString(formData, "termsAndConditions") || null,
     registrationStart,
     registrationEnd,
     status: parseEventStatus(formData, "status"),
@@ -559,7 +576,10 @@ export async function updateEventFormFieldAction(formData: FormData) {
   const formFieldId = asString(formData, "formFieldId", true);
 
   try {
-    await updateEventFormField({ formFieldId, input: parseFormFieldInput(formData) });
+    await updateEventFormField({
+      formFieldId,
+      input: parseFormFieldInput(formData),
+    });
     return redirectSuccess({ ctx, success: "Form field updated" });
   } catch (error) {
     return redirectError({

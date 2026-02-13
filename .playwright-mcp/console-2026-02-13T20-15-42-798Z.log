@@ -1,0 +1,21 @@
+[     470ms] [WARNING] Image with src "/authbg.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes @ http://localhost:3000/_next/static/chunks/218c3_next_dist_6d0cf66b._.js:2297
+[  361944ms] [ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=sDOy3kXPqr1sfZvxAsHYM' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/218c3_next_dist_client_d7280642._.js:10878
+[  364785ms] [WARNING] Image with src "/authbg.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes @ http://localhost:3000/_next/static/chunks/218c3_next_dist_6d0cf66b._.js:2297
+[  490493ms] [WARNING] Image with src "/authbg.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes @ http://localhost:3000/_next/static/chunks/218c3_next_dist_6d0cf66b._.js:2297
+[  509856ms] [WARNING] Image with src "/authbg.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes @ http://localhost:3000/_next/static/chunks/218c3_next_dist_6d0cf66b._.js:2297
+[ 4565938ms] [ERROR] ./Desktop/Codes/akar-event-management-system/backend/components/admin/EventsNewDetailModal.tsx:284:5
+Parsing ecmascript source code failed
+  282 |                                     { label: "Paid Registrations", value: analytics.paidRegistrations },
+  283 |                                     { label: "Pending Payment", value: analytics.pendingRegistrations },
+> 284 |     );
+      |     ^
+  285 | }
+  286 |
+
+Expected '</', got ')'
+
+Import trace:
+  Server Component:
+    ./Desktop/Codes/akar-event-management-system/backend/components/admin/EventsNewDetailModal.tsx
+    ./Desktop/Codes/akar-event-management-system/backend/components/admin/EventsNewSectionManager.tsx
+    ./Desktop/Codes/akar-event-management-system/backend/app/admin/page.tsx @ http://localhost:3000/_next/static/chunks/218c3_next_dist_6d0cf66b._.js:3127

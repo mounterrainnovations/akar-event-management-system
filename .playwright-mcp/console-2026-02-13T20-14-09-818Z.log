@@ -1,0 +1,1 @@
+[     719ms] [WARNING] Image with src "/authbg.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes @ http://localhost:3000/_next/static/chunks/218c3_next_dist_6d0cf66b._.js:2297

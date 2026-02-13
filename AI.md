@@ -1,4 +1,5 @@
 ## Absolute Rules to Follow
+
 1. All work is to be done in /backend.
 2. /frontend is only for reference.
 3. Always write clean code with production conventions and naming practices.
@@ -8,45 +9,46 @@
 
 ### ENUMS
 
-user_role:	user, manager, admin, dev	
+user_role: user, manager, admin, dev
 
-website_section:	highlights	
+website_section: highlights
 
-event_status:	draft, published, cancelled, completed	
+event_status: draft, published, cancelled, completed
 
-ticket_status:	active, inactive, sold_out	
+ticket_status: active, inactive, sold_out
 
-discount_type:	percentage, flat	
+discount_type: percentage, flat
 
-payment_status:	pending, paid, failed, refunded
+payment_status: pending, paid, failed, refunded
 
 ### Events
+
 create table public.events (
-  id uuid not null default gen_random_uuid (),
-  name text not null,
-  event_date timestamp with time zone null,
-  address_line_1 text not null,
-  address_line_2 text null,
-  city text not null,
-  state text not null,
-  country text not null,
-  about jsonb null,
-  terms_and_conditions jsonb null,
-  registration_start timestamp with time zone null,
-  registration_end timestamp with time zone null,
-  status public.event_status not null default 'draft'::event_status,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  verification_required boolean not null default false,
-  constraint events_pkey primary key (id),
-  constraint events_check check (
-    (
-      (registration_end is null)
-      or (registration_start is null)
-      or (registration_end > registration_start)
-    )
-  )
+id uuid not null default gen_random_uuid (),
+name text not null,
+event_date timestamp with time zone null,
+address_line_1 text not null,
+address_line_2 text null,
+city text not null,
+state text not null,
+country text not null,
+about text null,
+terms_and_conditions text null,
+registration_start timestamp with time zone null,
+registration_end timestamp with time zone null,
+status public.event_status not null default 'draft'::event_status,
+created_at timestamp with time zone not null default now(),
+updated_at timestamp with time zone not null default now(),
+deleted_at timestamp with time zone null,
+verification_required boolean not null default false,
+constraint events_pkey primary key (id),
+constraint events_check check (
+(
+(registration_end is null)
+or (registration_start is null)
+or (registration_end > registration_start)
+)
+)
 ) TABLESPACE pg_default;
 
 create index IF not exists events_date_idx on public.events using btree (event_date) TABLESPACE pg_default;
@@ -56,81 +58,83 @@ create index IF not exists events_deleted_at_idx on public.events using btree (d
 ### Event Tickets
 
 create table public.event_tickets (
-  id uuid not null default gen_random_uuid (),
-  event_id uuid not null,
-  description jsonb null,
-  price numeric(10, 2) not null,
-  quantity integer null,
-  sold_count integer not null default 0,
-  discount_start timestamp with time zone null,
-  discount_end timestamp with time zone null,
-  status public.ticket_status not null default 'active'::ticket_status,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  constraint event_tickets_pkey primary key (id),
-  constraint event_tickets_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-  constraint event_tickets_check check (
-    (
-      (quantity is null)
-      or (sold_count <= quantity)
-    )
-  ),
-  constraint event_tickets_price_check check ((price >= (0)::numeric)),
-  constraint event_tickets_quantity_check check (
-    (
-      (quantity is null)
-      or (quantity > 0)
-    )
-  ),
-  constraint event_tickets_sold_count_check check ((sold_count >= 0))
+id uuid not null default gen_random_uuid (),
+event_id uuid not null,
+description jsonb null,
+price numeric(10, 2) not null,
+quantity integer null,
+sold_count integer not null default 0,
+discount_start timestamp with time zone null,
+discount_end timestamp with time zone null,
+status public.ticket_status not null default 'active'::ticket_status,
+created_at timestamp with time zone not null default now(),
+updated_at timestamp with time zone not null default now(),
+deleted_at timestamp with time zone null,
+constraint event_tickets_pkey primary key (id),
+constraint event_tickets_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
+constraint event_tickets_check check (
+(
+(quantity is null)
+or (sold_count <= quantity)
+)
+),
+constraint event_tickets_price_check check ((price >= (0)::numeric)),
+constraint event_tickets_quantity_check check (
+(
+(quantity is null)
+or (quantity > 0)
+)
+),
+constraint event_tickets_sold_count_check check ((sold_count >= 0))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_tickets_event_idx on public.event_tickets using btree (event_id) TABLESPACE pg_default;
 
 ### Event Coupons
+
 create table public.event_coupons (
-  id uuid not null default gen_random_uuid (),
-  event_id uuid not null,
-  code text not null,
-  discount_type public.discount_type not null,
-  discount_value numeric(10, 2) not null,
-  usage_limit integer null,
-  used_count integer not null default 0,
-  valid_from timestamp with time zone null,
-  valid_until timestamp with time zone null,
-  is_active boolean not null default true,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  constraint event_coupons_pkey primary key (id),
-  constraint event_coupon_unique unique (event_id, code),
-  constraint event_coupons_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-  constraint event_coupons_discount_value_check check ((discount_value > (0)::numeric)),
-  constraint event_coupons_usage_limit_check check (
-    (
-      (usage_limit is null)
-      or (usage_limit > 0)
-    )
-  ),
-  constraint event_coupons_used_count_check check ((used_count >= 0))
+id uuid not null default gen_random_uuid (),
+event_id uuid not null,
+code text not null,
+discount_type public.discount_type not null,
+discount_value numeric(10, 2) not null,
+usage_limit integer null,
+used_count integer not null default 0,
+valid_from timestamp with time zone null,
+valid_until timestamp with time zone null,
+is_active boolean not null default true,
+created_at timestamp with time zone not null default now(),
+updated_at timestamp with time zone not null default now(),
+deleted_at timestamp with time zone null,
+constraint event_coupons_pkey primary key (id),
+constraint event_coupon_unique unique (event_id, code),
+constraint event_coupons_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
+constraint event_coupons_discount_value_check check ((discount_value > (0)::numeric)),
+constraint event_coupons_usage_limit_check check (
+(
+(usage_limit is null)
+or (usage_limit > 0)
+)
+),
+constraint event_coupons_used_count_check check ((used_count >= 0))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_coupons_event_idx on public.event_coupons using btree (event_id) TABLESPACE pg_default;
 
 ### Event Form Fields
+
 create table public.event_form_fields (
-  id uuid not null default gen_random_uuid (),
-  event_id uuid not null,
-  field_name text not null,
-  label text not null,
-  field_type text not null,
-  is_required boolean not null default false,
-  options jsonb null,
-  display_order integer not null default 0,
-  created_at timestamp with time zone not null default now(),
-  constraint event_form_fields_pkey primary key (id),
-  constraint event_form_fields_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE
+id uuid not null default gen_random_uuid (),
+event_id uuid not null,
+field_name text not null,
+label text not null,
+field_type text not null,
+is_required boolean not null default false,
+options jsonb null,
+display_order integer not null default 0,
+created_at timestamp with time zone not null default now(),
+constraint event_form_fields_pkey primary key (id),
+constraint event_form_fields_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 create index IF not exists event_form_fields_event_idx on public.event_form_fields using btree (event_id) TABLESPACE pg_default;
@@ -138,28 +142,28 @@ create index IF not exists event_form_fields_event_idx on public.event_form_fiel
 ### Event Registrations
 
 create table public.event_registrations (
-  id uuid not null default gen_random_uuid (),
-  event_id uuid not null,
-  ticket_id uuid not null,
-  user_id uuid not null,
-  coupon_id uuid null,
-  quantity integer not null default 1,
-  total_amount numeric(10, 2) not null,
-  discount_amount numeric(10, 2) not null default 0,
-  final_amount numeric(10, 2) not null,
-  payment_status public.payment_status not null default 'pending'::payment_status,
-  form_response jsonb not null,
-  created_at timestamp with time zone not null default now(),
-  is_verified boolean null,
-  constraint event_registrations_pkey primary key (id),
-  constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-  constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
-  constraint event_registrations_ticket_id_fkey foreign KEY (ticket_id) references event_tickets (id) on delete RESTRICT,
-  constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
-  constraint event_registrations_quantity_check check ((quantity > 0)),
-  constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
-  constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric)),
-  constraint event_registrations_discount_amount_check check ((discount_amount >= (0)::numeric))
+id uuid not null default gen_random_uuid (),
+event_id uuid not null,
+ticket_id uuid not null,
+user_id uuid not null,
+coupon_id uuid null,
+quantity integer not null default 1,
+total_amount numeric(10, 2) not null,
+discount_amount numeric(10, 2) not null default 0,
+final_amount numeric(10, 2) not null,
+payment_status public.payment_status not null default 'pending'::payment_status,
+form_response jsonb not null,
+created_at timestamp with time zone not null default now(),
+is_verified boolean null,
+constraint event_registrations_pkey primary key (id),
+constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
+constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
+constraint event_registrations_ticket_id_fkey foreign KEY (ticket_id) references event_tickets (id) on delete RESTRICT,
+constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
+constraint event_registrations_quantity_check check ((quantity > 0)),
+constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
+constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric)),
+constraint event_registrations_discount_amount_check check ((discount_amount >= (0)::numeric))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_event_idx on public.event_registrations using btree (event_id) TABLESPACE pg_default;
@@ -169,31 +173,31 @@ create index IF not exists event_registrations_user_idx on public.event_registra
 ### Users
 
 create table public.users (
-  id uuid not null,
-  email text null,
-  full_name text null,
-  avatar_url text null,
-  created_at timestamp with time zone null default now(),
-  updated_at timestamp with time zone null default now(),
-  constraint users_pkey1 primary key (id),
-  constraint users_email_key unique (email),
-  constraint users_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
+id uuid not null,
+email text null,
+full_name text null,
+avatar_url text null,
+created_at timestamp with time zone null default now(),
+updated_at timestamp with time zone null default now(),
+constraint users_pkey1 primary key (id),
+constraint users_email_key unique (email),
+constraint users_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 ### Admin
 
 create table public.admin (
-  id uuid not null default gen_random_uuid (),
-  email text not null,
-  password text not null,
-  is_email_verified boolean not null default false,
-  role public.user_role not null default 'user'::user_role,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  constraint users_pkey primary key (id),
-  constraint users_email_unique unique (email),
-  constraint users_email_lowercase check ((email = lower(email)))
+id uuid not null default gen_random_uuid (),
+email text not null,
+password text not null,
+is_email_verified boolean not null default false,
+role public.user_role not null default 'user'::user_role,
+created_at timestamp with time zone not null default now(),
+updated_at timestamp with time zone not null default now(),
+deleted_at timestamp with time zone null,
+constraint users_pkey primary key (id),
+constraint users_email_unique unique (email),
+constraint users_email_lowercase check ((email = lower(email)))
 ) TABLESPACE pg_default;
 
 create index IF not exists admin_deleted_at_idx on public.admin using btree (deleted_at) TABLESPACE pg_default;
@@ -205,18 +209,18 @@ execute FUNCTION set_updated_at ();
 ### Media (All Media aka Media Dump)
 
 create table public.media (
-  id uuid not null default gen_random_uuid (),
-  user_id uuid not null,
-  bucket_name text not null default 'mediaBucket'::text,
-  file_path text not null,
-  file_name text not null,
-  mime_type text not null,
-  file_size integer not null,
-  created_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  constraint media_pkey primary key (id),
-  constraint media_unique_file unique (bucket_name, file_path),
-  constraint media_user_id_fkey foreign KEY (user_id) references admin (id) on delete CASCADE
+id uuid not null default gen_random_uuid (),
+user_id uuid not null,
+bucket_name text not null default 'mediaBucket'::text,
+file_path text not null,
+file_name text not null,
+mime_type text not null,
+file_size integer not null,
+created_at timestamp with time zone not null default now(),
+deleted_at timestamp with time zone null,
+constraint media_pkey primary key (id),
+constraint media_unique_file unique (bucket_name, file_path),
+constraint media_user_id_fkey foreign KEY (user_id) references admin (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 create index IF not exists media_user_id_idx on public.media using btree (user_id) TABLESPACE pg_default;
@@ -226,17 +230,17 @@ create index IF not exists media_deleted_at_idx on public.media using btree (del
 ### Website Media (Website Content Control)
 
 create table public.website_media (
-  id uuid not null default gen_random_uuid (),
-  media_id uuid not null,
-  section public.website_section not null,
-  display_order integer not null default 0,
-  is_active boolean not null default true,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  constraint website_media_pkey primary key (id),
-  constraint website_media_unique unique (media_id, section),
-  constraint website_media_media_id_fkey foreign KEY (media_id) references media (id) on delete CASCADE
+id uuid not null default gen_random_uuid (),
+media_id uuid not null,
+section public.website_section not null,
+display_order integer not null default 0,
+is_active boolean not null default true,
+created_at timestamp with time zone not null default now(),
+updated_at timestamp with time zone not null default now(),
+deleted_at timestamp with time zone null,
+constraint website_media_pkey primary key (id),
+constraint website_media_unique unique (media_id, section),
+constraint website_media_media_id_fkey foreign KEY (media_id) references media (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 create index IF not exists website_media_section_idx on public.website_media using btree (section) TABLESPACE pg_default;
@@ -250,6 +254,7 @@ update on website_media for EACH row
 execute FUNCTION set_updated_at ();
 
 ## Event Flow Help
+
 1. events — The Container
 
 Represents the event itself.
@@ -267,7 +272,7 @@ Status (draft, published, etc.)
 Everything else hangs off this.
 
 events
-  └── id
+└── id
 
 🔹 2. event_tickets — Purchasable Units
 
@@ -294,8 +299,7 @@ sale window
 status
 
 events (1)
-   └── event_tickets (many)
-
+└── event_tickets (many)
 
 Relationship:
 
@@ -316,13 +320,11 @@ usage limits
 validity window
 
 events (1)
-   └── event_coupons (many)
-
+└── event_coupons (many)
 
 Relationship:
 
 event_coupons.event_id → events.id
-
 
 Coupons are applied during registration.
 
@@ -341,13 +343,11 @@ Phone
 T-shirt Size (dropdown)
 
 events (1)
-   └── event_form_fields (many)
-
+└── event_form_fields (many)
 
 Relationship:
 
 event_form_fields.event_id → events.id
-
 
 Frontend reads this table to render forms dynamically.
 
@@ -378,16 +378,16 @@ payment_status
 form_response (JSON answers)
 
 events (1)
-   └── event_registrations (many)
+└── event_registrations (many)
 
 event_tickets (1)
-   └── event_registrations (many)
+└── event_registrations (many)
 
 event_coupons (1)
-   └── event_registrations (many, optional)
+└── event_registrations (many, optional)
 
 users (1)
-   └── event_registrations (many)
+└── event_registrations (many)
 
 🔹 How It Flows In Real Life
 Admin Creates:
@@ -420,26 +420,26 @@ All inside a transaction.
 
 🔹 Visual Relationship Map
 users
-   └── event_registrations
+└── event_registrations
 
 events
-   ├── event_tickets
-   ├── event_coupons
-   ├── event_form_fields
-   └── event_registrations
+├── event_tickets
+├── event_coupons
+├── event_form_fields
+└── event_registrations
 
 event_tickets
-   └── event_registrations
+└── event_registrations
 
 event_coupons
-   └── event_registrations
+└── event_registrations
 
 🔹 Logical Layering
-Layer	Responsibility
-events	Defines event
-event_tickets	Defines pricing & inventory
-event_coupons	Defines discount logic
-event_form_fields	Defines registration schema
-event_registrations	Stores actual purchases
+Layer Responsibility
+events Defines event
+event_tickets Defines pricing & inventory
+event_coupons Defines discount logic
+event_form_fields Defines registration schema
+event_registrations Stores actual purchases
 
 ##

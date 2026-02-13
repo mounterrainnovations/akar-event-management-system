@@ -1,7 +1,13 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
 
-type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
 
 type EventRow = {
   id: string;
@@ -12,8 +18,8 @@ type EventRow = {
   city: string;
   state: string;
   country: string;
-  about: JsonValue | null;
-  terms_and_conditions: JsonValue | null;
+  about: string | null;
+  terms_and_conditions: string | null;
   registration_start: string | null;
   registration_end: string | null;
   status: string;
@@ -181,8 +187,8 @@ export type EventWriteInput = {
   city: string;
   state: string;
   country: string;
-  about?: JsonValue | null;
-  termsAndConditions?: JsonValue | null;
+  about?: string | null;
+  termsAndConditions?: string | null;
   registrationStart?: string | null;
   registrationEnd?: string | null;
   status?: string | null;
@@ -352,7 +358,10 @@ function mapCouponWriteInput(input: CouponWriteInput, includeEventId: boolean) {
   };
 }
 
-function mapFormFieldWriteInput(input: FormFieldWriteInput, includeEventId: boolean) {
+function mapFormFieldWriteInput(
+  input: FormFieldWriteInput,
+  includeEventId: boolean,
+) {
   return {
     ...(includeEventId ? { event_id: input.eventId } : {}),
     field_name: input.fieldName,
@@ -379,10 +388,13 @@ async function syncRegistrationVerificationMode(params: {
       .is("is_verified", null);
 
     if (error) {
-      logger.error("Failed to enforce default verification=false for registrations", {
-        eventId,
-        message: error.message,
-      });
+      logger.error(
+        "Failed to enforce default verification=false for registrations",
+        {
+          eventId,
+          message: error.message,
+        },
+      );
       throw new Error("Unable to enforce registration verification defaults");
     }
     return;
@@ -395,15 +407,20 @@ async function syncRegistrationVerificationMode(params: {
     .not("is_verified", "is", null);
 
   if (error) {
-    logger.error("Failed to reset registration verification when event verification disabled", {
-      eventId,
-      message: error.message,
-    });
+    logger.error(
+      "Failed to reset registration verification when event verification disabled",
+      {
+        eventId,
+        message: error.message,
+      },
+    );
     throw new Error("Unable to reset registration verification state");
   }
 }
 
-export async function listEventAdminSummaries(params?: { includeDeleted?: boolean }) {
+export async function listEventAdminSummaries(params?: {
+  includeDeleted?: boolean;
+}) {
   const includeDeleted = params?.includeDeleted ?? false;
   const supabase = createSupabaseAdminClient();
 
@@ -428,12 +445,21 @@ export async function listEventAdminSummaries(params?: { includeDeleted?: boolea
       .from("event_tickets")
       .select("id,event_id,quantity,sold_count,deleted_at")
       .is("deleted_at", null)
-      .returns<Array<Pick<TicketRow, "id" | "event_id" | "quantity" | "sold_count" | "deleted_at">>>(),
+      .returns<
+        Array<
+          Pick<
+            TicketRow,
+            "id" | "event_id" | "quantity" | "sold_count" | "deleted_at"
+          >
+        >
+      >(),
     supabase
       .from("event_coupons")
       .select("id,event_id,is_active,deleted_at")
       .is("deleted_at", null)
-      .returns<Array<Pick<CouponRow, "id" | "event_id" | "is_active" | "deleted_at">>>(),
+      .returns<
+        Array<Pick<CouponRow, "id" | "event_id" | "is_active" | "deleted_at">>
+      >(),
     supabase
       .from("event_form_fields")
       .select("id,event_id")
@@ -443,12 +469,21 @@ export async function listEventAdminSummaries(params?: { includeDeleted?: boolea
       .select("id,event_id,quantity,final_amount,payment_status")
       .returns<
         Array<
-          Pick<RegistrationRow, "id" | "event_id" | "quantity" | "final_amount" | "payment_status">
+          Pick<
+            RegistrationRow,
+            "id" | "event_id" | "quantity" | "final_amount" | "payment_status"
+          >
         >
       >(),
   ]);
 
-  if (eventError || ticketError || couponError || fieldError || registrationError) {
+  if (
+    eventError ||
+    ticketError ||
+    couponError ||
+    fieldError ||
+    registrationError
+  ) {
     logger.error("Failed to list event summaries", {
       eventError: eventError?.message,
       ticketError: ticketError?.message,
@@ -473,14 +508,20 @@ export async function listEventAdminSummaries(params?: { includeDeleted?: boolea
     couponByEvent.set(coupon.event_id, list);
   });
 
-  const formFieldByEvent = new Map<string, Array<(typeof formFields)[number]>>();
+  const formFieldByEvent = new Map<
+    string,
+    Array<(typeof formFields)[number]>
+  >();
   (formFields ?? []).forEach((field) => {
     const list = formFieldByEvent.get(field.event_id) ?? [];
     list.push(field);
     formFieldByEvent.set(field.event_id, list);
   });
 
-  const registrationByEvent = new Map<string, Array<(typeof registrations)[number]>>();
+  const registrationByEvent = new Map<
+    string,
+    Array<(typeof registrations)[number]>
+  >();
   (registrations ?? []).forEach((registration) => {
     const list = registrationByEvent.get(registration.event_id) ?? [];
     list.push(registration);
@@ -511,7 +552,10 @@ export async function listEventAdminSummaries(params?: { includeDeleted?: boolea
         activeCoupons: eventCoupons.filter((coupon) => coupon.is_active).length,
         formFields: eventFormFields.length,
         registrations: eventRegistrations.length,
-        totalTicketsSold: eventTickets.reduce((acc, ticket) => acc + ticket.sold_count, 0),
+        totalTicketsSold: eventTickets.reduce(
+          (acc, ticket) => acc + ticket.sold_count,
+          0,
+        ),
         grossRevenue: eventRegistrations.reduce(
           (acc, registration) => acc + toNumber(registration.final_amount),
           0,
@@ -537,9 +581,13 @@ export async function getEventAdminDetail(params: {
     eventQuery = eventQuery.is("deleted_at", null);
   }
 
-  const { data: event, error: eventError } = await eventQuery.maybeSingle<EventRow>();
+  const { data: event, error: eventError } =
+    await eventQuery.maybeSingle<EventRow>();
   if (eventError) {
-    logger.error("Failed to load event detail", { eventId, message: eventError.message });
+    logger.error("Failed to load event detail", {
+      eventId,
+      message: eventError.message,
+    });
     throw new Error("Unable to load event details");
   }
   if (!event) {
@@ -605,10 +653,20 @@ export async function getEventAdminDetail(params: {
     registrations: mappedRegistrations,
     analytics: {
       registrations: mappedRegistrations.length,
-      paidRegistrations: mappedRegistrations.filter((entry) => entry.paymentStatus === "paid").length,
-      pendingRegistrations: mappedRegistrations.filter((entry) => entry.paymentStatus !== "paid").length,
-      totalQuantity: mappedRegistrations.reduce((acc, entry) => acc + entry.quantity, 0),
-      totalRevenue: mappedRegistrations.reduce((acc, entry) => acc + entry.finalAmount, 0),
+      paidRegistrations: mappedRegistrations.filter(
+        (entry) => entry.paymentStatus === "paid",
+      ).length,
+      pendingRegistrations: mappedRegistrations.filter(
+        (entry) => entry.paymentStatus !== "paid",
+      ).length,
+      totalQuantity: mappedRegistrations.reduce(
+        (acc, entry) => acc + entry.quantity,
+        0,
+      ),
+      totalRevenue: mappedRegistrations.reduce(
+        (acc, entry) => acc + entry.finalAmount,
+        0,
+      ),
     },
   } satisfies EventDetail;
 }
@@ -624,14 +682,20 @@ export async function createEvent(input: EventWriteInput) {
     .single<{ id: string }>();
 
   if (error || !data) {
-    logger.error("Failed to create event", { message: error?.message, payload });
+    logger.error("Failed to create event", {
+      message: error?.message,
+      payload,
+    });
     throw new Error("Unable to create event");
   }
 
   return data.id;
 }
 
-export async function updateEvent(params: { eventId: string; input: EventWriteInput }) {
+export async function updateEvent(params: {
+  eventId: string;
+  input: EventWriteInput;
+}) {
   const { eventId, input } = params;
   const supabase = createSupabaseAdminClient();
   const payload = mapEventWriteInput(input);
@@ -643,7 +707,11 @@ export async function updateEvent(params: { eventId: string; input: EventWriteIn
     .is("deleted_at", null);
 
   if (error) {
-    logger.error("Failed to update event", { eventId, message: error.message, payload });
+    logger.error("Failed to update event", {
+      eventId,
+      message: error.message,
+      payload,
+    });
     throw new Error("Unable to update event");
   }
 
@@ -651,6 +719,29 @@ export async function updateEvent(params: { eventId: string; input: EventWriteIn
     eventId,
     verificationRequired: payload.verification_required,
   });
+}
+
+export async function updateEventStatus(params: {
+  eventId: string;
+  status: string;
+}) {
+  const { eventId, status } = params;
+  const supabase = createSupabaseAdminClient();
+
+  const { error } = await supabase
+    .from("events")
+    .update({ status })
+    .eq("id", eventId)
+    .is("deleted_at", null);
+
+  if (error) {
+    logger.error("Failed to update event status", {
+      eventId,
+      status,
+      message: error.message,
+    });
+    throw new Error("Unable to update event status");
+  }
 }
 
 export async function verifyEventRegistration(params: {
@@ -701,21 +792,30 @@ export async function softDeleteEvent(params: { eventId: string }) {
   const supabase = createSupabaseAdminClient();
   const deletedAt = new Date().toISOString();
 
-  const [eventDeleteResult, ticketDeleteResult, couponDeleteResult] = await Promise.all([
-    supabase.from("events").update({ deleted_at: deletedAt }).eq("id", eventId).is("deleted_at", null),
-    supabase
-      .from("event_tickets")
-      .update({ deleted_at: deletedAt })
-      .eq("event_id", eventId)
-      .is("deleted_at", null),
-    supabase
-      .from("event_coupons")
-      .update({ deleted_at: deletedAt, is_active: false })
-      .eq("event_id", eventId)
-      .is("deleted_at", null),
-  ]);
+  const [eventDeleteResult, ticketDeleteResult, couponDeleteResult] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .update({ deleted_at: deletedAt })
+        .eq("id", eventId)
+        .is("deleted_at", null),
+      supabase
+        .from("event_tickets")
+        .update({ deleted_at: deletedAt })
+        .eq("event_id", eventId)
+        .is("deleted_at", null),
+      supabase
+        .from("event_coupons")
+        .update({ deleted_at: deletedAt, is_active: false })
+        .eq("event_id", eventId)
+        .is("deleted_at", null),
+    ]);
 
-  if (eventDeleteResult.error || ticketDeleteResult.error || couponDeleteResult.error) {
+  if (
+    eventDeleteResult.error ||
+    ticketDeleteResult.error ||
+    couponDeleteResult.error
+  ) {
     logger.error("Failed to soft delete event graph", {
       eventId,
       eventError: eventDeleteResult.error?.message,
@@ -737,7 +837,10 @@ export async function restoreEvent(params: { eventId: string }) {
     .not("deleted_at", "is", null);
 
   if (error) {
-    logger.error("Failed to restore event", { eventId, message: error.message });
+    logger.error("Failed to restore event", {
+      eventId,
+      message: error.message,
+    });
     throw new Error("Unable to restore event");
   }
 }
@@ -748,12 +851,18 @@ export async function createEventTicket(input: TicketWriteInput) {
 
   const { error } = await supabase.from("event_tickets").insert(payload);
   if (error) {
-    logger.error("Failed to create event ticket", { message: error.message, payload });
+    logger.error("Failed to create event ticket", {
+      message: error.message,
+      payload,
+    });
     throw new Error("Unable to create ticket");
   }
 }
 
-export async function updateEventTicket(params: { ticketId: string; input: TicketWriteInput }) {
+export async function updateEventTicket(params: {
+  ticketId: string;
+  input: TicketWriteInput;
+}) {
   const { ticketId, input } = params;
   const supabase = createSupabaseAdminClient();
   const payload = mapTicketWriteInput(input, false);
@@ -765,7 +874,11 @@ export async function updateEventTicket(params: { ticketId: string; input: Ticke
     .is("deleted_at", null);
 
   if (error) {
-    logger.error("Failed to update event ticket", { ticketId, message: error.message, payload });
+    logger.error("Failed to update event ticket", {
+      ticketId,
+      message: error.message,
+      payload,
+    });
     throw new Error("Unable to update ticket");
   }
 }
@@ -781,7 +894,10 @@ export async function softDeleteEventTicket(params: { ticketId: string }) {
     .is("deleted_at", null);
 
   if (error) {
-    logger.error("Failed to soft delete event ticket", { ticketId, message: error.message });
+    logger.error("Failed to soft delete event ticket", {
+      ticketId,
+      message: error.message,
+    });
     throw new Error("Unable to archive ticket");
   }
 }
@@ -792,12 +908,18 @@ export async function createEventCoupon(input: CouponWriteInput) {
 
   const { error } = await supabase.from("event_coupons").insert(payload);
   if (error) {
-    logger.error("Failed to create event coupon", { message: error.message, payload });
+    logger.error("Failed to create event coupon", {
+      message: error.message,
+      payload,
+    });
     throw new Error("Unable to create coupon");
   }
 }
 
-export async function updateEventCoupon(params: { couponId: string; input: CouponWriteInput }) {
+export async function updateEventCoupon(params: {
+  couponId: string;
+  input: CouponWriteInput;
+}) {
   const { couponId, input } = params;
   const supabase = createSupabaseAdminClient();
   const payload = mapCouponWriteInput(input, false);
@@ -809,7 +931,11 @@ export async function updateEventCoupon(params: { couponId: string; input: Coupo
     .is("deleted_at", null);
 
   if (error) {
-    logger.error("Failed to update event coupon", { couponId, message: error.message, payload });
+    logger.error("Failed to update event coupon", {
+      couponId,
+      message: error.message,
+      payload,
+    });
     throw new Error("Unable to update coupon");
   }
 }
@@ -825,7 +951,10 @@ export async function softDeleteEventCoupon(params: { couponId: string }) {
     .is("deleted_at", null);
 
   if (error) {
-    logger.error("Failed to soft delete event coupon", { couponId, message: error.message });
+    logger.error("Failed to soft delete event coupon", {
+      couponId,
+      message: error.message,
+    });
     throw new Error("Unable to archive coupon");
   }
 }
@@ -836,7 +965,10 @@ export async function createEventFormField(input: FormFieldWriteInput) {
 
   const { error } = await supabase.from("event_form_fields").insert(payload);
   if (error) {
-    logger.error("Failed to create event form field", { message: error.message, payload });
+    logger.error("Failed to create event form field", {
+      message: error.message,
+      payload,
+    });
     throw new Error("Unable to create form field");
   }
 }
@@ -849,7 +981,10 @@ export async function updateEventFormField(params: {
   const supabase = createSupabaseAdminClient();
   const payload = mapFormFieldWriteInput(input, false);
 
-  const { error } = await supabase.from("event_form_fields").update(payload).eq("id", formFieldId);
+  const { error } = await supabase
+    .from("event_form_fields")
+    .update(payload)
+    .eq("id", formFieldId);
 
   if (error) {
     logger.error("Failed to update event form field", {
@@ -865,10 +1000,16 @@ export async function deleteEventFormField(params: { formFieldId: string }) {
   const { formFieldId } = params;
   const supabase = createSupabaseAdminClient();
 
-  const { error } = await supabase.from("event_form_fields").delete().eq("id", formFieldId);
+  const { error } = await supabase
+    .from("event_form_fields")
+    .delete()
+    .eq("id", formFieldId);
 
   if (error) {
-    logger.error("Failed to delete event form field", { formFieldId, message: error.message });
+    logger.error("Failed to delete event form field", {
+      formFieldId,
+      message: error.message,
+    });
     throw new Error("Unable to delete form field");
   }
 }
