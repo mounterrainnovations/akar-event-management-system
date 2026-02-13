@@ -4,6 +4,31 @@ import React from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { instrumentSerif } from '@/lib/fonts';
+import { Mail, Phone, MapPin } from 'lucide-react';
+
+const contactInfo = [
+    {
+        icon: <Mail size={24} strokeWidth={1.5} />,
+        label: "Email",
+        value: "akarwomengroup@gmail.com",
+        href: "mailto:akarwomengroup@gmail.com",
+        display: "akarwomengroup@gmail.com"
+    },
+    {
+        icon: <Phone size={24} strokeWidth={1.5} />,
+        label: "Phone",
+        value: "+917509383159",
+        href: "tel:+917509383159",
+        display: "+91 75093 83159"
+    },
+    {
+        icon: <MapPin size={24} strokeWidth={1.5} />,
+        label: "Office",
+        value: "4, Sajida Nagar Karbala Road, Behind Mayor House, Bhopal 462001",
+        href: null,
+        display: "4, Sajida Nagar Karbala Road, Behind Mayor House, Bhopal 462001"
+    }
+];
 
 const container = {
     hidden: {},
@@ -121,6 +146,50 @@ export default function ContactPage() {
                     </motion.div>
                 </div>
 
+
+
+                {/* Contact Details Section - Premium Grid */}
+                <section className="px-4 md:px-12 lg:px-16 mb-24">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+                            {contactInfo.map((item, index) => (
+                                <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                                    className="group"
+                                >
+                                    {item.href ? (
+                                        <a
+                                            href={item.href}
+                                            className="flex flex-col items-center text-center p-8 lg:p-10 rounded-[2rem] bg-[#f8f8f8] hover:bg-[#f0f0f0] transition-colors duration-500 h-full"
+                                        >
+                                            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm text-[#1a1a1a] group-hover:scale-110 transition-transform duration-500">
+                                                {item.icon}
+                                            </div>
+                                            <h3 className={`${instrumentSerif.className} text-2xl mb-2 text-[#1a1a1a]`}>{item.label}</h3>
+                                            <p className="text-[#1a1a1a]/70 font-light leading-relaxed group-hover:text-[#1a1a1a] transition-colors">
+                                                {item.display}
+                                            </p>
+                                        </a>
+                                    ) : (
+                                        <div className="flex flex-col items-center text-center p-8 lg:p-10 rounded-[2rem] bg-[#f8f8f8] h-full">
+                                            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm text-[#1a1a1a]">
+                                                {item.icon}
+                                            </div>
+                                            <h3 className={`${instrumentSerif.className} text-2xl mb-2 text-[#1a1a1a]`}>{item.label}</h3>
+                                            <p className="text-[#1a1a1a]/70 font-light leading-relaxed max-w-[200px]">
+                                                {item.display}
+                                            </p>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
                 {/* Minimalist Compact Contact Form Section with Image Background */}
                 <section className="px-4 md:px-12 lg:px-16">
                     <div className="max-w-4xl mx-auto relative rounded-[3rem] overflow-hidden p-10 md:p-16 shadow-2xl">
@@ -147,6 +216,8 @@ export default function ContactPage() {
                                     Let&apos;s <span className="italic font-light">connect</span>
                                 </motion.h2>
                             </div>
+
+
 
                             {/* Streamlined Form Content */}
                             <motion.form
