@@ -22,6 +22,10 @@ export function getSectionRules(section: WebsiteSection): SectionRules {
   return SECTION_RULES[section];
 }
 
+export function listWebsiteSectionRules(): SectionRules[] {
+  return Object.values(SECTION_RULES);
+}
+
 export function isWebsiteSection(value: string): value is WebsiteSection {
   return value in SECTION_RULES;
 }
