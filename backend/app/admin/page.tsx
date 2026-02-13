@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getAuthSession } from "@/lib/auth/session";
 import { logoutAction } from "@/app/(auth)/actions";
 import { QueryToasts } from "@/components/providers/QueryToasts";
@@ -19,27 +20,59 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Image, SignOut } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, Image, SignOut } from "@phosphor-icons/react/dist/ssr";
 import { listSectionMediaState } from "@/lib/media/website-media-service";
 import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
 import { listWebsiteSectionRules } from "@/lib/media/website-sections";
+import { EventsSectionManager } from "@/components/admin/EventsSectionManager";
+import { isPaymentStatus, type PaymentStatus } from "@/lib/events/enums";
 
-const navItems = [
-  { title: "Media", icon: Image, active: true },
+type AdminSection = "media" | "events";
+
+const navItems: Array<{ title: string; section: AdminSection; icon: typeof Image }> = [
+  { title: "Media", section: "media", icon: Image },
+  { title: "Events", section: "events", icon: CalendarBlank },
 ];
 
-export default async function AdminPage() {
+function parseSection(value?: string): AdminSection {
+  if (value === "events") {
+    return "events";
+  }
+  return "media";
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = (await searchParams) ?? {};
+  const activeSection = parseSection(typeof params.section === "string" ? params.section : undefined);
+  const selectedEventId = typeof params.eventId === "string" ? params.eventId : undefined;
+  const includeDeleted = params.includeDeleted === "1";
+  const paymentStatus: PaymentStatus | undefined =
+    typeof params.paymentStatus === "string" && isPaymentStatus(params.paymentStatus)
+      ? params.paymentStatus
+      : undefined;
+
   const session = await getAuthSession();
   if (!session) {
     redirect("/login");
   }
-  const sectionRules = listWebsiteSectionRules();
-  const sectionStates = await Promise.all(
-    sectionRules.map(async (rule) => ({
-      rule,
-      state: await listSectionMediaState({ section: rule.section }),
-    })),
-  );
+
+  let sectionStates: Array<{
+    rule: ReturnType<typeof listWebsiteSectionRules>[number];
+    state: Awaited<ReturnType<typeof listSectionMediaState>>;
+  }> = [];
+  if (activeSection === "media") {
+    const sectionRules = listWebsiteSectionRules();
+    sectionStates = await Promise.all(
+      sectionRules.map(async (rule) => ({
+        rule,
+        state: await listSectionMediaState({ section: rule.section }),
+      })),
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -65,9 +98,15 @@ export default async function AdminPage() {
               <SidebarMenu>
                 {navItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton isActive={item.active} tooltip={item.title}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={activeSection === item.section}
+                      tooltip={item.title}
+                    >
+                      <Link href={`/admin?section=${item.section}`}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -103,22 +142,32 @@ export default async function AdminPage() {
           <SidebarTrigger />
           <div>
             <p className="text-sm text-muted-foreground">Section</p>
-            <h1 className="text-base font-semibold">Media</h1>
+            <h1 className="text-base font-semibold">
+              {activeSection === "events" ? "Events" : "Media"}
+            </h1>
           </div>
         </header>
 
-        <section className="p-4">
-          <div className="space-y-4">
-            {sectionStates.map(({ rule, state }) => (
-              <MediaSectionManager
-                key={rule.section}
-                title={rule.label}
-                description={`Manage images for ${rule.label.toLowerCase()} section`}
-                section={state}
-              />
-            ))}
-          </div>
-        </section>
+        {activeSection === "events" ? (
+          <EventsSectionManager
+            selectedEventId={selectedEventId}
+            includeDeleted={includeDeleted}
+            paymentStatus={paymentStatus}
+          />
+        ) : (
+          <section className="p-4">
+            <div className="space-y-4">
+              {sectionStates.map(({ rule, state }) => (
+                <MediaSectionManager
+                  key={rule.section}
+                  title={rule.label}
+                  description={`Manage images for ${rule.label.toLowerCase()} section`}
+                  section={state}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
