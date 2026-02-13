@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";
 
   // Check if the origin is allowed (exact match or Vercel preview pattern)
-  // Dynamic pattern for Vercel previews: https://project-name-*.vercel.app
+  // compassionate pattern for Vercel previews: https://project-name-*.vercel.app
   const isAllowed =
     allowedOrigins.includes(origin) ||
     /^https:\/\/akar-event-management-system.*\.vercel\.app$/.test(origin);
