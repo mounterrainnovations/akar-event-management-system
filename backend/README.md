@@ -64,6 +64,49 @@ Optional env:
 SUPABASE_MEDIA_BUCKET=mediaBucket
 ```
 
+## Easebuzz payment API (Phase-3 foundation)
+
+Routes added:
+
+- `POST /api/payments/easebuzz/initiate`
+- `POST /api/payments/easebuzz/callback/success`
+- `POST /api/payments/easebuzz/callback/failure`
+
+Required env vars:
+
+```bash
+EASEBUZZ_KEY=...
+EASEBUZZ_SALT=...
+```
+
+Optional env vars:
+
+```bash
+# Defaults to test endpoint
+EASEBUZZ_BASE_URL=https://testpay.easebuzz.in
+EASEBUZZ_INITIATE_PATH=/payment/initiateLink
+
+# Hash sequences are configurable to avoid hardcoding provider variants
+EASEBUZZ_REQUEST_HASH_SEQUENCE=key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||
+EASEBUZZ_RESPONSE_HASH_SEQUENCE=status|||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key
+
+# Callback hash validation is OFF by default for easier testing
+EASEBUZZ_VERIFY_CALLBACK_HASH=false
+
+# If set, callback URLs use this base URL instead of request origin
+PAYMENT_CALLBACK_BASE_URL=https://your-backend-domain.com
+
+# CSV for CORS allowlist on payment routes
+PAYMENT_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+
+# Keep false while testing; enable in final hardening step
+PAYMENT_ENFORCE_AUTH=false
+
+# Table names (defaults shown)
+PAYMENTS_TABLE=payments
+PAYMENT_LOGS_TABLE=payment_logs
+```
+
 ## Getting Started
 
 First, run the development server:

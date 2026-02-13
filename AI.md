@@ -3,6 +3,7 @@
 2. /frontend is only for reference.
 3. Always write clean code with production conventions and naming practices.
 4. Once a task is complete make updates/create new md file in /docs following convention.
+5. Strictly follow DRY
 
 ## Table Schemas
 
@@ -19,6 +20,8 @@ ticket_status:	active, inactive, sold_out
 discount_type:	percentage, flat	
 
 payment_status:	pending, paid, failed, refunded
+
+payment_mode:	upi, net_banking, debit_card, credit_card
 
 ### Events
 create table public.events (
@@ -248,6 +251,46 @@ create index IF not exists website_media_deleted_at_idx on public.website_media 
 create trigger website_media_set_updated_at BEFORE
 update on website_media for EACH row
 execute FUNCTION set_updated_at ();
+
+### Payment (Core transactions for use)
+
+create table public.payments (
+  id uuid not null default gen_random_uuid (),
+  registration_id uuid not null,
+  user_id uuid not null,
+  easebuzz_txnid character varying(40) null,
+  amount numeric(12, 2) not null,
+  refund_amount numeric(12, 2) null default 0,
+  status public.payment_status not null default 'pending'::payment_status,
+  mode public.payment_mode null,
+  gateway_response_message text null,
+  initiated_at timestamp with time zone null default now(),
+  completed_at timestamp with time zone null,
+  refunded_at timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint payments_pkey primary key (id),
+  constraint payments_easebuzz_txnid_key unique (easebuzz_txnid)
+) TABLESPACE pg_default;
+
+create index IF not exists easebuzz_txnid_idx on public.payments using btree (easebuzz_txnid) TABLESPACE pg_default;
+
+### Payment Logs (Log dump of every single easebuzz request)
+
+create table public.payment_logs (
+  id uuid not null default gen_random_uuid (),
+  payment_id uuid null,
+  action character varying(50) not null,
+  easebuzz_url character varying(100) not null,
+  request_payload jsonb null,
+  response_payload jsonb null,
+  http_status integer null,
+  easebuzz_status character varying(50) null,
+  error_message text null,
+  created_at timestamp with time zone null default now(),
+  constraint payment_logs_pkey primary key (id),
+  constraint payment_logs_payment_id_fkey foreign KEY (payment_id) references payments (id) on delete CASCADE
+) TABLESPACE pg_default;
 
 ## Event Flow Help
 1. events — The Container
