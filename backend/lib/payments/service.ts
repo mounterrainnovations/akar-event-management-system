@@ -1,158 +1,109 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
-import {
-  getPaymentReferenceFromCallback,
-  getRegistrationIdFromCallback,
-  mapCallbackOutcomeToPaymentStatus,
-  type EasebuzzCallbackPayload,
-} from "@/lib/payments/easebuzz/service";
 
 const logger = getLogger("payments-service");
 
 const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE || "payments";
 const PAYMENT_LOGS_TABLE = process.env.PAYMENT_LOGS_TABLE || "payment_logs";
 
-type CallbackProcessingInput = {
-  outcome: "success" | "failure";
-  payload: EasebuzzCallbackPayload;
-  queryPaymentRef: string | null;
-  queryRegistrationId: string | null;
+type CreatePendingPaymentInput = {
+  transactionId: string;
+  registrationId: string;
+  userId: string;
+  amount: number;
+  easebuzzTxnId: string;
 };
 
-export type CallbackProcessingResult = {
-  paymentReference: string;
-  registrationId: string;
-  status: "paid" | "failed";
+type LogInitiatePaymentInput = {
+  transactionId: string;
+  easebuzzUrl: string;
+  requestPayload: Record<string, string>;
+  responsePayload: unknown;
+  httpStatus: number;
+  easebuzzStatus?: string | null;
+  errorMessage?: string | null;
 };
 
-function normalizeGatewayStatus(rawStatus: string | undefined, fallback: "success" | "failure") {
-  const normalized = (rawStatus || "").trim().toLowerCase();
-  if (normalized === "success") {
-    return "success" as const;
+function normalizeAmount(amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("amount must be a positive number");
   }
-  if (normalized === "failure") {
-    return "failure" as const;
-  }
-  return fallback;
+
+  return amount.toFixed(2);
 }
 
-function requireValue(value: string, field: string) {
-  if (!value) {
-    throw new Error(`${field} not found in callback payload`);
-  }
-
-  return value;
-}
-
-async function upsertPaymentRow(args: {
-  paymentReference: string;
-  registrationId: string;
-  status: "paid" | "failed";
-  amount: string;
-  gatewayStatus: string;
-  payload: EasebuzzCallbackPayload;
-}) {
+export async function createPendingPayment(input: CreatePendingPaymentInput) {
   const supabase = createSupabaseAdminClient();
 
-  const { error } = await supabase.from(PAYMENTS_TABLE).upsert(
-    {
-      payment_reference: args.paymentReference,
-      registration_id: args.registrationId,
-      gateway: "easebuzz",
-      gateway_transaction_id: args.payload.easepayid || null,
-      amount: args.amount,
-      status: args.status,
-      gateway_status: args.gatewayStatus,
-      metadata: args.payload,
-    },
-    {
-      onConflict: "payment_reference",
-      ignoreDuplicates: false,
-    },
-  );
+  const { data, error } = await supabase
+    .from(PAYMENTS_TABLE)
+    .insert({
+      id: input.transactionId,
+      registration_id: input.registrationId,
+      user_id: input.userId,
+      easebuzz_txnid: input.easebuzzTxnId,
+      amount: normalizeAmount(input.amount),
+      status: "pending",
+      initiated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single<{ id: string }>();
 
-  if (error) {
-    throw new Error(`Unable to upsert payment row: ${error.message}`);
+  if (error || !data?.id) {
+    throw new Error(
+      `Unable to create pending payment row: ${error?.message || "Unknown error"}`,
+    );
   }
+
+  logger.info("Created pending payment row", {
+    paymentId: data.id,
+    registrationId: input.registrationId,
+    userId: input.userId,
+    easebuzzTxnId: input.easebuzzTxnId,
+  });
+
+  return data.id;
 }
 
-async function insertPaymentLog(args: {
-  paymentReference: string;
-  status: "paid" | "failed";
-  payload: EasebuzzCallbackPayload;
-}) {
+export async function logInitiatePaymentRequest(
+  input: LogInitiatePaymentInput,
+) {
   const supabase = createSupabaseAdminClient();
 
   const { error } = await supabase.from(PAYMENT_LOGS_TABLE).insert({
-    payment_reference: args.paymentReference,
-    provider: "easebuzz",
-    status: args.status,
-    payload: args.payload,
+    payment_id: input.transactionId,
+    action: "initiate",
+    easebuzz_url: input.easebuzzUrl,
+    request_payload: input.requestPayload,
+    response_payload: input.responsePayload,
+    http_status: input.httpStatus,
+    easebuzz_status: input.easebuzzStatus || null,
+    error_message: input.errorMessage || null,
   });
 
   if (error) {
-    throw new Error(`Unable to insert payment log row: ${error.message}`);
+    throw new Error(`Unable to create payment log row: ${error.message}`);
   }
 }
 
-async function updateRegistrationStatus(args: { registrationId: string; status: "paid" | "failed" }) {
+export async function markPaymentInitiateFailed(input: {
+  transactionId: string;
+  message: string;
+}) {
   const supabase = createSupabaseAdminClient();
+
   const { error } = await supabase
-    .from("event_registrations")
-    .update({ payment_status: args.status })
-    .eq("id", args.registrationId);
+    .from(PAYMENTS_TABLE)
+    .update({
+      status: "failed",
+      gateway_response_message: input.message,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.transactionId);
 
   if (error) {
-    throw new Error(`Unable to update event registration payment status: ${error.message}`);
+    throw new Error(
+      `Unable to mark payment initiate as failed: ${error.message}`,
+    );
   }
-}
-
-export async function processEasebuzzCallback(input: CallbackProcessingInput): Promise<CallbackProcessingResult> {
-  const callbackOutcome = normalizeGatewayStatus(input.payload.status, input.outcome);
-  const status = mapCallbackOutcomeToPaymentStatus(callbackOutcome);
-
-  const paymentReference = requireValue(
-    getPaymentReferenceFromCallback(input.payload, input.queryPaymentRef),
-    "payment reference",
-  );
-
-  const registrationId = requireValue(
-    getRegistrationIdFromCallback(input.payload, input.queryRegistrationId),
-    "registration id",
-  );
-
-  const amount = input.payload.amount || "0.00";
-
-  await upsertPaymentRow({
-    paymentReference,
-    registrationId,
-    status,
-    amount,
-    gatewayStatus: callbackOutcome,
-    payload: input.payload,
-  });
-
-  await insertPaymentLog({
-    paymentReference,
-    status,
-    payload: input.payload,
-  });
-
-  await updateRegistrationStatus({
-    registrationId,
-    status,
-  });
-
-  logger.info("Processed Easebuzz callback", {
-    paymentReference,
-    registrationId,
-    status,
-    gatewayStatus: callbackOutcome,
-  });
-
-  return {
-    paymentReference,
-    registrationId,
-    status,
-  };
 }

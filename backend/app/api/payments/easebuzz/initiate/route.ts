@@ -7,6 +7,11 @@ import {
   type InitiateEasebuzzPaymentInput,
 } from "@/lib/payments/easebuzz/service";
 import { getPaymentCorsHeaders } from "@/lib/payments/http";
+import {
+  createPendingPayment,
+  logInitiatePaymentRequest,
+  markPaymentInitiateFailed,
+} from "@/lib/payments/service";
 
 const logger = getLogger("api-payments-easebuzz-initiate");
 
@@ -16,8 +21,9 @@ type InitiatePaymentRequest = {
   firstName: string;
   email: string;
   phone: string;
+  userId?: string;
   eventId?: string;
-  registrationId?: string;
+  registrationId: string;
 };
 
 function parseInitiateBody(
@@ -31,6 +37,7 @@ function parseInitiateBody(
   const firstName = body.firstName?.trim();
   const email = body.email?.trim();
   const phone = body.phone?.trim();
+  const registrationId = body.registrationId?.trim();
 
   if (!productInfo) {
     throw new Error("productInfo is required");
@@ -44,6 +51,9 @@ function parseInitiateBody(
   if (!phone) {
     throw new Error("phone is required");
   }
+  if (!registrationId) {
+    throw new Error("registrationId is required");
+  }
 
   return {
     amount: body.amount,
@@ -51,8 +61,9 @@ function parseInitiateBody(
     firstName,
     email,
     phone: body.phone?.trim(),
+    userId: body.userId?.trim(),
     eventId: body.eventId?.trim(),
-    registrationId: body.registrationId?.trim(),
+    registrationId,
   };
 }
 
@@ -62,6 +73,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const corsHeaders = getPaymentCorsHeaders(request);
+  let setTransactionId: string | null = null;
 
   try {
     const authValidation = await validateSupabaseAccessToken(
@@ -79,29 +91,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    //! Why this doesn't work ?
+    // if (!request.body) {
+    //   return NextResponse.json(
+    //     {
+    //       error: "No Body in Request",
+    //     },
+    //     {
+    //       status: 400,
+    //       headers: corsHeaders,
+    //     },
+    //   );
+    // }
+
     const body = (await request.json()) as InitiatePaymentRequest;
     const input = parseInitiateBody(body);
+    const userId = authValidation.userId || input.userId;
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error: "userId is required when payment auth enforcement is disabled",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
 
-    const { payload, paymentReference, callbackUrls } =
+    const { payload, transactionId, callbackUrls } =
       buildEasebuzzInitiatePayload({
         input: {
           ...input,
-          userId: authValidation.userId || undefined,
+          userId,
         },
         requestOrigin: request.nextUrl.origin,
       });
+    const registrationId = input.registrationId;
+    setTransactionId = transactionId;
+    if (!registrationId) {
+      throw new Error("registrationId is required");
+    }
+
+    await createPendingPayment({
+      transactionId,
+      registrationId,
+      userId,
+      amount: input.amount,
+      easebuzzTxnId: transactionId,
+    });
 
     const gatewayResponse = await initiateEasebuzzTransaction(payload);
+    const gatewayStatus =
+      typeof gatewayResponse.data === "object" && gatewayResponse.data !== null
+        ? String((gatewayResponse.data as { status?: string }).status || "")
+        : null;
+
+    await logInitiatePaymentRequest({
+      transactionId,
+      easebuzzUrl: gatewayResponse.endpoint,
+      requestPayload: payload,
+      responsePayload: gatewayResponse.data,
+      httpStatus: gatewayResponse.status,
+      easebuzzStatus: gatewayStatus,
+      errorMessage: gatewayResponse.ok
+        ? null
+        : "Easebuzz initiate transaction failed",
+    });
+
     if (!gatewayResponse.ok) {
+      await markPaymentInitiateFailed({
+        transactionId,
+        message: "Easebuzz initiate transaction failed",
+      });
+
       logger.error("Easebuzz initiate call failed", {
         status: gatewayResponse.status,
-        paymentReference,
+        transactionId,
       });
 
       return NextResponse.json(
         {
           error: "Easebuzz initiate transaction failed",
-          paymentReference,
+          transactionId,
           gateway: gatewayResponse.data,
         },
         {
@@ -113,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        paymentReference,
+        transactionId,
         callbackUrls,
         gateway: gatewayResponse.data,
       },
@@ -126,6 +198,25 @@ export async function POST(request: NextRequest) {
     logger.error("Failed to initiate Easebuzz transaction", {
       message: error instanceof Error ? error.message : "Unknown error",
     });
+    if (setTransactionId && error instanceof Error) {
+      try {
+        await markPaymentInitiateFailed({
+          transactionId: setTransactionId,
+          message: error.message,
+        });
+      } catch (updateError) {
+        logger.error(
+          "Failed to mark payment row as failed after initiate error",
+          {
+            transactionId: setTransactionId,
+            message:
+              updateError instanceof Error
+                ? updateError.message
+                : "Unknown error",
+          },
+        );
+      }
+    }
 
     return NextResponse.json(
       {

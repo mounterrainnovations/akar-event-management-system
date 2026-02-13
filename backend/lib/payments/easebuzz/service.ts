@@ -3,62 +3,37 @@ import {
   getEasebuzzBaseUrl,
   getEasebuzzInitiatePath,
   getEasebuzzKey,
-  getEasebuzzRequestHashSequence,
-  getEasebuzzResponseHashSequence,
   getEasebuzzSalt,
   getPaymentCallbackBaseUrl,
-  shouldVerifyEasebuzzCallbackHash,
 } from "@/lib/payments/easebuzz/config";
 import { getLogger } from "@/lib/logger";
 
 const logger = getLogger("easebuzz-service");
-
-type EasebuzzPrimitive = string | number | boolean | null | undefined;
 
 export type InitiateEasebuzzPaymentInput = {
   amount: number;
   productInfo: string;
   firstName: string;
   email: string;
-  phone?: string;
+  phone: string;
   eventId?: string;
   registrationId?: string;
   userId?: string;
-  paymentReference?: string;
-  successRedirectUrl?: string;
-  failureRedirectUrl?: string;
+  transactionId?: string;
+  udf5?: string;
+  udf6?: string;
+  udf7?: string;
+  udf8?: string;
+  udf9?: string;
+  udf10?: string;
 };
-
-export type EasebuzzCallbackPayload = Record<string, string>;
 
 export type EasebuzzInitiateResult = {
   ok: boolean;
   status: number;
+  endpoint: string;
   data: unknown;
 };
-
-function normalizeString(value: EasebuzzPrimitive) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value).trim();
-}
-
-function splitHashSequence(sequence: string) {
-  return sequence.split("|");
-}
-
-function buildHashString(params: Record<string, EasebuzzPrimitive>, sequence: string, prefix?: string) {
-  const values = splitHashSequence(sequence).map((key) => normalizeString(params[key]));
-  const base = values.join("|");
-
-  if (!prefix) {
-    return base;
-  }
-
-  return `${prefix}|${base}`;
-}
 
 function sha512(value: string) {
   return createHash("sha512").update(value, "utf8").digest("hex");
@@ -76,32 +51,11 @@ function resolveCallbackBaseUrl(requestOrigin: string) {
   return getPaymentCallbackBaseUrl() || requestOrigin;
 }
 
-export function buildEasebuzzCallbackUrls(args: {
-  requestOrigin: string;
-  paymentReference: string;
-  registrationId?: string;
-  eventId?: string;
-}) {
+export function buildEasebuzzCallbackUrls(args: { requestOrigin: string }) {
   const baseUrl = resolveCallbackBaseUrl(args.requestOrigin);
-  const successUrl = new URL("/api/payments/easebuzz/callback/success", baseUrl);
-  const failureUrl = new URL("/api/payments/easebuzz/callback/failure", baseUrl);
-
-  successUrl.searchParams.set("paymentRef", args.paymentReference);
-  failureUrl.searchParams.set("paymentRef", args.paymentReference);
-
-  if (args.registrationId) {
-    successUrl.searchParams.set("registrationId", args.registrationId);
-    failureUrl.searchParams.set("registrationId", args.registrationId);
-  }
-
-  if (args.eventId) {
-    successUrl.searchParams.set("eventId", args.eventId);
-    failureUrl.searchParams.set("eventId", args.eventId);
-  }
-
+  const callbackUrl = new URL("/api/payments/easebuzz/callback", baseUrl);
   return {
-    surl: successUrl.toString(),
-    furl: failureUrl.toString(),
+    callback: callbackUrl.toString(),
   };
 }
 
@@ -112,42 +66,49 @@ export function buildEasebuzzInitiatePayload(args: {
   const key = getEasebuzzKey();
   const salt = getEasebuzzSalt();
 
-  const paymentReference = args.input.paymentReference || randomUUID();
+  const transactionId = randomUUID();
   const callbackUrls = buildEasebuzzCallbackUrls({
     requestOrigin: args.requestOrigin,
-    paymentReference,
-    registrationId: args.input.registrationId,
-    eventId: args.input.eventId,
   });
 
   const payload: Record<string, string> = {
     key,
-    txnid: paymentReference,
+    txnid: transactionId,
     amount: normalizeAmount(args.input.amount),
     productinfo: args.input.productInfo,
     firstname: args.input.firstName,
     email: args.input.email,
-    phone: args.input.phone || "",
-    surl: args.input.successRedirectUrl || callbackUrls.surl,
-    furl: args.input.failureRedirectUrl || callbackUrls.furl,
+    phone: args.input.phone,
+    surl: callbackUrls.callback,
+    furl: callbackUrls.callback,
     udf1: args.input.registrationId || "",
     udf2: args.input.eventId || "",
     udf3: args.input.userId || "",
-    udf4: paymentReference,
-    udf5: "",
+    udf4: transactionId,
+    udf5: args.input.udf5 || "",
+    udf6: args.input.udf6 || "",
+    udf7: args.input.udf7 || "",
+    udf8: args.input.udf8 || "",
+    udf9: args.input.udf9 || "",
+    udf10: args.input.udf10 || "",
   };
 
-  const hashBody = buildHashString(payload, getEasebuzzRequestHashSequence());
-  payload.hash = sha512(`${hashBody}|${salt}`);
+  const hashString =
+    `${key}|${payload.txnid}|${payload.amount}|${payload.productinfo}|${payload.firstname}|${payload.email}|` +
+    `${payload.udf1}|${payload.udf2}|${payload.udf3}|${payload.udf4}|${payload.udf5}|${payload.udf6}|` +
+    `${payload.udf7}|${payload.udf8}|${payload.udf9}|${payload.udf10}|${salt}`;
+  payload.hash = sha512(hashString).toString();
 
   return {
     payload,
-    paymentReference,
+    transactionId,
     callbackUrls,
   };
 }
 
-export async function initiateEasebuzzTransaction(payload: Record<string, string>): Promise<EasebuzzInitiateResult> {
+export async function initiateEasebuzzTransaction(
+  payload: Record<string, string>,
+): Promise<EasebuzzInitiateResult> {
   const endpoint = `${getEasebuzzBaseUrl()}${getEasebuzzInitiatePath()}`;
   const formPayload = new URLSearchParams(payload);
 
@@ -172,41 +133,7 @@ export async function initiateEasebuzzTransaction(payload: Record<string, string
   return {
     ok: response.ok,
     status: response.status,
+    endpoint,
     data,
   };
-}
-
-export function verifyEasebuzzCallbackHash(payload: EasebuzzCallbackPayload) {
-  if (!shouldVerifyEasebuzzCallbackHash()) {
-    return true;
-  }
-
-  const providedHash = normalizeString(payload.hash).toLowerCase();
-  if (!providedHash) {
-    return false;
-  }
-
-  const key = getEasebuzzKey();
-  const salt = getEasebuzzSalt();
-  const verificationPayload = {
-    ...payload,
-    key,
-  };
-
-  const hashBody = buildHashString(verificationPayload, getEasebuzzResponseHashSequence(), salt);
-  const expectedHash = sha512(hashBody);
-
-  return providedHash === expectedHash;
-}
-
-export function getRegistrationIdFromCallback(payload: EasebuzzCallbackPayload, queryRegistrationId: string | null) {
-  return normalizeString(payload.udf1) || normalizeString(queryRegistrationId);
-}
-
-export function getPaymentReferenceFromCallback(payload: EasebuzzCallbackPayload, queryPaymentRef: string | null) {
-  return normalizeString(payload.txnid) || normalizeString(payload.udf4) || normalizeString(queryPaymentRef);
-}
-
-export function mapCallbackOutcomeToPaymentStatus(outcome: "success" | "failure") {
-  return outcome === "success" ? "paid" : "failed";
 }

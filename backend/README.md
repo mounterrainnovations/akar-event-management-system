@@ -69,8 +69,7 @@ SUPABASE_MEDIA_BUCKET=mediaBucket
 Routes added:
 
 - `POST /api/payments/easebuzz/initiate`
-- `POST /api/payments/easebuzz/callback/success`
-- `POST /api/payments/easebuzz/callback/failure`
+- `POST /api/payments/easebuzz/callback`
 
 Required env vars:
 
@@ -85,13 +84,6 @@ Optional env vars:
 # Defaults to test endpoint
 EASEBUZZ_BASE_URL=https://testpay.easebuzz.in
 EASEBUZZ_INITIATE_PATH=/payment/initiateLink
-
-# Hash sequences are configurable to avoid hardcoding provider variants
-EASEBUZZ_REQUEST_HASH_SEQUENCE=key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||
-EASEBUZZ_RESPONSE_HASH_SEQUENCE=status|||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key
-
-# Callback hash validation is OFF by default for easier testing
-EASEBUZZ_VERIFY_CALLBACK_HASH=false
 
 # If set, callback URLs use this base URL instead of request origin
 PAYMENT_CALLBACK_BASE_URL=https://your-backend-domain.com

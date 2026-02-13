@@ -8,19 +8,17 @@ Backend-only payment foundation for event booking integrations.
 1. Payment initiate route (no UI)
 - `POST /api/payments/easebuzz/initiate`
 - Accepts booking/payment payload from frontend booking logic.
-- Generates dynamic `surl` and `furl` callback URLs.
-- Builds Easebuzz request hash using SHA-512 and configured sequence.
+- Generates one dynamic callback URL and sets it as both `surl` and `furl`.
+- Builds Easebuzz request hash using SHA-512 and this format:
+  - `key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5|udf6|udf7|udf8|udf9|udf10|salt`
 - Calls Easebuzz initiate endpoint.
+- Creates a pending row in `payments` table before calling Easebuzz.
 
-2. Dynamic callbacks
-- `POST /api/payments/easebuzz/callback/success`
-- `POST /api/payments/easebuzz/callback/failure`
-- Parses form-data/json callback payloads.
-- Verifies callback hash when `EASEBUZZ_VERIFY_CALLBACK_HASH=true`.
-- Updates:
-  - `payments` table (upsert)
-  - `payment_logs` table (insert)
-  - `event_registrations.payment_status` (update)
+2. Common callback route
+- `POST /api/payments/easebuzz/callback`
+- Parses callback payload from `json` or `form-data`.
+- Current behavior for this step: logs incoming body with `console.log`.
+- Success/failure branching and DB updates will be added next.
 
 3. Auth verification wiring (kept test-friendly for now)
 - Supabase token validation is implemented in route layer.
@@ -37,27 +35,25 @@ Backend-only payment foundation for event booking integrations.
   "firstName": "Pranav",
   "email": "test@example.com",
   "phone": "9999999999",
-  "eventId": "event-uuid",
   "registrationId": "registration-uuid",
-  "paymentReference": "optional-client-ref",
-  "successRedirectUrl": "optional-override",
-  "failureRedirectUrl": "optional-override"
+  "eventId": "event-uuid",
+  "transactionId": "optional-client-ref",
+  "userId": "required-if-auth-not-enforced"
 }
 ```
 
 ## Callback context strategy
 
+Stored in Easebuzz `udf*` fields:
 - `udf1`: `registrationId`
 - `udf2`: `eventId`
-- `udf3`: `userId` (when auth enforced)
-- `udf4`: `paymentReference`
-
-Query fallback values are also attached in callback URLs for safer recovery.
+- `udf3`: `userId`
+- `udf4`: `transactionId`
+- `udf5`..`udf10`: reserved for later use
 
 ## Next implementation steps
 
-1. Validate exact Easebuzz request/response field expectations in sandbox with real credentials.
-2. Align table payload shapes with exact DB schema for `payments` and `payment_logs`.
-3. Add idempotency guard to callback processing.
+1. Build callback parser that branches success/failure/webhook scenarios.
+2. Update `payments`, `payment_logs`, and `event_registrations` from callback outcomes.
+3. Add idempotency guard for callback processing.
 4. Turn on strict auth enforcement (`PAYMENT_ENFORCE_AUTH=true`).
-5. Turn on callback hash verification in non-local environments.

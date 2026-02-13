@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { handleEasebuzzCallback } from "@/lib/payments/callback-handler";
-import { getPaymentCorsHeaders } from "@/lib/payments/http";
+import { NextRequest } from "next/server";
+import { POST as callbackPost, OPTIONS as callbackOptions } from "@/app/api/payments/easebuzz/callback/route";
 
 export async function OPTIONS(request: NextRequest) {
-  return NextResponse.json({}, { headers: getPaymentCorsHeaders(request) });
+  return callbackOptions(request);
 }
 
 export async function POST(request: NextRequest) {
-  return handleEasebuzzCallback(request, "failure");
+  return callbackPost(request);
 }
