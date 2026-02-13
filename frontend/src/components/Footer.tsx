@@ -7,7 +7,7 @@ import { ArrowUpRight, Instagram, Linkedin, Twitter } from 'lucide-react';
 
 export default function Footer() {
     const pathname = usePathname();
-    const isWhitePage = pathname === '/work' || pathname === '/event' || pathname === '/contact' || pathname === '/highlights' || pathname === '/about' || pathname === '/events';
+    const isWhitePage = pathname === '/work' || pathname === '/event' || pathname === '/contact' || pathname === '/highlights' || pathname === '/about' || pathname === '/events' || pathname === '/privacy-policy' || pathname === '/legal' || pathname === '/terms' || pathname === '/refund-policy';
 
     return (
         <footer className={`relative w-full z-10 ${isWhitePage ? 'bg-white' : ''}`}>
@@ -27,12 +27,12 @@ export default function Footer() {
 
                                 {/* Social Icons integrated here */}
                                 <div className="flex gap-4">
-                                    <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
+                                    <a href="https://www.instagram.com/akar_womengroup" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
                                         <Instagram size={20} />
                                     </a>
-                                    <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
+                                    {/* <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
                                         <Linkedin size={20} />
-                                    </a>
+                                    </a> */}
                                     <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
                                         <Twitter size={20} />
                                     </a>
@@ -48,12 +48,12 @@ export default function Footer() {
                         <div className="space-y-6">
                             <h3 className="font-montserrat text-xs uppercase tracking-widest text-white/40 font-bold">Contact</h3>
                             <div className="font-montserrat text-base text-white/80 space-y-1">
-                                <p>hello@akargroup.com</p>
-                                <p>+91 987 654 3210</p>
+                                <p>akarwomengroup@gmail.com</p>
+                                <p>+9175093 83159</p>
                             </div>
                             <div className="font-montserrat text-base text-white/80 pt-4">
-                                <p>123 Creative Studio,</p>
-                                <p>Design District, Mumbai 400001</p>
+                                <p>4, Sajida Nagar Karbala Road </p>
+                                <p>Behind Mayor House, Bhopal 462001</p>
                             </div>
                         </div>
 
@@ -61,11 +61,10 @@ export default function Footer() {
                         <div className="space-y-6">
                             <h3 className="font-montserrat text-xs uppercase tracking-widest text-white/40 font-bold">Explore</h3>
                             <ul className="space-y-4 font-montserrat text-base text-white/80">
-                                <li><Link href="/work" className="hover:text-white transition-colors block">Work</Link></li>
-                                <li><Link href="/services" className="hover:text-white transition-colors block">Services</Link></li>
-                                <li><Link href="/approach" className="hover:text-white transition-colors block">Approach</Link></li>
-                                <li><Link href="/news" className="hover:text-white transition-colors block">News</Link></li>
+                                <li><Link href="/events" className="hover:text-white transition-colors block">Events</Link></li>
                                 <li><Link href="/about" className="hover:text-white transition-colors block">About</Link></li>
+                                <li><Link href="/contact" className="hover:text-white transition-colors block">Contact</Link></li>
+                                <li><Link href="/refund-policy" className="hover:text-white transition-colors block">Refunds and cancellation</Link></li>
                             </ul>
                         </div>
 
@@ -89,21 +88,24 @@ export default function Footer() {
                     </div>
 
                     {/* 3. Bottom Bar */}
-                    <div className="py-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 font-montserrat text-xs uppercase tracking-wider text-white/40">
-                        <div className="flex gap-8">
-                            <p>© 2026 Akar Women Group</p>
-                            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-                            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-                            <Link href="/legal" className="hover:text-white transition-colors">Legal Notice</Link>
+                    {/* 3. Bottom Bar */}
+                    <div className="py-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 font-montserrat text-xs uppercase tracking-wider text-white/40 border-t border-white/10 mt-12 md:mt-20">
+                        <div className="flex flex-col md:flex-row gap-4 md:gap-8 w-full md:w-auto">
+                            <p className="whitespace-nowrap">© 2026 Akar Women Group</p>
+                            <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy</Link>
+                                <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+                                <Link href="/legal" className="hover:text-white transition-colors">Legal Notice</Link>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span>Website managed by</span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="whitespace-nowrap">Website managed by</span>
                             <a
                                 href="https://mounterra.in"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-white hover:text-white/80 transition-colors font-bold border-b border-white/20 hover:border-white pb-0.5"
+                                className="text-white hover:text-white/80 transition-colors border-b border-white/20 hover:border-white pb-0.5"
                             >
                                 Mounterra Innovation
                             </a>

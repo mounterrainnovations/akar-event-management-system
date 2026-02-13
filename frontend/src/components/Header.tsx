@@ -29,7 +29,11 @@ export default function Header() {
     const isAboutPage = pathname === '/about';
     const isEventsPage = pathname === '/events';
     const isPublicationsPage = pathname === '/Publications';
-    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage;
+    const isPrivacyPolicyPage = pathname === '/privacy-policy';
+    const isLegalPage = pathname === '/legal';
+    const isTermsPage = pathname === '/terms';
+    const isRefundPolicyPage = pathname === '/refund-policy';
+    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage || isPrivacyPolicyPage || isLegalPage || isTermsPage || isRefundPolicyPage;
 
     const [isHidden, setIsHidden] = useState(false);
     const [isPastHero, setIsPastHero] = useState(false);

@@ -6,15 +6,15 @@ import Link from 'next/link';
 import { instrumentSerif } from '@/lib/fonts';
 
 const heroLines = [
-    ['New', 'Genre', 'is', 'a', 'global', 'design', '&'],
-    ['technology', 'studio', 'accelerating'],
-    ["tomorrow's", 'ideas.'],
+    ['Akar', 'Women', 'Group', 'is', 'a', 'dynamic', 'platform'],
+    ['dedicated', 'to', 'women', 'empowerment', 'and'],
+    ['holistic', 'child', 'development.'],
 ];
 
 const secondLines = [
-    ['We', 'create', 'strategies,', 'brand', 'systems,'],
-    ['digital', 'products,', 'and', 'experiences', 'for', 'the'],
-    ["world apos", 'most', 'disruptive', 'thinkers.'],
+    ['Founded', 'with', 'the', 'vision', 'of', 'creating'],
+    ['a', 'supportive', 'ecosystem', 'to', 'learn,'],
+    ['grow,', 'and', 'uplift', 'one', 'another.'],
 ];
 
 const events = [
