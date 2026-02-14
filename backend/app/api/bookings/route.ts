@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     logger.error("Failed to initiate booking", { message });
 
-    const status =
+    const isClientError =
       message.includes("required") ||
       message.includes("must be") ||
       message.includes("not found") ||
@@ -124,14 +124,13 @@ export async function POST(request: NextRequest) {
       message.includes("active") ||
       message.includes("expired") ||
       message.includes("exceeds") ||
-      message.includes("already exists")
-        ? 400
-        : 500;
+      message.includes("already exists");
+    const status = isClientError ? 400 : 500;
 
     return NextResponse.json(
       {
-        error:
-          status === 400 ? message : "Unable to initiate booking at this time",
+        error: isClientError ? message : "Unable to initiate booking",
+        ...(isClientError ? {} : { details: message }),
       },
       {
         status,
