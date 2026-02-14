@@ -357,4 +357,7 @@ We need booking flows:
     form_response?: jsonb;
   }
 
+  #### PART - 2
+  Now its time to integrate booking initiate (only inititate, company has no refund policy so no payment flow in cancel) with the existing payment flow, gracefully.
+
 ### Phase - 2 (UI Integration)

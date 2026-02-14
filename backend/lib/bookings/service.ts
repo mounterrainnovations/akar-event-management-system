@@ -382,6 +382,51 @@ export async function listBookingsForUser(params: {
   } satisfies BookingListResult;
 }
 
+export async function listAllBookings(params: {
+  page: number;
+  limit: number;
+  eventId?: string;
+  includeDeleted?: boolean;
+}) {
+  const { page, limit, eventId, includeDeleted = false } = params;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const supabase = createSupabaseAdminClient();
+
+  let query = supabase
+    .from("event_registrations")
+    .select(BOOKING_SELECT_FIELDS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (!includeDeleted) {
+    query = query.is("deleted_at", null);
+  }
+
+  if (eventId) {
+    query = query.eq("event_id", eventId);
+  }
+
+  const { data, error, count } = await query.returns<BookingRow[]>();
+
+  if (error) {
+    logger.error("Failed to list all bookings", {
+      eventId: eventId || null,
+      includeDeleted,
+      message: error.message,
+    });
+    throw new Error("Unable to load all bookings");
+  }
+
+  return {
+    page,
+    limit,
+    total: count || 0,
+    items: (data || []).map(mapBooking),
+  } satisfies BookingListResult;
+}
+
 export async function getBookingByIdForUser(params: {
   userId: string;
   bookingId: string;
