@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLogger } from "@/lib/logger";
 import { validateSupabaseAccessToken } from "@/lib/payments/auth";
-import {
-  buildEasebuzzInitiatePayload,
-  initiateEasebuzzTransaction,
-  type InitiateEasebuzzPaymentInput,
-} from "@/lib/payments/easebuzz/service";
-import {
-  getEasebuzzBaseUrl,
-  getEasebuzzPaymentPath,
-} from "@/lib/payments/easebuzz/config";
+import { type InitiateEasebuzzPaymentInput } from "@/lib/payments/easebuzz/service";
 import {
   getPaymentCorsHeaders,
   parseJsonBodyFromRaw,
 } from "@/lib/payments/http";
-import {
-  createPendingPayment,
-  logInitiatePaymentRequest,
-  markPaymentInitiateFailed,
-} from "@/lib/payments/service";
+import { initiatePaymentFlow } from "@/lib/payments/service";
 
 const logger = getLogger("api-payments-easebuzz-initiate");
 
@@ -84,15 +72,9 @@ function parseInitiateBody(
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: getPaymentCorsHeaders(request) });
 }
-/**
- * [INTERNAL API]
- * Called in Booking FLow, on Booking Trigger
- * @param request
- * @returns
- */
+
 export async function POST(request: NextRequest) {
   const corsHeaders = getPaymentCorsHeaders(request);
-  let setTransactionId: string | null = null;
 
   try {
     const authValidation = await validateSupabaseAccessToken(
@@ -140,6 +122,7 @@ export async function POST(request: NextRequest) {
         },
       );
     }
+
     const userId = authValidation.userId || input.userId;
     if (!userId) {
       return NextResponse.json(
@@ -153,72 +136,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { payload, transactionId } = buildEasebuzzInitiatePayload({
+    const paymentResult = await initiatePaymentFlow({
       input: {
         ...input,
         userId,
       },
       requestOrigin: request.nextUrl.origin,
     });
-    const { registrationId } = input;
-    setTransactionId = transactionId;
 
-    await createPendingPayment({
-      transactionId,
-      registrationId,
-      userId,
-      amount: input.amount,
-      easebuzzTxnId: transactionId,
-    });
-
-    const gatewayResponse = await initiateEasebuzzTransaction(payload);
-    const gatewayStatus =
-      typeof gatewayResponse.data === "object" && gatewayResponse.data !== null
-        ? gatewayResponse.data.status || ""
-        : null;
-
-    await logInitiatePaymentRequest({
-      transactionId,
-      easebuzzUrl: gatewayResponse.endpoint,
-      requestPayload: payload,
-      responsePayload: gatewayResponse.data,
-      httpStatus: gatewayResponse.status,
-      easebuzzStatus: gatewayStatus,
-      errorMessage: gatewayResponse.ok
-        ? null
-        : "Easebuzz initiate transaction failed",
-    });
-
-    if (!gatewayResponse.ok) {
-      await markPaymentInitiateFailed({
-        transactionId,
-        message: "Easebuzz initiate transaction failed",
-      });
-
-      logger.error("Easebuzz initiate call failed", {
-        status: gatewayResponse.status,
-        transactionId,
-      });
-
+    if (!paymentResult.ok) {
       return NextResponse.json(
         {
-          error: "Easebuzz initiate transaction failed",
-          transactionId,
-          gateway: gatewayResponse.data,
+          error: paymentResult.error,
+          transactionId: paymentResult.transactionId,
+          gateway: paymentResult.gateway,
         },
         {
-          status: 502,
+          status: paymentResult.status,
           headers: corsHeaders,
         },
       );
     }
 
-    const gatewayUrl = `${getEasebuzzBaseUrl()}${getEasebuzzPaymentPath()}`;
-    const paymentUrl = `${gatewayUrl}/${gatewayResponse.data?.data}`;
-
     return NextResponse.json(
       {
-        paymentUrl: paymentUrl,
+        paymentUrl: paymentResult.paymentUrl,
+        transactionId: paymentResult.transactionId,
       },
       {
         status: 200,
@@ -229,25 +172,6 @@ export async function POST(request: NextRequest) {
     logger.error("Failed to initiate Easebuzz transaction", {
       message: error instanceof Error ? error.message : "Unknown error",
     });
-    if (setTransactionId && error instanceof Error) {
-      try {
-        await markPaymentInitiateFailed({
-          transactionId: setTransactionId,
-          message: error.message,
-        });
-      } catch (updateError) {
-        logger.error(
-          "Failed to mark payment row as failed after initiate error",
-          {
-            transactionId: setTransactionId,
-            message:
-              updateError instanceof Error
-                ? updateError.message
-                : "Unknown error",
-          },
-        );
-      }
-    }
 
     return NextResponse.json(
       {
