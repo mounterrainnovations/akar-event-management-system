@@ -100,20 +100,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    //! Why this doesn't work ?
-    // if (!request.body) {
-    //   return NextResponse.json(
-    //     {
-    //       error: "No Body in Request",
-    //     },
-    //     {
-    //       status: 400,
-    //       headers: corsHeaders,
-    //     },
-    //   );
-    // }
+    const rawBody = await request.text();
+    if (!rawBody.trim()) {
+      return NextResponse.json(
+        {
+          error: "No Body in Request",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
 
-    const body = (await request.json()) as InitiatePaymentRequest;
+    let body: InitiatePaymentRequest;
+    try {
+      body = JSON.parse(rawBody) as InitiatePaymentRequest;
+    } catch {
+      return NextResponse.json(
+        {
+          error: "Invalid JSON body",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
+
     const input = parseInitiateBody(body);
     const userId = authValidation.userId || input.userId;
     if (!userId) {
