@@ -552,7 +552,7 @@ export default function RegistrationModal({
                                                                             )}
                                                                         </AnimatePresence>
                                                                     </div>
-                                                                ) : field.fieldType === 'image' || field.fieldType === 'file' ? (
+                                                                ) : field.fieldType === 'image' || field.fieldType === 'file' || field.fieldType === 'image answer' ? (
                                                                     <div className="space-y-1.5">
                                                                         {formValues[field.fieldName] ? (
                                                                             <div className="relative group rounded-lg overflow-hidden aspect-video bg-gray-100 border border-gray-200 max-h-24">

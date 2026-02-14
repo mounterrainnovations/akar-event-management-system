@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const filePath = `${folder}/${fileName}`;
 
     const { data, error } = await supabase.storage
-      .from("public-assets") // Assuming a 'public-assets' bucket exists
+      .from("fieldImages")
       .upload(filePath, file, {
         contentType: file.type,
         upsert: false,
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("public-assets").getPublicUrl(filePath);
+    } = supabase.storage.from("fieldImages").getPublicUrl(filePath);
 
     return NextResponse.json({ url: publicUrl });
   } catch (error: any) {
