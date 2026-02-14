@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { instrumentSerif } from '@/lib/fonts';
 import Image from 'next/image';
+import { getBackendUrl } from '@/lib/backend';
 
 const container = {
     hidden: {},
@@ -68,11 +69,7 @@ export default function HighlightsPage() {
     useEffect(() => {
         async function fetchHighlights() {
             try {
-                const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-                if (!baseUrl) {
-                    console.error("NEXT_PUBLIC_BACKEND_URL is not defined");
-                    return;
-                }
+                const baseUrl = getBackendUrl();
                 const res = await fetch(`${baseUrl}/api/website-media/highlights?active=true`);
                 if (!res.ok) throw new Error('Failed to fetch highlights');
                 const data = await res.json();
