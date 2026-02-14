@@ -72,6 +72,7 @@ type EventFormData = {
     city: string;
     state: string;
     country: string;
+    locationUrl: string;
 
     // Step 3: Coupons
     coupons: CouponData[];
@@ -106,6 +107,7 @@ const INITIAL_DATA: EventFormData = {
     city: "",
     state: "",
     country: "",
+    locationUrl: "",
     coupons: [],
     formFields: [],
     tickets: [{ name: "", brief: "", price: 0, quantity: 100, maxQuantityPerPerson: 1 }], // Default one ticket
@@ -303,6 +305,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                 city: formData.city,
                 state: formData.state,
                 country: formData.country,
+                locationUrl: formData.locationUrl,
                 status: status,
                 verificationRequired: false, // Default
                 coupons: formData.coupons.map(c => ({
@@ -803,6 +806,26 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                         onChange={(e) => updateField("country", e.target.value)}
                                     />
                                     {errors.country && <p className="text-xs text-red-500">{errors.country}</p>}
+                                </div>
+
+                                <div className="space-y-2 pt-2 border-t">
+                                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                                        Google Link / Location URL
+                                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Optional</span>
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="url"
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                            placeholder="https://maps.google.com/..."
+                                            value={formData.locationUrl}
+                                            onChange={(e) => updateField("locationUrl", e.target.value)}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                                        Provide a link to the venue on Google Maps or other map services.<br />
+                                        <span className="text-primary/70 font-medium">Tip: Go to Google Maps, select your location, click 'Share', and then 'Copy link'.</span>
+                                    </p>
                                 </div>
                             </div>
                         )}
@@ -1320,13 +1343,22 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
 
                             <div className="flex items-center gap-3">
                                 {currentStep === "offers" && (
-                                    <button
-                                        onClick={() => handleSubmit("draft")}
-                                        disabled={isSubmitting}
-                                        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-6 py-2 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
-                                    >
-                                        Save as Draft
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => handleSubmit("draft")}
+                                            disabled={isSubmitting}
+                                            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                                        >
+                                            Save as Draft
+                                        </button>
+                                        <button
+                                            onClick={() => handleSubmit("waitlist")}
+                                            disabled={isSubmitting}
+                                            className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
+                                        >
+                                            Create Future Event
+                                        </button>
+                                    </>
                                 )}
                                 <button
                                     onClick={currentStep === "offers" ? () => handleSubmit("published") : handleNext}

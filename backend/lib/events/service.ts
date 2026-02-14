@@ -27,6 +27,7 @@ type EventRow = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  location_url: string | null;
   verification_required: boolean;
 };
 
@@ -114,6 +115,7 @@ export type EventSummary = {
   country: string;
   deletedAt: string | null;
   verificationRequired: boolean;
+  locationUrl: string | null;
   createdAt: string;
   metrics: {
     ticketTypes: number;
@@ -247,6 +249,7 @@ export type EventWriteInput = {
   registrationStart?: string | null;
   registrationEnd?: string | null;
   status?: string | null;
+  locationUrl?: string | null;
   verificationRequired?: boolean;
   coupons?: Omit<CouponWriteInput, "eventId">[];
   formFields?: Omit<FormFieldWriteInput, "eventId">[];
@@ -298,7 +301,7 @@ export type BundleOfferWriteInput = {
 const logger = getLogger("events-service");
 
 const EVENT_SELECT_FIELDS =
-  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required";
+  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required,location_url";
 const TICKET_SELECT_FIELDS =
   "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person";
 const COUPON_SELECT_FIELDS =
@@ -408,6 +411,7 @@ function mapEventWriteInput(input: EventWriteInput) {
     terms_and_conditions: input.termsAndConditions ?? null,
     registration_start: input.registrationStart ?? null,
     registration_end: input.registrationEnd ?? null,
+    location_url: input.locationUrl ?? null,
     verification_required: input.verificationRequired ?? false,
     ...(input.status ? { status: input.status } : {}),
   };
@@ -658,6 +662,7 @@ export async function listEventAdminSummaries(params?: {
       country: event.country,
       deletedAt: event.deleted_at,
       verificationRequired: event.verification_required,
+      locationUrl: event.location_url,
       createdAt: event.created_at,
       metrics: {
         ticketTypes: eventTickets.length,
@@ -1324,32 +1329,62 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     throw new Error("Unable to load bookings");
   }
 
+  // Fetch all tickets to map names
+  const { data: tickets } = await supabase
+    .from("event_tickets")
+    .select("id, description");
+
+  const ticketMap = new Map<string, string>();
+  if (tickets) {
+    tickets.forEach((t) => {
+      const desc = t.description as { name?: string } | null;
+      if (desc?.name) {
+        ticketMap.set(t.id, desc.name);
+      }
+    });
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data || []).map((reg: any) => ({
-    id: reg.id,
-    eventId: reg.event_id,
-    eventName: reg.events?.name || "Unknown Event",
-    ticketId: "unknown",
-    ticketName: "Unknown Ticket",
-    userId: reg.user_id,
-    userEmail: reg.users?.email || null,
-    userName: reg.users?.full_name || null,
-    userPhone: reg.users?.phone || null,
-    couponId: reg.coupon_id,
-    couponCode: reg.event_coupons?.code || null,
-    quantity: reg.tickets_bought,
-    totalAmount: parseFloat(reg.total_amount),
-    finalAmount: parseFloat(reg.final_amount),
-    paymentStatus: reg.payment_status,
-    formResponse: reg.form_response,
-    createdAt: reg.created_at,
-    updatedAt: reg.updated_at,
-    deletedAt: reg.deleted_at,
-    name: reg.name,
-    transactionId: reg.transaction_id,
-    ticketsBought: reg.tickets_bought,
-    isVerified: reg.is_verified,
-  }));
+  return (data || []).map((reg: any) => {
+    const ticketsBought = (reg.tickets_bought as Record<string, number>) || {};
+    const ticketIds = Object.keys(ticketsBought);
+    const ticketNames = ticketIds.map(
+      (id) => ticketMap.get(id) || "Unknown Ticket",
+    );
+    const ticketNameStr =
+      ticketNames.length > 0 ? ticketNames.join(", ") : "Unknown Ticket";
+
+    return {
+      id: reg.id,
+      eventId: reg.event_id,
+      eventName: reg.events?.name || "Unknown Event",
+      ticketId: ticketIds[0] || "unknown",
+      ticketName: ticketNameStr,
+      userId: reg.user_id,
+      userEmail: reg.users?.email || null,
+      userName: reg.users?.full_name || null,
+      userPhone: reg.users?.phone || null,
+      couponId: reg.coupon_id,
+      couponCode: reg.event_coupons?.code || null,
+      quantity: reg.tickets_bought
+        ? Object.values(reg.tickets_bought as Record<string, number>).reduce(
+            (a, b) => a + b,
+            0,
+          )
+        : 0,
+      totalAmount: parseFloat(reg.total_amount),
+      finalAmount: parseFloat(reg.final_amount),
+      paymentStatus: reg.payment_status,
+      formResponse: reg.form_response,
+      createdAt: reg.created_at,
+      updatedAt: reg.updated_at,
+      deletedAt: reg.deleted_at,
+      name: reg.name,
+      transactionId: reg.transaction_id,
+      ticketsBought: reg.tickets_bought,
+      isVerified: reg.is_verified,
+    };
+  });
 }
 export async function listPublicEvents() {
   const supabase = createSupabaseAdminClient();
@@ -1357,7 +1392,7 @@ export async function listPublicEvents() {
   const { data: events, error } = await supabase
     .from("events")
     .select(EVENT_SELECT_FIELDS)
-    .in("status", ["published", "completed", "cancelled"])
+    .in("status", ["published", "completed", "cancelled", "waitlist"])
     .is("deleted_at", null)
     .order("event_date", { ascending: true })
     .returns<EventRow[]>();
@@ -1371,8 +1406,9 @@ export async function listPublicEvents() {
     .sort((a, b) => {
       const statusOrder: Record<string, number> = {
         published: 0,
-        completed: 1,
-        cancelled: 2,
+        waitlist: 1,
+        completed: 2,
+        cancelled: 3,
       };
 
       const orderA = statusOrder[a.status] ?? 3;
@@ -1470,6 +1506,7 @@ export async function getPublicEventDetail(eventId: string) {
       about: event.about,
       termsAndConditions: event.terms_and_conditions,
       status: event.status,
+      locationUrl: event.location_url,
     },
     tickets: (tickets ?? []).map(mapTicket),
     formFields: (formFields ?? []).map(mapFormField),

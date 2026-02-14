@@ -1,14 +1,28 @@
-export const EVENT_STATUS_VALUES = ["draft", "published", "cancelled", "completed"] as const;
+export const EVENT_STATUS_VALUES = [
+  "draft",
+  "published",
+  "cancelled",
+  "completed",
+  "waitlist",
+] as const;
 export const TICKET_STATUS_VALUES = ["active", "inactive", "sold_out"] as const;
 export const DISCOUNT_TYPE_VALUES = ["percentage", "flat"] as const;
-export const PAYMENT_STATUS_VALUES = ["pending", "paid", "failed", "refunded"] as const;
+export const PAYMENT_STATUS_VALUES = [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+] as const;
 
 export type EventStatus = (typeof EVENT_STATUS_VALUES)[number];
 export type TicketStatus = (typeof TICKET_STATUS_VALUES)[number];
 export type DiscountType = (typeof DISCOUNT_TYPE_VALUES)[number];
 export type PaymentStatus = (typeof PAYMENT_STATUS_VALUES)[number];
 
-function includes<T extends string>(values: readonly T[], value: string): value is T {
+function includes<T extends string>(
+  values: readonly T[],
+  value: string,
+): value is T {
   return values.includes(value as T);
 }
 

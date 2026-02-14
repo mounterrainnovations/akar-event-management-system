@@ -13,6 +13,7 @@ import {
     Archive,
     XCircle,
     CheckCircle,
+    ArrowLeft,
 } from "@phosphor-icons/react/dist/ssr";
 import { getEventAdminDetail, type EventDetail } from "@/lib/events/service";
 import { EventStatusButton } from "./EventStatusButton";
@@ -289,6 +290,21 @@ export async function EventsNewDetailModal({
                                     </dd>
                                 </div>
                             </div>
+                            {event.location_url && (
+                                <div className="mt-4 pt-4 border-t border-border/40">
+                                    <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1.5">Google Maps Link</dt>
+                                    <a
+                                        href={event.location_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80 transition-colors group"
+                                    >
+                                        <MapPin className="size-3.5" weight="bold" />
+                                        <span>View on Google Maps</span>
+                                        <ArrowLeft className="size-3.5 rotate-180 group-hover:translate-x-0.5 transition-transform" weight="bold" />
+                                    </a>
+                                </div>
+                            )}
 
                             {/* About & T&C (Text view) */}
                             <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">

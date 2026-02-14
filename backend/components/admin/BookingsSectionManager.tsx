@@ -167,7 +167,9 @@ export function BookingsSectionManager() {
                                                 </div>
                                                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground capitalize">
                                                     <Tag size={12} />
-                                                    {booking.ticketName} (x{booking.quantity})
+                                                    {booking.ticketName} (x{typeof (booking.quantity as any) === 'object' && booking.quantity !== null
+                                                        ? Object.values(booking.quantity as any).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+                                                        : booking.quantity})
                                                 </div>
                                             </div>
                                         </td>
