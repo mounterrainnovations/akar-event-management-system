@@ -8,17 +8,15 @@ import {
     Archive,
     ShieldCheck,
     CaretRight,
-    XCircle,
-    CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { listEventAdminSummaries, type EventSummary } from "@/lib/events/service";
-import { cancelEventAction, publishEventAction } from "@/app/admin/events-new-actions";
-import { EventStatusButton } from "@/components/admin/EventStatusButton";
 import { EventsNewDetailModal } from "./EventsNewDetailModal";
+import { EventsNewCreate } from "./EventsNewCreate";
 
 type EventsNewSectionManagerProps = {
     includeDeleted?: boolean;
     selectedEventId?: string;
+    view?: string;
 };
 
 function statusColor(status: string) {
@@ -54,6 +52,10 @@ function formatCurrency(value: number) {
     }).format(value);
 }
 
+import { EventBannerViewer } from "./EventBannerViewer";
+
+// ... inside EventRow ...
+
 function EventRow({ event, includeDeleted }: { event: EventSummary; includeDeleted: boolean }) {
     const isArchived = !!event.deletedAt;
     const isCancelled = event.status === "cancelled";
@@ -64,6 +66,9 @@ function EventRow({ event, includeDeleted }: { event: EventSummary; includeDelet
             className={`group flex items-center gap-4 border-b border-border/40 px-4 py-3.5 transition-colors hover:bg-muted/40 ${isArchived ? "opacity-50" : ""
                 }`}
         >
+            {/* Banner Thumbnail */}
+            <EventBannerViewer bannerUrl={event.bannerUrl} eventName={event.name} />
+
             {/* Status badge */}
             <span
                 className={`inline-flex w-[88px] shrink-0 items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider ring-1 ring-inset ${statusColor(event.status)}`}
@@ -73,7 +78,7 @@ function EventRow({ event, includeDeleted }: { event: EventSummary; includeDelet
 
             {/* Name + Location + Date — clickable */}
             <Link
-                href={`/admin?section=events-new&eventId=${event.id}${includeDeletedQuery}`}
+                href={`/admin?section=events&eventId=${event.id}${includeDeletedQuery}`}
                 className="min-w-0 flex-1"
             >
                 <div className="flex items-center gap-2">
@@ -117,53 +122,8 @@ function EventRow({ event, includeDeleted }: { event: EventSummary; includeDelet
                 </div>
             </div>
 
-            {/* Cancel button */}
-            {/* Actions */}
-            {!isArchived ? (
-                isCancelled ? (
-                    <EventStatusButton
-                        eventId={event.id}
-                        eventName={event.name}
-                        includeDeleted={includeDeleted}
-                        action={publishEventAction}
-                        title="Publish Event?"
-                        description="Are you sure you want to publish {eventName}? "
-                        confirmLabel="Yes, Publish Event"
-                        variant="constructive"
-                        trigger={
-                            <button
-                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 hover:text-emerald-300"
-                                title="Publish event"
-                            >
-                                <CheckCircle className="size-3.5" weight="bold" />
-                                Publish
-                            </button>
-                        }
-                    />
-                ) : (
-                    <EventStatusButton
-                        eventId={event.id}
-                        eventName={event.name}
-                        includeDeleted={includeDeleted}
-                        action={cancelEventAction}
-                        title="Cancel Event?"
-                        description="Are you sure you want to cancel {eventName}? This will set the event status to cancelled."
-                        confirmLabel="Yes, Cancel Event"
-                        variant="destructive"
-                        trigger={
-                            <button
-                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300"
-                                title="Cancel event"
-                            >
-                                <XCircle className="size-3.5" weight="bold" />
-                                Cancel
-                            </button>
-                        }
-                    />
-                )
-            ) : (
-                <span className="w-[72px] shrink-0" />
-            )}
+            {/* Spacer for Action column alignment */}
+            <span className="w-[72px] shrink-0" />
 
             {/* Arrow */}
             <Link
@@ -179,7 +139,12 @@ function EventRow({ event, includeDeleted }: { event: EventSummary; includeDelet
 export async function EventsNewSectionManager({
     includeDeleted = false,
     selectedEventId,
+    view,
 }: EventsNewSectionManagerProps) {
+    if (view === "create") {
+        return <EventsNewCreate includeDeleted={includeDeleted} />;
+    }
+
     const events = await listEventAdminSummaries({ includeDeleted });
 
     const activeEvents = events.filter((e) => !e.deletedAt);
@@ -194,34 +159,14 @@ export async function EventsNewSectionManager({
                         <h2 className="text-xl font-semibold text-foreground">All Events</h2>
                         <p className="mt-0.5 text-sm text-muted-foreground">
                             {activeEvents.length} active event{activeEvents.length !== 1 ? "s" : ""}
-                            {archivedCount > 0 && (
-                                <span className="text-muted-foreground/60">
-                                    {" "}· {archivedCount} archived
-                                </span>
-                            )}
                         </p>
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Link
-                            href={`/admin?section=events-new${includeDeleted ? "" : "&includeDeleted=1"}`}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-                        >
-                            {includeDeleted ? (
-                                <>
-                                    <EyeSlash className="size-3.5" weight="bold" />
-                                    Hide archived
-                                </>
-                            ) : (
-                                <>
-                                    <Eye className="size-3.5" weight="bold" />
-                                    Show archived
-                                </>
-                            )}
-                        </Link>
+
 
                         <Link
-                            href="/admin?section=events-new&view=create"
+                            href="/admin?section=events&view=create"
                             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                         >
                             <Plus className="size-3.5" weight="bold" />

@@ -27,16 +27,18 @@ import { listWebsiteSectionRules } from "@/lib/media/website-sections";
 import { EventsSectionManager } from "@/components/admin/EventsSectionManager";
 import { EventsNewSectionManager } from "@/components/admin/EventsNewSectionManager";
 import { LeadsSectionManager } from "@/components/admin/LeadsSectionManager";
+import { BookingsSectionManager } from "@/components/admin/BookingsSectionManager";
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
 import { isPaymentStatus, type PaymentStatus } from "@/lib/events/enums";
 
-type AdminSection = "media" | "events" | "events-new" | "leads";
+type AdminSection = "media" | "events" | "leads" | "bookings";
 type MediaCategory = "highlights" | "hero-carousel" | "members";
 
 const navItems: Array<{ title: string; section: AdminSection; icon: typeof Image; enabled: boolean }> = [
   { title: "Media", section: "media", icon: Image, enabled: true },
-  { title: "Events", section: "events", icon: CalendarBlank, enabled: true },
-  { title: "Events - New", section: "events-new", icon: CalendarPlus, enabled: true },
+  { title: "Events", section: "events", icon: CalendarPlus, enabled: true },
+  { title: "Bookings", section: "bookings", icon: BookOpen, enabled: true },
+  { title: "Events (Legacy)", section: "media", icon: CalendarBlank, enabled: false },
   { title: "Work", section: "media", icon: Briefcase, enabled: false },
   { title: "Publications", section: "media", icon: BookOpen, enabled: false },
   { title: "Leads", section: "leads", icon: ChartLineUp, enabled: true },
@@ -57,8 +59,8 @@ const mediaCategories: Array<{
 
 function parseSection(value?: string): AdminSection {
   if (value === "events") return "events";
-  if (value === "events-new") return "events-new";
   if (value === "leads") return "leads";
+  if (value === "bookings") return "bookings";
   return "media";
 }
 
@@ -83,6 +85,7 @@ export default async function AdminPage({
     typeof params.paymentStatus === "string" && isPaymentStatus(params.paymentStatus)
       ? params.paymentStatus
       : undefined;
+  const view = typeof params.view === "string" ? params.view : undefined;
 
   const session = await getAuthSession();
   if (!session) {
@@ -186,10 +189,10 @@ export default async function AdminPage({
           <div className="flex items-center gap-1.5 text-sm">
             {activeSection === "events" ? (
               <h1 className="font-semibold">Events</h1>
-            ) : activeSection === "events-new" ? (
-              <h1 className="font-semibold">Events — New</h1>
             ) : activeSection === "leads" ? (
               <h1 className="font-semibold">Leads</h1>
+            ) : activeSection === "bookings" ? (
+              <h1 className="font-semibold">Bookings</h1>
             ) : mediaCategory ? (
               <>
                 <Link href="/admin?section=media" className="text-muted-foreground hover:text-foreground">
@@ -205,19 +208,18 @@ export default async function AdminPage({
         </header>
 
         {activeSection === "events" ? (
-          <EventsSectionManager
-            selectedEventId={selectedEventId}
-            includeDeleted={includeDeleted}
-            paymentStatus={paymentStatus}
-          />
-        ) : activeSection === "events-new" ? (
           <EventsNewSectionManager
             includeDeleted={includeDeleted}
             selectedEventId={selectedEventId}
+            view={view}
           />
         ) : activeSection === "leads" ? (
           <section className="p-6">
             <LeadsSectionManager users={leadUsers} />
+          </section>
+        ) : activeSection === "bookings" ? (
+          <section className="p-6">
+            <BookingsSectionManager />
           </section>
         ) : mediaCategory === "highlights" ? (
           <section className="p-6">

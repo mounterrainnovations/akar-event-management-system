@@ -262,3 +262,13 @@ h6 {
 .Toastify__progress-bar {
   height: 3px;
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

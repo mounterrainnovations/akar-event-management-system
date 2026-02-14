@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Roboto } from "next/font/google";
 import { ToastProvider } from "@/components/providers/ToastProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import "./globals.css";
 
 const instrumentSerif = Instrument_Serif({
@@ -28,8 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${instrumentSerif.variable} ${roboto.variable} antialiased`}>
-        {children}
-        <ToastProvider />
+        <QueryProvider>
+          {children}
+          <ToastProvider />
+        </QueryProvider>
       </body>
     </html>
   );

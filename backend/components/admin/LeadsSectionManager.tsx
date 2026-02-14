@@ -47,6 +47,7 @@ export function LeadsSectionManager({ users }: LeadsSectionManagerProps) {
                                 <th className="px-4 py-3 text-left font-medium text-muted-foreground w-16">S.No.</th>
                                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
                                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
+                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Phone</th>
                                 <th className="px-4 py-3 text-left font-medium text-muted-foreground w-32">Created At</th>
                             </tr>
                         </thead>
@@ -61,6 +62,9 @@ export function LeadsSectionManager({ users }: LeadsSectionManagerProps) {
                                         {user.fullName || <span className="text-muted-foreground/60 italic">—</span>}
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                                    <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                                        {user.phone || <span className="text-muted-foreground/40 italic">—</span>}
+                                    </td>
                                     <td className="px-4 py-3 text-muted-foreground tabular-nums">{formatDate(user.createdAt)}</td>
                                 </tr>
                             ))}

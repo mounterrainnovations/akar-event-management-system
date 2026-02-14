@@ -22,7 +22,9 @@ discount_type: percentage, flat
 
 payment_status: pending, paid, failed, refunded
 
-payment_mode:	upi, net_banking, debit_card, credit_card
+payment_mode: upi, net_banking, debit_card, credit_card
+
+bundle_offer_type: same_tier, cross_tier
 
 ### Events
 
@@ -37,6 +39,7 @@ state text not null,
 country text not null,
 about text null,
 terms_and_conditions text null,
+base_event_banner text null, -- this is the public url of the event banner from supabase storage
 registration_start timestamp with time zone null,
 registration_end timestamp with time zone null,
 status public.event_status not null default 'draft'::event_status,
@@ -134,6 +137,7 @@ label text not null,
 field_type text not null,
 is_required boolean not null default false,
 options jsonb null,
+answer text null,
 display_order integer not null default 0,
 created_at timestamp with time zone not null default now(),
 constraint event_form_fields_pkey primary key (id),
@@ -141,6 +145,26 @@ constraint event_form_fields_event_id_fkey foreign KEY (event_id) references eve
 ) TABLESPACE pg_default;
 
 create index IF not exists event_form_fields_event_idx on public.event_form_fields using btree (event_id) TABLESPACE pg_default;
+
+### Event Bundle Offers
+
+create table public.event_bundle_offers (
+id uuid not null default gen_random_uuid (),
+event_id uuid not null,
+name text not null,
+buy_quantity integer not null,
+get_quantity integer not null,
+offer_type public.bundle_offer_type not null default 'same_tier'::bundle_offer_type,
+applicable_ticket_ids uuid[] null,
+created_at timestamp with time zone not null default now(),
+updated_at timestamp with time zone not null default now(),
+constraint event_bundle_offers_pkey primary key (id),
+constraint event_bundle_offers_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
+constraint event_bundle_offers_buy_quantity_check check (buy_quantity > 0),
+constraint event_bundle_offers_get_quantity_check check (get_quantity > 0)
+) TABLESPACE pg_default;
+
+create index IF not exists event_bundle_offers_event_idx on public.event_bundle_offers using btree (event_id) TABLESPACE pg_default;
 
 ### Event Registrations
 
@@ -259,22 +283,22 @@ execute FUNCTION set_updated_at ();
 ### Payment (Core transactions for use)
 
 create table public.payments (
-  id uuid not null default gen_random_uuid (),
-  registration_id uuid not null,
-  user_id uuid not null,
-  easebuzz_txnid character varying(40) null,
-  amount numeric(12, 2) not null,
-  refund_amount numeric(12, 2) null default 0,
-  status public.payment_status not null default 'pending'::payment_status,
-  mode public.payment_mode null,
-  gateway_response_message text null,
-  initiated_at timestamp with time zone null default now(),
-  completed_at timestamp with time zone null,
-  refunded_at timestamp with time zone null,
-  created_at timestamp with time zone null default now(),
-  updated_at timestamp with time zone null default now(),
-  constraint payments_pkey primary key (id),
-  constraint payments_easebuzz_txnid_key unique (easebuzz_txnid)
+id uuid not null default gen_random_uuid (),
+registration_id uuid not null,
+user_id uuid not null,
+easebuzz_txnid character varying(40) null,
+amount numeric(12, 2) not null,
+refund_amount numeric(12, 2) null default 0,
+status public.payment_status not null default 'pending'::payment_status,
+mode public.payment_mode null,
+gateway_response_message text null,
+initiated_at timestamp with time zone null default now(),
+completed_at timestamp with time zone null,
+refunded_at timestamp with time zone null,
+created_at timestamp with time zone null default now(),
+updated_at timestamp with time zone null default now(),
+constraint payments_pkey primary key (id),
+constraint payments_easebuzz_txnid_key unique (easebuzz_txnid)
 ) TABLESPACE pg_default;
 
 create index IF not exists easebuzz_txnid_idx on public.payments using btree (easebuzz_txnid) TABLESPACE pg_default;
@@ -282,18 +306,18 @@ create index IF not exists easebuzz_txnid_idx on public.payments using btree (ea
 ### Payment Logs (Log dump of every single easebuzz request)
 
 create table public.payment_logs (
-  id uuid not null default gen_random_uuid (),
-  payment_id uuid null,
-  action character varying(50) not null,
-  easebuzz_url character varying(100) not null,
-  request_payload jsonb null,
-  response_payload jsonb null,
-  http_status integer null,
-  easebuzz_status character varying(50) null,
-  error_message text null,
-  created_at timestamp with time zone null default now(),
-  constraint payment_logs_pkey primary key (id),
-  constraint payment_logs_payment_id_fkey foreign KEY (payment_id) references payments (id) on delete CASCADE
+id uuid not null default gen_random_uuid (),
+payment_id uuid null,
+action character varying(50) not null,
+easebuzz_url character varying(100) not null,
+request_payload jsonb null,
+response_payload jsonb null,
+http_status integer null,
+easebuzz_status character varying(50) null,
+error_message text null,
+created_at timestamp with time zone null default now(),
+constraint payment_logs_pkey primary key (id),
+constraint payment_logs_payment_id_fkey foreign KEY (payment_id) references payments (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 ## Event Flow Help

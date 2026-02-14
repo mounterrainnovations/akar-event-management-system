@@ -12,6 +12,7 @@ type JsonValue =
 type EventRow = {
   id: string;
   name: string;
+  base_event_banner: string | null;
   event_date: string | null;
   address_line_1: string;
   address_line_2: string | null;
@@ -39,6 +40,7 @@ type TicketRow = {
   discount_start: string | null;
   discount_end: string | null;
   status: string;
+  max_qty_per_person: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -72,6 +74,18 @@ type FormFieldRow = {
   created_at: string;
 };
 
+type BundleOfferRow = {
+  id: string;
+  event_id: string;
+  name: string;
+  buy_quantity: number;
+  get_quantity: number;
+  offer_type: string;
+  applicable_ticket_ids: string[] | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type RegistrationRow = {
   id: string;
   event_id: string;
@@ -91,6 +105,7 @@ type RegistrationRow = {
 export type EventSummary = {
   id: string;
   name: string;
+  bannerUrl: string | null;
   status: string;
   eventDate: string | null;
   registrationStart: string | null;
@@ -111,6 +126,28 @@ export type EventSummary = {
   };
 };
 
+export type BookingDetail = {
+  id: string;
+  eventId: string;
+  eventName: string;
+  ticketId: string;
+  ticketName: string;
+  userId: string | null;
+  userEmail: string | null;
+  userName: string | null;
+  userPhone: string | null;
+  couponId: string | null;
+  couponCode: string | null;
+  quantity: number;
+  totalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  paymentStatus: string;
+  formResponse: any;
+  createdAt: string;
+  isVerified: boolean | null;
+};
+
 export type EventTicket = {
   id: string;
   description: JsonValue | null;
@@ -120,6 +157,7 @@ export type EventTicket = {
   discountStart: string | null;
   discountEnd: string | null;
   status: string;
+  maxQuantityPerPerson: number;
   createdAt: string;
   deletedAt: string | null;
 };
@@ -146,6 +184,17 @@ export type EventFormField = {
   isRequired: boolean;
   options: JsonValue | null;
   displayOrder: number;
+  answer: string | null;
+  createdAt: string;
+};
+
+export type EventBundleOffer = {
+  id: string;
+  name: string;
+  buyQuantity: number;
+  getQuantity: number;
+  offerType: "same_tier" | "cross_tier";
+  applicableTicketIds: string[] | null;
   createdAt: string;
 };
 
@@ -169,6 +218,7 @@ export type EventDetail = {
   tickets: EventTicket[];
   coupons: EventCoupon[];
   formFields: EventFormField[];
+  bundleOffers: EventBundleOffer[];
   registrations: EventRegistration[];
   analytics: {
     registrations: number;
@@ -181,6 +231,7 @@ export type EventDetail = {
 
 export type EventWriteInput = {
   name: string;
+  baseEventBanner?: string | null;
   eventDate?: string | null;
   addressLine1: string;
   addressLine2?: string | null;
@@ -193,6 +244,10 @@ export type EventWriteInput = {
   registrationEnd?: string | null;
   status?: string | null;
   verificationRequired?: boolean;
+  coupons?: Omit<CouponWriteInput, "eventId">[];
+  formFields?: Omit<FormFieldWriteInput, "eventId">[];
+  tickets?: Omit<TicketWriteInput, "eventId">[];
+  bundleOffers?: Omit<BundleOfferWriteInput, "eventId">[];
 };
 
 export type TicketWriteInput = {
@@ -204,6 +259,7 @@ export type TicketWriteInput = {
   discountStart?: string | null;
   discountEnd?: string | null;
   status?: string | null;
+  maxQuantityPerPerson?: number;
 };
 
 export type CouponWriteInput = {
@@ -226,18 +282,30 @@ export type FormFieldWriteInput = {
   isRequired?: boolean;
   options?: JsonValue | null;
   displayOrder?: number;
+  answer?: string | null;
+};
+
+export type BundleOfferWriteInput = {
+  eventId: string;
+  name: string;
+  buyQuantity: number;
+  getQuantity: number;
+  offerType: "same_tier" | "cross_tier";
+  applicableTicketIds?: string[] | null;
 };
 
 const logger = getLogger("events-service");
 
 const EVENT_SELECT_FIELDS =
-  "id,name,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required";
+  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required";
 const TICKET_SELECT_FIELDS =
-  "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at";
+  "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person";
 const COUPON_SELECT_FIELDS =
   "id,event_id,code,discount_type,discount_value,usage_limit,used_count,valid_from,valid_until,is_active,created_at,updated_at,deleted_at";
 const FORM_FIELD_SELECT_FIELDS =
-  "id,event_id,field_name,label,field_type,is_required,options,display_order,created_at";
+  "id,event_id,field_name,label,field_type,is_required,options,display_order,created_at,answer";
+const BUNDLE_OFFER_SELECT_FIELDS =
+  "id,event_id,name,buy_quantity,get_quantity,offer_type,applicable_ticket_ids,created_at,updated_at";
 const REGISTRATION_SELECT_FIELDS =
   "id,event_id,ticket_id,user_id,coupon_id,quantity,total_amount,discount_amount,final_amount,payment_status,form_response,created_at,is_verified";
 
@@ -262,6 +330,7 @@ function mapTicket(row: TicketRow): EventTicket {
     discountStart: row.discount_start,
     discountEnd: row.discount_end,
     status: row.status,
+    maxQuantityPerPerson: row.max_qty_per_person || 1,
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
   };
@@ -283,7 +352,9 @@ function mapCoupon(row: CouponRow): EventCoupon {
   };
 }
 
-function mapFormField(row: FormFieldRow): EventFormField {
+function mapFormField(
+  row: FormFieldRow & { answer?: string | null },
+): EventFormField & { answer?: string | null } {
   return {
     id: row.id,
     fieldName: row.field_name,
@@ -293,6 +364,7 @@ function mapFormField(row: FormFieldRow): EventFormField {
     options: row.options,
     displayOrder: row.display_order,
     createdAt: row.created_at,
+    answer: row.answer ?? null,
   };
 }
 
@@ -316,6 +388,7 @@ function mapRegistration(row: RegistrationRow): EventRegistration {
 function mapEventWriteInput(input: EventWriteInput) {
   return {
     name: input.name,
+    base_event_banner: input.baseEventBanner ?? null,
     event_date: input.eventDate ?? null,
     address_line_1: input.addressLine1,
     address_line_2: input.addressLine2 ?? null,
@@ -341,6 +414,7 @@ function mapTicketWriteInput(input: TicketWriteInput, includeEventId: boolean) {
     discount_start: input.discountStart ?? null,
     discount_end: input.discountEnd ?? null,
     ...(input.status ? { status: input.status } : {}),
+    max_qty_per_person: input.maxQuantityPerPerson ?? 1,
   };
 }
 
@@ -370,6 +444,33 @@ function mapFormFieldWriteInput(
     is_required: input.isRequired ?? false,
     options: input.options ?? null,
     display_order: input.displayOrder ?? 0,
+    answer: input.answer ?? null,
+  };
+}
+
+function mapBundleOffer(row: BundleOfferRow): EventBundleOffer {
+  return {
+    id: row.id,
+    name: row.name,
+    buyQuantity: row.buy_quantity,
+    getQuantity: row.get_quantity,
+    offerType: row.offer_type as "same_tier" | "cross_tier",
+    applicableTicketIds: row.applicable_ticket_ids,
+    createdAt: row.created_at,
+  };
+}
+
+function mapBundleOfferWriteInput(
+  input: BundleOfferWriteInput,
+  includeEventId: boolean,
+) {
+  return {
+    ...(includeEventId ? { event_id: input.eventId } : {}),
+    name: input.name,
+    buy_quantity: input.buyQuantity,
+    get_quantity: input.getQuantity,
+    offer_type: input.offerType,
+    applicable_ticket_ids: input.applicableTicketIds ?? null,
   };
 }
 
@@ -537,6 +638,7 @@ export async function listEventAdminSummaries(params?: {
     return {
       id: event.id,
       name: event.name,
+      bannerUrl: event.base_event_banner,
       status: event.status,
       eventDate: event.event_date,
       registrationStart: event.registration_start,
@@ -598,6 +700,7 @@ export async function getEventAdminDetail(params: {
     { data: tickets, error: ticketError },
     { data: coupons, error: couponError },
     { data: formFields, error: fieldError },
+    { data: bundleOffers, error: bundleOfferError },
   ] = await Promise.all([
     supabase
       .from("event_tickets")
@@ -617,7 +720,13 @@ export async function getEventAdminDetail(params: {
       .eq("event_id", eventId)
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: true })
-      .returns<FormFieldRow[]>(),
+      .returns<(FormFieldRow & { image_link?: string | null })[]>(),
+    supabase
+      .from("event_bundle_offers")
+      .select(BUNDLE_OFFER_SELECT_FIELDS)
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true })
+      .returns<BundleOfferRow[]>(),
   ]);
 
   await syncRegistrationVerificationMode({
@@ -632,13 +741,20 @@ export async function getEventAdminDetail(params: {
     .order("created_at", { ascending: false })
     .returns<RegistrationRow[]>();
 
-  if (ticketError || couponError || fieldError || registrationError) {
+  if (
+    ticketError ||
+    couponError ||
+    fieldError ||
+    registrationError ||
+    bundleOfferError
+  ) {
     logger.error("Failed to load related event entities", {
       eventId,
       ticketError: ticketError?.message,
       couponError: couponError?.message,
       fieldError: fieldError?.message,
       registrationError: registrationError?.message,
+      bundleOfferError: bundleOfferError?.message,
     });
     throw new Error("Unable to load event related records");
   }
@@ -650,6 +766,7 @@ export async function getEventAdminDetail(params: {
     tickets: (tickets ?? []).map(mapTicket),
     coupons: (coupons ?? []).map(mapCoupon),
     formFields: (formFields ?? []).map(mapFormField),
+    bundleOffers: (bundleOffers ?? []).map(mapBundleOffer),
     registrations: mappedRegistrations,
     analytics: {
       registrations: mappedRegistrations.length,
@@ -689,7 +806,107 @@ export async function createEvent(input: EventWriteInput) {
     throw new Error("Unable to create event");
   }
 
-  return data.id;
+  const eventId = data.id;
+
+  // Insert Coupons
+  if (input.coupons && input.coupons.length > 0) {
+    const couponsPayload = input.coupons.map((c) =>
+      mapCouponWriteInput({ ...c, eventId }, true),
+    );
+    const { error: couponError } = await supabase
+      .from("event_coupons")
+      .insert(couponsPayload);
+
+    if (couponError) {
+      logger.error("Failed to create event coupons via createEvent", {
+        eventId,
+        message: couponError.message,
+      });
+      // Not throwing here to avoid partial state if possible, or we could delete event.
+      // For now, logging error. User might need to add coupons manually later.
+    }
+  }
+
+  // Insert Form Fields
+  if (input.formFields && input.formFields.length > 0) {
+    const fieldsPayload = input.formFields.map((f) =>
+      mapFormFieldWriteInput({ ...f, eventId }, true),
+    );
+    const { error: fieldError } = await supabase
+      .from("event_form_fields")
+      .insert(fieldsPayload);
+
+    if (fieldError) {
+      logger.error("Failed to create event form fields via createEvent", {
+        eventId,
+        message: fieldError.message,
+      });
+    }
+  }
+
+  // Insert Tickets
+  const ticketIdMap = new Map<string, string>();
+  if (input.tickets && input.tickets.length > 0) {
+    const ticketsPayload = input.tickets.map((t) =>
+      mapTicketWriteInput({ ...t, eventId }, true),
+    );
+    const { data: insertedTickets, error: ticketError } = await supabase
+      .from("event_tickets")
+      .insert(ticketsPayload)
+      .select("id, description");
+
+    if (ticketError) {
+      logger.error("Failed to create event tickets via createEvent", {
+        eventId,
+        message: ticketError.message,
+      });
+    }
+
+    if (insertedTickets) {
+      insertedTickets.forEach((t) => {
+        const name = (t.description as any)?.name;
+        if (name) ticketIdMap.set(name, t.id);
+      });
+    }
+  }
+
+  // Insert Bundle Offers
+  if (input.bundleOffers && input.bundleOffers.length > 0) {
+    const bundlesPayload = input.bundleOffers.map((b) => {
+      // Map names to IDs if possible (they might be names like "heyy" from the frontend)
+      const mappedTicketIds = b.applicableTicketIds
+        ?.map((idOrName) => {
+          // If it's already a UUID, ticketIdMap.get will return undefined and we keep it
+          // If it's a name, it will be replaced by the UUID from the map
+          return ticketIdMap.get(idOrName) || idOrName;
+        })
+        .filter(Boolean) as string[];
+
+      return mapBundleOfferWriteInput(
+        {
+          ...b,
+          eventId,
+          applicableTicketIds:
+            mappedTicketIds.length > 0 ? mappedTicketIds : null,
+        },
+        true,
+      );
+    });
+
+    const { error: bundleError } = await supabase
+      .from("event_bundle_offers")
+      .insert(bundlesPayload);
+
+    if (bundleError) {
+      logger.error("Failed to create event bundle offers via createEvent", {
+        eventId,
+        message: bundleError.message,
+        payload: bundlesPayload,
+      });
+    }
+  }
+
+  return eventId;
 }
 
 export async function updateEvent(params: {
@@ -1012,4 +1229,72 @@ export async function deleteEventFormField(params: { formFieldId: string }) {
     });
     throw new Error("Unable to delete form field");
   }
+}
+export async function listAllRegistrations(): Promise<BookingDetail[]> {
+  const supabase = createSupabaseAdminClient();
+
+  // We'll fetch registrations and join with related tables
+  // Note: Using select with joins in Supabase/PostgREST
+  const { data, error } = await supabase
+    .from("event_registrations")
+    .select(
+      `
+      id,
+      event_id,
+      ticket_id,
+      user_id,
+      coupon_id,
+      quantity,
+      total_amount,
+      discount_amount,
+      final_amount,
+      payment_status,
+      form_response,
+      created_at,
+      is_verified,
+      events (
+        name
+      ),
+      event_tickets (
+        description
+      ),
+      users (
+        email,
+        full_name,
+        phone
+      ),
+      event_coupons (
+        code
+      )
+    `,
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    logger.error("Failed to list all registrations", { error: error.message });
+    throw new Error("Unable to load bookings");
+  }
+
+  return (data || []).map((reg: any) => ({
+    id: reg.id,
+    eventId: reg.event_id,
+    eventName: reg.events?.name || "Unknown Event",
+    ticketId: reg.ticket_id,
+    ticketName:
+      (reg.event_tickets?.description as any)?.name || "Unknown Ticket",
+    userId: reg.user_id,
+    userEmail: reg.users?.email || null,
+    userName: reg.users?.full_name || null,
+    userPhone: reg.users?.phone || null,
+    couponId: reg.coupon_id,
+    couponCode: reg.event_coupons?.code || null,
+    quantity: reg.quantity,
+    totalAmount: parseFloat(reg.total_amount),
+    discountAmount: parseFloat(reg.discount_amount),
+    finalAmount: parseFloat(reg.final_amount),
+    paymentStatus: reg.payment_status,
+    formResponse: reg.form_response,
+    createdAt: reg.created_at,
+    isVerified: reg.is_verified,
+  }));
 }

@@ -1,107 +1,120 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { getAuthSession } from "@/lib/auth/session";
+import { revalidatePath } from "next/cache";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  createEvent,
+  updateEventStatus,
+  type EventWriteInput,
+} from "@/lib/events/service";
 import { getLogger } from "@/lib/logger";
-import { updateEventStatus } from "@/lib/events/service";
 
-const logger = getLogger("admin-events-new-actions");
+const logger = getLogger("events-new-actions");
 
-function toEventsNewUrl(params?: {
-  includeDeleted?: boolean;
-  success?: string;
-  error?: string;
-}) {
-  const searchParams = new URLSearchParams();
-  searchParams.set("section", "events-new");
-
-  if (params?.includeDeleted) {
-    searchParams.set("includeDeleted", "1");
-  }
-  if (params?.success) {
-    searchParams.set("success", params.success);
-  }
-  if (params?.error) {
-    searchParams.set("error", params.error);
+export async function uploadEventBannerAction(formData: FormData) {
+  const file = formData.get("file") as File | null;
+  if (!file) {
+    return { error: "No file provided" };
   }
 
-  return `/admin?${searchParams.toString()}`;
+  // Validate file type
+  const validTypes = ["image/jpeg", "image/png", "image/jpg"];
+  if (!validTypes.includes(file.type)) {
+    return { error: "Invalid file type. Only PNG and JPG are allowed." };
+  }
+
+  // Validate file size (e.g., 5MB limit)
+  if (file.size > 5 * 1024 * 1024) {
+    return { error: "File size exceeds 5MB limit." };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const filePath = `banner-${fileName}`;
+
+  const { error } = await supabase.storage
+    .from("eventBanner")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) {
+    logger.error("Failed to upload event banner", { error: error.message });
+    return { error: "Failed to upload image. Please try again." };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("eventBanner").getPublicUrl(filePath);
+
+  return { publicUrl };
+}
+
+export async function createEventAction(input: EventWriteInput) {
+  try {
+    const eventId = await createEvent({
+      ...input,
+      status: input.status || "published",
+    });
+    revalidatePath("/admin?section=events");
+    return { success: true, eventId };
+  } catch (error) {
+    logger.error("Failed to create event action", { error });
+    return { error: "Failed to create event. Please try again." };
+  }
 }
 
 export async function cancelEventAction(formData: FormData) {
-  const session = await getAuthSession();
-  if (!session) {
-    redirect("/login?error=Please+sign+in+again");
-  }
-
-  const eventId = formData.get("eventId");
-  if (typeof eventId !== "string" || !eventId.trim()) {
-    redirect(toEventsNewUrl({ error: "Invalid event ID" }));
-  }
-
-  const includeDeleted = formData.get("includeDeleted") === "1";
+  const eventId = formData.get("eventId") as string;
+  if (!eventId) return { error: "Event ID is required" };
 
   try {
-    await updateEventStatus({ eventId: eventId.trim(), status: "cancelled" });
+    await updateEventStatus({ eventId, status: "cancelled" });
+    revalidatePath("/admin?section=events");
+    return { success: true };
   } catch (error) {
-    logger.error("cancelEventAction failed", {
-      userId: session.sub,
-      eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-
-    redirect(
-      toEventsNewUrl({
-        includeDeleted,
-        error:
-          error instanceof Error ? error.message : "Failed to cancel event",
-      }),
-    );
+    logger.error("Failed to cancel event", { eventId, error });
+    return { error: "Failed to cancel event" };
   }
-
-  redirect(
-    toEventsNewUrl({
-      includeDeleted,
-      success: "Event cancelled",
-    }),
-  );
 }
 
 export async function publishEventAction(formData: FormData) {
-  const session = await getAuthSession();
-  if (!session) {
-    redirect("/login?error=Please+sign+in+again");
-  }
-
-  const eventId = formData.get("eventId");
-  if (typeof eventId !== "string" || !eventId.trim()) {
-    redirect(toEventsNewUrl({ error: "Invalid event ID" }));
-  }
-
-  const includeDeleted = formData.get("includeDeleted") === "1";
+  const eventId = formData.get("eventId") as string;
+  if (!eventId) return { error: "Event ID is required" };
 
   try {
-    await updateEventStatus({ eventId: eventId.trim(), status: "published" });
+    await updateEventStatus({ eventId, status: "published" });
+    revalidatePath("/admin?section=events");
+    return { success: true };
   } catch (error) {
-    logger.error("publishEventAction failed", {
-      userId: session.sub,
-      eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-
-    redirect(
-      toEventsNewUrl({
-        includeDeleted,
-        error:
-          error instanceof Error ? error.message : "Failed to publish event",
-      }),
-    );
+    logger.error("Failed to publish event", { eventId, error });
+    return { error: "Failed to publish event" };
   }
+}
 
-  redirect(
-    toEventsNewUrl({
-      includeDeleted,
-      success: "Event published",
-    }),
-  );
+export async function moveToDraftAction(formData: FormData) {
+  const eventId = formData.get("eventId") as string;
+  if (!eventId) return { error: "Event ID is required" };
+
+  try {
+    await updateEventStatus({ eventId, status: "draft" });
+    revalidatePath("/admin?section=events");
+    return { success: true };
+  } catch (error) {
+    logger.error("Failed to move event to draft", { eventId, error });
+    return { error: "Failed to move event to draft" };
+  }
+}
+
+export async function listAllRegistrationsAction() {
+  const { listAllRegistrations } = await import("@/lib/events/service");
+  try {
+    const bookings = await listAllRegistrations();
+    return { success: true, bookings };
+  } catch (error) {
+    logger.error("Failed to list all registrations action", { error });
+    return { error: "Failed to load bookings. Please try again." };
+  }
 }

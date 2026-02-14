@@ -11,8 +11,12 @@ import {
     Clock,
     ShieldCheck,
     Archive,
+    XCircle,
+    CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { getEventAdminDetail, type EventDetail } from "@/lib/events/service";
+import { EventStatusButton } from "./EventStatusButton";
+import { cancelEventAction, publishEventAction, moveToDraftAction } from "@/app/admin/events-new-actions";
 
 // Helper for formatting currency
 function formatCurrency(value: number) {
@@ -86,7 +90,7 @@ export async function EventsNewDetailModal({
         // If error, likely id invalid or permission denied
     }
 
-    const backLink = `/admin?section=events-new${includeDeleted ? "&includeDeleted=1" : ""}`;
+    const backLink = `/admin?section=events${includeDeleted ? "&includeDeleted=1" : ""}`;
 
     if (!data) {
         return (
@@ -104,7 +108,7 @@ export async function EventsNewDetailModal({
         );
     }
 
-    const { event, tickets, coupons, formFields, analytics } = data;
+    const { event, tickets, coupons, formFields, bundleOffers, analytics } = data;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-8">
@@ -139,6 +143,98 @@ export async function EventsNewDetailModal({
                                 </>
                             )}
                         </div>
+
+                        {/* Actions */}
+                        {!event.deleted_at && (
+                            <div className="mt-2 flex items-center gap-3">
+                                {event.status === "draft" && (
+                                    <EventStatusButton
+                                        eventId={event.id}
+                                        eventName={event.name}
+                                        includeDeleted={includeDeleted}
+                                        action={publishEventAction}
+                                        title="Publish Event?"
+                                        description="Are you sure you want to publish {eventName}? This will make it visible to users."
+                                        confirmLabel="Yes, Publish Event"
+                                        variant="constructive"
+                                        trigger={
+                                            <button
+                                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 hover:text-emerald-300"
+                                                title="Publish event"
+                                            >
+                                                <CheckCircle className="size-3.5" weight="bold" />
+                                                Publish
+                                            </button>
+                                        }
+                                    />
+                                )}
+
+                                {event.status === "published" && (
+                                    <>
+                                        <EventStatusButton
+                                            eventId={event.id}
+                                            eventName={event.name}
+                                            includeDeleted={includeDeleted}
+                                            action={moveToDraftAction}
+                                            title="Move to Draft?"
+                                            description="Are you sure you want to move {eventName} back to draft? It will no longer be visible to users."
+                                            confirmLabel="Yes, Move to Draft"
+                                            variant="constructive"
+                                            trigger={
+                                                <button
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400 transition-colors hover:bg-amber-500/20 hover:text-amber-300"
+                                                    title="Move to draft"
+                                                >
+                                                    <Archive className="size-3.5" weight="bold" />
+                                                    Move to Draft
+                                                </button>
+                                            }
+                                        />
+                                        <EventStatusButton
+                                            eventId={event.id}
+                                            eventName={event.name}
+                                            includeDeleted={includeDeleted}
+                                            action={cancelEventAction}
+                                            title="Cancel Event?"
+                                            description="Are you sure you want to cancel {eventName}? This will set the event status to cancelled."
+                                            confirmLabel="Yes, Cancel Event"
+                                            variant="destructive"
+                                            trigger={
+                                                <button
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300"
+                                                    title="Cancel event"
+                                                >
+                                                    <XCircle className="size-3.5" weight="bold" />
+                                                    Cancel
+                                                </button>
+                                            }
+                                        />
+                                    </>
+                                )}
+
+                                {event.status === "cancelled" && (
+                                    <EventStatusButton
+                                        eventId={event.id}
+                                        eventName={event.name}
+                                        includeDeleted={includeDeleted}
+                                        action={publishEventAction}
+                                        title="Re-publish Event?"
+                                        description="Are you sure you want to re-publish {eventName}? "
+                                        confirmLabel="Yes, Publish Event"
+                                        variant="constructive"
+                                        trigger={
+                                            <button
+                                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 hover:text-emerald-300"
+                                                title="Publish event"
+                                            >
+                                                <CheckCircle className="size-3.5" weight="bold" />
+                                                Publish
+                                            </button>
+                                        }
+                                    />
+                                )}
+                            </div>
+                        )}
                     </div>
                     <Link
                         href={backLink}
@@ -223,8 +319,8 @@ export async function EventsNewDetailModal({
                             />
                         </Section>
 
-                        {/* Tickets */}
-                        <Section title="Tickets" icon={Ticket}>
+                        {/* Tiers / Activities */}
+                        <Section title="Tiers / Activities" icon={Ticket}>
                             {tickets.length === 0 ? (
                                 <p className="text-sm text-muted-foreground italic">No Active Tickets</p>
                             ) : (
@@ -233,7 +329,8 @@ export async function EventsNewDetailModal({
                                         <thead className="bg-muted/30 font-medium text-muted-foreground">
                                             <tr>
                                                 <th className="px-3 py-2">Price</th>
-                                                <th className="px-3 py-2">Sold</th>
+                                                <th className="px-3 py-2 text-center">Qty (Sold/Total)</th>
+                                                <th className="px-3 py-2 text-center">Max/Person</th>
                                                 <th className="px-3 py-2">Status</th>
                                                 <th className="px-3 py-2">Discount Window</th>
                                             </tr>
@@ -242,8 +339,11 @@ export async function EventsNewDetailModal({
                                             {tickets.map((t) => (
                                                 <tr key={t.id}>
                                                     <td className="px-3 py-2 font-medium">{formatCurrency(t.price)}</td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-3 py-2 text-center">
                                                         {t.soldCount} / {t.quantity ?? "∞"}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-center font-medium">
+                                                        {t.maxQuantityPerPerson}
                                                     </td>
                                                     <td className="px-3 py-2 capitalize text-muted-foreground">{t.status}</td>
                                                     <td className="px-3 py-2 text-muted-foreground">
@@ -277,6 +377,55 @@ export async function EventsNewDetailModal({
                                 </div>
                             )}
                         </Section>
+
+                        {/* Bundle Offers */}
+                        {bundleOffers && bundleOffers.length > 0 && (
+                            <Section title="Bundle Offers" icon={Tag}>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {bundleOffers.map((offer) => (
+                                        <div key={offer.id} className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h5 className="font-bold text-sm tracking-tight">{offer.name}</h5>
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${offer.offerType === 'same_tier'
+                                                    ? 'bg-blue-50 border-blue-100 text-blue-700'
+                                                    : 'bg-indigo-50 border-indigo-100 text-indigo-700'
+                                                    }`}>
+                                                    {offer.offerType === 'same_tier' ? 'Same Tier' : 'Cross Tier'}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 mb-4 bg-emerald-50 border border-emerald-100 p-3 rounded-md">
+                                                <div className="size-8 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
+                                                    <Tag size={16} weight="bold" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-emerald-800">Buy {offer.buyQuantity} Get {offer.getQuantity} FREE</p>
+                                                    <p className="text-[10px] text-emerald-600/80 tracking-wide font-medium">Limited time bundle offer</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valid On</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {!offer.applicableTicketIds || offer.applicableTicketIds.length === 0 ? (
+                                                        <span className="text-xs text-muted-foreground italic bg-muted/30 px-2 py-0.5 rounded">All Event Tiers / Activities</span>
+                                                    ) : (
+                                                        offer.applicableTicketIds.map((id) => {
+                                                            const ticket = tickets.find(t => t.id === id);
+                                                            return (
+                                                                <span key={id} className="text-[10px] font-semibold bg-secondary/50 border border-secondary text-secondary-foreground px-2 py-0.5 rounded shadow-sm">
+                                                                    {(ticket?.description as any)?.name || id}
+                                                                </span>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Section>
+                        )}
 
                         {/* Form Fields */}
                         <Section title="Form Fields" icon={ListBullets}>

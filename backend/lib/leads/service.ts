@@ -4,44 +4,27 @@ export type LeadUser = {
   id: string;
   email: string;
   fullName: string;
+  phone: string | null;
   createdAt: string;
 };
 
 export async function listAllUsers(): Promise<LeadUser[]> {
   const supabase = createSupabaseAdminClient();
 
-  const allUsers: LeadUser[] = [];
-  let page = 1;
-  const perPage = 100;
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, email, full_name, phone, created_at")
+    .order("created_at", { ascending: false });
 
-  while (true) {
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page,
-      perPage,
-    });
-
-    if (error) {
-      throw new Error(`Failed to list users: ${error.message}`);
-    }
-
-    for (const user of data.users) {
-      allUsers.push({
-        id: user.id,
-        email: user.email ?? "",
-        fullName:
-          user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
-        createdAt: user.created_at,
-      });
-    }
-
-    if (data.users.length < perPage) break;
-    page += 1;
+  if (error) {
+    throw new Error(`Failed to list users from database: ${error.message}`);
   }
 
-  // Sort by created_at descending (newest first)
-  allUsers.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-
-  return allUsers;
+  return data.map((user) => ({
+    id: user.id,
+    email: user.email ?? "",
+    fullName: user.full_name ?? "",
+    phone: user.phone,
+    createdAt: user.created_at || new Date().toISOString(),
+  }));
 }
