@@ -36,7 +36,6 @@ type Step = "general" | "address" | "coupons" | "form-fields" | "pricings" | "of
 
 type CouponData = {
     code: string;
-    discountType: "percentage" | "flat";
     discountValue: number;
 };
 
@@ -308,7 +307,6 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                 verificationRequired: false, // Default
                 coupons: formData.coupons.map(c => ({
                     code: c.code,
-                    discountType: c.discountType,
                     discountValue: c.discountValue,
                     isActive: true
                 })),
@@ -424,7 +422,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
     const addCoupon = () => {
         setFormData(prev => ({
             ...prev,
-            coupons: [...prev.coupons, { code: "", discountType: "flat", discountValue: 0 }]
+            coupons: [...prev.coupons, { code: "", discountValue: 0 }]
         }));
     };
 
@@ -853,26 +851,10 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                         />
                                                         {errors[`coupon_${index}_code`] && <p className="text-xs text-red-500">{errors[`coupon_${index}_code`]}</p>}
                                                     </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-xs font-medium">Discount Type <span className="text-red-500">*</span></label>
-                                                        <Select
-                                                            value={coupon.discountType}
-                                                            onValueChange={(value) => updateNestedField(index, "discountType", value, "coupons")}
-                                                        >
-                                                            <SelectTrigger className="h-9 w-full">
-                                                                <SelectValue placeholder="Select type" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="flat">Flat Amount</SelectItem>
-                                                                <SelectItem value="percentage">Percentage</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
                                                 </div>
-
                                                 <div className="grid gap-4 sm:grid-cols-2">
                                                     <div className="space-y-1.5">
-                                                        <label className="text-xs font-medium">Discount Value <span className="text-red-500">*</span></label>
+                                                        <label className="text-xs font-medium">Discount Value (Flat Amount) <span className="text-red-500">*</span></label>
                                                         <input
                                                             type="number"
                                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"

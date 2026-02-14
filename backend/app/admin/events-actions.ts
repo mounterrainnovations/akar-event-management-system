@@ -29,17 +29,10 @@ import {
   type EventWriteInput,
   type FormFieldWriteInput,
   type TicketWriteInput,
+  type JsonValue,
 } from "@/lib/events/service";
 
 const logger = getLogger("admin-events-actions");
-
-type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: JsonValue }
-  | JsonValue[];
 
 type EventsActionContext = {
   eventId?: string;
@@ -332,26 +325,10 @@ function parseCouponInput(formData: FormData): CouponWriteInput {
     throw new Error("validUntil must be after validFrom");
   }
 
-  const usageLimit = parseOptionalInteger(formData, "usageLimit");
-  const usedCount = parseOptionalInteger(formData, "usedCount");
-
-  if (usageLimit !== null && usageLimit <= 0) {
-    throw new Error("usageLimit must be greater than 0");
-  }
-  if (usedCount !== null && usedCount < 0) {
-    throw new Error("usedCount cannot be negative");
-  }
-  if (usageLimit !== null && usedCount !== null && usedCount > usageLimit) {
-    throw new Error("usedCount cannot exceed usageLimit");
-  }
-
   return {
     eventId: asString(formData, "eventId", true),
     code: asString(formData, "code", true),
-    discountType: parseDiscountType(formData, "discountType"),
     discountValue: parseRequiredNumber(formData, "discountValue"),
-    usageLimit,
-    usedCount: usedCount ?? 0,
     validFrom,
     validUntil,
     isActive: parseBoolean(formData, "isActive"),

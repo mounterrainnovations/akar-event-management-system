@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  DISCOUNT_TYPE_VALUES,
   EVENT_STATUS_VALUES,
   PAYMENT_STATUS_VALUES,
   TICKET_STATUS_VALUES,
@@ -550,24 +549,10 @@ export async function EventsSectionManager({
                   <SectionField label="Code" required>
                     <Input name="code" required />
                   </SectionField>
-                  <SectionField label="Discount Type (discount_type)" required>
-                    <select name="discountType" className={enumSelectClassName()} defaultValue="percentage" required>
-                      {DISCOUNT_TYPE_VALUES.map((discountType) => (
-                        <option key={discountType} value={discountType}>
-                          {discountType}
-                        </option>
-                      ))}
-                    </select>
-                  </SectionField>
                   <SectionField label="Discount Value" required>
                     <Input name="discountValue" type="number" min="0.01" step="0.01" required />
                   </SectionField>
-                  <SectionField label="Usage Limit">
-                    <Input name="usageLimit" type="number" min="1" step="1" />
-                  </SectionField>
-                  <SectionField label="Used Count">
-                    <Input name="usedCount" type="number" min="0" step="1" defaultValue={0} />
-                  </SectionField>
+
                   <SectionField label="Valid From">
                     <Input name="validFrom" type="datetime-local" />
                   </SectionField>
@@ -600,20 +585,6 @@ export async function EventsSectionManager({
                         <SectionField label="Code" required>
                           <Input name="code" defaultValue={coupon.code} required />
                         </SectionField>
-                        <SectionField label="Discount Type (discount_type)" required>
-                          <select
-                            name="discountType"
-                            className={enumSelectClassName()}
-                            defaultValue={coupon.discountType}
-                            required
-                          >
-                            {DISCOUNT_TYPE_VALUES.map((discountType) => (
-                              <option key={discountType} value={discountType}>
-                                {discountType}
-                              </option>
-                            ))}
-                          </select>
-                        </SectionField>
                         <SectionField label="Discount Value" required>
                           <Input
                             name="discountValue"
@@ -624,18 +595,7 @@ export async function EventsSectionManager({
                             required
                           />
                         </SectionField>
-                        <SectionField label="Usage Limit">
-                          <Input
-                            name="usageLimit"
-                            type="number"
-                            min="1"
-                            step="1"
-                            defaultValue={coupon.usageLimit ?? ""}
-                          />
-                        </SectionField>
-                        <SectionField label="Used Count">
-                          <Input name="usedCount" type="number" min="0" step="1" defaultValue={coupon.usedCount} />
-                        </SectionField>
+
                         <SectionField label="Valid From">
                           <Input
                             name="validFrom"
@@ -822,13 +782,13 @@ export async function EventsSectionManager({
                     <li key={registration.id} className="rounded-lg border bg-background p-3 text-sm">
                       <p className="font-medium">#{registration.id}</p>
                       <p className="text-muted-foreground">
-                        Ticket ID: {registration.ticketId} | User ID: {registration.userId ?? "guest"}
+                        User ID: {registration.userId ?? "guest"}
                       </p>
                       <p className="text-muted-foreground">
                         Coupon ID: {registration.couponId ?? "none"} | Quantity: {registration.quantity}
                       </p>
                       <p className="text-muted-foreground">
-                        Total Amount: {registration.totalAmount.toFixed(2)} | Discount Amount: {registration.discountAmount.toFixed(2)} | Final Amount: {registration.finalAmount.toFixed(2)}
+                        Total Amount: {registration.totalAmount.toFixed(2)} | Final Amount: {registration.finalAmount.toFixed(2)}
                       </p>
                       <p className="text-muted-foreground">
                         Payment Status (payment_status): {registration.paymentStatus} | Created At: {formatDate(registration.createdAt)}

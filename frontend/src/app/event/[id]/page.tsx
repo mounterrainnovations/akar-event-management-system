@@ -1,0 +1,278 @@
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams } from 'next/navigation';
+import { instrumentSerif } from '@/lib/fonts';
+import Image from 'next/image';
+import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import RegistrationModal from '@/components/RegistrationModal';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
+interface EventDetailData {
+    event: {
+        id: string;
+        name: string;
+        bannerUrl: string | null;
+        eventDate: string | null;
+        address1: string;
+        address2: string | null;
+        city: string;
+        state: string;
+        country: string;
+        about: string | null;
+        termsAndConditions: string | null;
+        status: string;
+    };
+    tickets: Array<{
+        id: string;
+        description: any;
+        price: number;
+        quantity: number | null;
+        soldCount: number;
+        status: string;
+        maxQuantityPerPerson: number;
+    }>;
+    formFields: Array<{
+        id: string;
+        fieldName: string;
+        label: string;
+        fieldType: string;
+        isRequired: boolean;
+        options: any;
+        displayOrder: number;
+    }>;
+    bundleOffers: Array<{
+        id: string;
+        name: string;
+        buyQuantity: number;
+        getQuantity: number;
+        offerType: string;
+        applicableTicketIds: string[] | null;
+    }>;
+}
+
+export default function EventDetailPage() {
+    const params = useParams();
+    const id = params?.id as string;
+    const [data, setData] = useState<EventDetailData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (!id) return;
+
+        const fetchEventDetail = async () => {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/events/${id}`);
+                if (!response.ok) throw new Error('Event not found');
+                const detail: EventDetailData = await response.json();
+                setData(detail);
+            } catch (err: any) {
+                console.error('Error fetching event detail:', err);
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchEventDetail();
+    }, [id]);
+
+    const minPrice = useMemo(() => {
+        if (!data?.tickets || data.tickets.length === 0) return 0;
+        return Math.min(...data.tickets.map(t => t.price));
+    }, [data?.tickets]);
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+                <Loader2 className="w-10 h-10 text-[#1a1a1a]/20 animate-spin mb-4" />
+                <p className="text-[#1a1a1a]/40 font-medium font-montserrat">Loading event details...</p>
+            </div>
+        );
+    }
+
+    if (error || !data) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4 text-center">
+                <h2 className={`${instrumentSerif.className} text-4xl text-[#1a1a1a] mb-4`}>Event Not Found</h2>
+                <p className="text-[#1a1a1a]/60 font-montserrat mb-8">The event you are looking for might have been removed or is currently unavailable.</p>
+                <Link href="/events" className="px-8 py-3 rounded-full bg-[#1a1a1a] text-white font-montserrat font-medium hover:bg-black transition-all">
+                    Back to Events
+                </Link>
+            </div>
+        );
+    }
+
+    const { event, tickets, formFields } = data;
+    const eventDate = event.eventDate ? new Date(event.eventDate) : null;
+
+    return (
+        <main className="min-h-screen bg-white">
+            {/* Hero Wrapper with background image */}
+            <div
+                className="relative w-full bg-cover bg-top bg-no-repeat"
+                style={{ backgroundImage: "url('/event_bg.png')" }}
+            >
+
+                {/* Banner Section - First */}
+                <section className="pt-32 pb-8">
+                    <div className="w-full max-w-[85vw] md:max-w-7xl mx-auto px-4 md:px-12 lg:px-16">
+                        <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 bg-gray-50">
+                            <Image
+                                src={event.bannerUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
+                                alt={event.name}
+                                fill
+                                className="object-cover"
+                                unoptimized={true}
+                            />
+                            {/* Overlay Gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Event Title Section - Second */}
+                <section className="pb-16 text-center px-4">
+                    <div className="flex flex-col items-center">
+                        <h1 className={`${instrumentSerif.className} text-[#1a1a1a] text-[8vw] md:text-[6vw] lg:text-[5vw] leading-[1] text-center mb-4`}>
+                            {event.name}
+                        </h1>
+                        <div className="flex flex-col gap-1 text-[#1a1a1a] text-lg md:text-xl font-medium tracking-wide items-center font-montserrat">
+                            <p>{eventDate ? eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Date TBD'}</p>
+                            <p>{event.city}, {event.state}</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            {/* Event Details Content - Third */}
+            <section className="bg-white pb-48 px-4 md:px-12 lg:px-16" id="details">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-16">
+                    {/* Left Column - Main Content */}
+                    <div className="lg:col-span-2 space-y-16">
+                        {/* About */}
+                        <div>
+                            <h2 className={`${instrumentSerif.className} text-[#1a1a1a] text-4xl mb-6`}>
+                                About the Event
+                            </h2>
+                            <p className="font-montserrat text-[#1a1a1a]/80 text-lg leading-relaxed whitespace-pre-wrap">
+                                {event.about || "No description provided for this event."}
+                            </p>
+                        </div>
+
+                        {/* Terms and Conditions */}
+                        {event.termsAndConditions && (
+                            <div>
+                                <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl mb-4`}>
+                                    Terms and Conditions
+                                </h3>
+                                <ul className="list-disc pl-5 font-montserrat text-[#1a1a1a]/70 text-base space-y-3">
+                                    {event.termsAndConditions.split('\n').filter(line => line.trim() !== '').map((line, index) => (
+                                        <li key={index}>{line.trim()}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Location Map */}
+                        <div>
+                            <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl mb-6`}>
+                                Location
+                            </h3>
+                            <p className="font-montserrat text-[#1a1a1a]/80 text-lg mb-4 flex items-center gap-2">
+                                <span className="font-semibold">{event.address1}</span>
+                                {event.address2 && <span>— {event.address2}</span>}
+                                <span>, {event.city}, {event.state} {event.country}</span>
+                            </p>
+                            <div className="w-full h-[400px] rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative grayscale hover:grayscale-0 transition-all duration-500">
+                                <iframe
+                                    src={`https://www.google.com/maps?q=${encodeURIComponent(`${event.address1} ${event.city} ${event.state}`)}&output=embed`}
+                                    width="100%"
+                                    height="100%"
+                                    style={{ border: 0 }}
+                                    allowFullScreen
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column - Sticky Sidebar */}
+                    <div className="lg:col-span-1">
+                        <div className="sticky top-32 bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 space-y-8">
+
+                            {/* Date & Time */}
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Date</p>
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl`}>
+                                        {eventDate ? eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Location</p>
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl`}>{event.city}</p>
+                                </div>
+                            </div>
+
+                            <div className="h-px bg-gray-100" />
+
+                            {/* Status */}
+                            <div>
+                                <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Status</p>
+                                <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl capitalize`}>
+                                    {event.status === 'published' ? 'Upcoming' : event.status}
+                                </p>
+                            </div>
+
+                            <div className="h-px bg-gray-100" />
+
+                            {/* Price */}
+                            <div>
+                                <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Starting From</p>
+                                <div className="flex items-baseline gap-2">
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-5xl`}>₹{minPrice}</p>
+                                    <span className="font-montserrat text-sm text-[#1a1a1a]/50">/ person</span>
+                                </div>
+                            </div>
+
+                            {/* CTA */}
+                            <button
+                                onClick={() => setIsRegModalOpen(true)}
+                                className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${event.status === 'published'
+                                    ? 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
+                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                    }`}
+                                disabled={event.status !== 'published'}
+                            >
+                                {event.status === 'published' ? 'Book Now' : 'Registration Closed'}
+                            </button>
+
+                            <p className="font-montserrat text-xs text-center text-[#1a1a1a]/40">
+                                {event.status === 'published' ? 'Limited seats available' : 'Event is no longer accepting registrations'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {data && (
+                <RegistrationModal
+                    isOpen={isRegModalOpen}
+                    onClose={() => setIsRegModalOpen(false)}
+                    eventId={event.id}
+                    eventName={event.name}
+                    tickets={tickets}
+                    formFields={formFields}
+                    bundleOffers={data.bundleOffers}
+                    backendUrl={BACKEND_URL}
+                />
+            )}
+        </main>
+    );
+}

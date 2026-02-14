@@ -174,9 +174,7 @@ export function BookingsSectionManager() {
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-foreground">{formatCurrency(booking.finalAmount)}</span>
-                                                {booking.discountAmount > 0 && (
-                                                    <span className="text-[10px] text-emerald-600">Saved {formatCurrency(booking.discountAmount)}</span>
-                                                )}
+
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

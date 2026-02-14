@@ -1,7 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
 
-type JsonValue =
+export type JsonValue =
   | string
   | number
   | boolean
@@ -50,10 +50,7 @@ type CouponRow = {
   id: string;
   event_id: string;
   code: string;
-  discount_type: string;
   discount_value: string;
-  usage_limit: number | null;
-  used_count: number;
   valid_from: string | null;
   valid_until: string | null;
   is_active: boolean;
@@ -142,7 +139,6 @@ export type BookingDetail = {
   couponCode: string | null;
   quantity: number;
   totalAmount: number;
-  discountAmount: number;
   finalAmount: number;
   paymentStatus: string;
   formResponse: JsonValue;
@@ -172,10 +168,7 @@ export type EventTicket = {
 export type EventCoupon = {
   id: string;
   code: string;
-  discountType: string;
   discountValue: number;
-  usageLimit: number | null;
-  usedCount: number;
   validFrom: string | null;
   validUntil: string | null;
   isActive: boolean;
@@ -212,7 +205,6 @@ export type EventRegistration = {
   couponId: string | null;
   quantity: number;
   totalAmount: number;
-  discountAmount: number;
   finalAmount: number;
   paymentStatus: string;
   isVerified: boolean | null;
@@ -277,10 +269,7 @@ export type TicketWriteInput = {
 export type CouponWriteInput = {
   eventId: string;
   code: string;
-  discountType: string;
   discountValue: number;
-  usageLimit?: number | null;
-  usedCount?: number;
   validFrom?: string | null;
   validUntil?: string | null;
   isActive?: boolean;
@@ -313,13 +302,13 @@ const EVENT_SELECT_FIELDS =
 const TICKET_SELECT_FIELDS =
   "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person";
 const COUPON_SELECT_FIELDS =
-  "id,event_id,code,discount_type,discount_value,usage_limit,used_count,valid_from,valid_until,is_active,created_at,updated_at,deleted_at";
+  "id,event_id,code,discount_value,valid_from,valid_until,is_active,created_at,updated_at,deleted_at";
 const FORM_FIELD_SELECT_FIELDS =
   "id,event_id,field_name,label,field_type,is_required,options,display_order,created_at,answer";
 const BUNDLE_OFFER_SELECT_FIELDS =
   "id,event_id,name,buy_quantity,get_quantity,offer_type,applicable_ticket_ids,created_at,updated_at";
 const REGISTRATION_SELECT_FIELDS =
-  "id,event_id,user_id,coupon_id,total_amount,final_amount,payment_status,form_response,created_at,updated_at,deleted_at,name,transaction_id,tickets_bought,is_verified";
+  "id,event_id,user_id,coupon_id,tickets_bought,total_amount,final_amount,payment_status,form_response,created_at,updated_at,deleted_at,name,transaction_id,is_verified";
 
 function toNumber(value: string | number | null | undefined) {
   if (typeof value === "number") {
@@ -352,10 +341,7 @@ function mapCoupon(row: CouponRow): EventCoupon {
   return {
     id: row.id,
     code: row.code,
-    discountType: row.discount_type,
     discountValue: toNumber(row.discount_value),
-    usageLimit: row.usage_limit,
-    usedCount: row.used_count,
     validFrom: row.valid_from,
     validUntil: row.valid_until,
     isActive: row.is_active,
@@ -393,9 +379,8 @@ function mapRegistration(row: RegistrationRow): EventRegistration {
     ticketId: Object.keys(ticketsBought)[0] || null,
     userId: row.user_id,
     couponId: row.coupon_id,
-    quantity,
+    quantity: quantity,
     totalAmount,
-    discountAmount: Math.max(totalAmount - finalAmount, 0),
     finalAmount,
     paymentStatus: row.payment_status,
     isVerified: row.is_verified,
@@ -446,10 +431,7 @@ function mapCouponWriteInput(input: CouponWriteInput, includeEventId: boolean) {
   return {
     ...(includeEventId ? { event_id: input.eventId } : {}),
     code: input.code,
-    discount_type: input.discountType,
     discount_value: input.discountValue,
-    usage_limit: input.usageLimit ?? null,
-    used_count: input.usedCount ?? 0,
     valid_from: input.validFrom ?? null,
     valid_until: input.validUntil ?? null,
     is_active: input.isActive ?? true,
@@ -591,12 +573,16 @@ export async function listEventAdminSummaries(params?: {
       .returns<Array<Pick<FormFieldRow, "id" | "event_id">>>(),
     supabase
       .from("event_registrations")
-      .select("id,event_id,final_amount,payment_status,tickets_bought")
+      .select("id,event_id,tickets_bought,final_amount,payment_status")
       .returns<
         Array<
           Pick<
             RegistrationRow,
-            "id" | "event_id" | "final_amount" | "payment_status" | "tickets_bought"
+            | "id"
+            | "event_id"
+            | "tickets_bought"
+            | "final_amount"
+            | "payment_status"
           >
         >
       >(),
@@ -1045,6 +1031,10 @@ export async function softDeleteEvent(params: { eventId: string }) {
   const supabase = createSupabaseAdminClient();
   const deletedAt = new Date().toISOString();
 
+  // NOTE: event_tickets table exists but we removed it from other queries due to schema mismatch in registrations.
+  // However, for soft delete, we should still try to delete associated tickets if they exist.
+  // Assuming the table event_tickets exists (validated earlier).
+
   const [eventDeleteResult, ticketDeleteResult, couponDeleteResult] =
     await Promise.all([
       supabase
@@ -1285,7 +1275,11 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     tickets_bought: Record<string, number> | null;
     is_verified: boolean | null;
     events: { name: string } | null;
-    users: { email: string | null; full_name: string | null; phone: string | null } | null;
+    users: {
+      email: string | null;
+      full_name: string | null;
+      phone: string | null;
+    } | null;
     event_coupons: { code: string | null } | null;
   };
 
@@ -1299,6 +1293,7 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
       event_id,
       user_id,
       coupon_id,
+      tickets_bought,
       total_amount,
       final_amount,
       payment_status,
@@ -1308,7 +1303,6 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
       deleted_at,
       name,
       transaction_id,
-      tickets_bought,
       is_verified,
       events (
         name
@@ -1330,44 +1324,234 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     throw new Error("Unable to load bookings");
   }
 
-  return ((data || []) as RegistrationListRow[]).map((reg) => {
-    const ticketsBought =
-      reg.tickets_bought && typeof reg.tickets_bought === "object"
-        ? (reg.tickets_bought as Record<string, number>)
-        : {};
-    const quantity = Object.values(ticketsBought).reduce(
-      (acc, qty) => acc + (Number.isFinite(qty) ? Number(qty) : 0),
-      0,
-    );
-    const ticketIds = Object.keys(ticketsBought);
-    const totalAmount = parseFloat(reg.total_amount);
-    const finalAmount = parseFloat(reg.final_amount);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data || []).map((reg: any) => ({
+    id: reg.id,
+    eventId: reg.event_id,
+    eventName: reg.events?.name || "Unknown Event",
+    ticketId: "unknown",
+    ticketName: "Unknown Ticket",
+    userId: reg.user_id,
+    userEmail: reg.users?.email || null,
+    userName: reg.users?.full_name || null,
+    userPhone: reg.users?.phone || null,
+    couponId: reg.coupon_id,
+    couponCode: reg.event_coupons?.code || null,
+    quantity: reg.tickets_bought,
+    totalAmount: parseFloat(reg.total_amount),
+    finalAmount: parseFloat(reg.final_amount),
+    paymentStatus: reg.payment_status,
+    formResponse: reg.form_response,
+    createdAt: reg.created_at,
+    updatedAt: reg.updated_at,
+    deletedAt: reg.deleted_at,
+    name: reg.name,
+    transactionId: reg.transaction_id,
+    ticketsBought: reg.tickets_bought,
+    isVerified: reg.is_verified,
+  }));
+}
+export async function listPublicEvents() {
+  const supabase = createSupabaseAdminClient();
 
-    return {
-      id: reg.id,
-      eventId: reg.event_id,
-      eventName: reg.events?.name || "Unknown Event",
-      ticketId: ticketIds[0] || null,
-      ticketName: ticketIds.length <= 1 ? "Single Ticket Type" : "Multiple Tickets",
-      userId: reg.user_id,
-      userEmail: reg.users?.email || null,
-      userName: reg.users?.full_name || null,
-      userPhone: reg.users?.phone || null,
-      couponId: reg.coupon_id,
-      couponCode: reg.event_coupons?.code || null,
-      quantity,
-      totalAmount,
-      discountAmount: Math.max(totalAmount - finalAmount, 0),
-      finalAmount,
-      paymentStatus: reg.payment_status,
-      formResponse: reg.form_response,
-      createdAt: reg.created_at,
-      updatedAt: reg.updated_at,
-      deletedAt: reg.deleted_at,
-      name: reg.name,
-      transactionId: reg.transaction_id,
-      ticketsBought,
-      isVerified: reg.is_verified,
-    };
-  });
+  const { data: events, error } = await supabase
+    .from("events")
+    .select(EVENT_SELECT_FIELDS)
+    .in("status", ["published", "completed", "cancelled"])
+    .is("deleted_at", null)
+    .order("event_date", { ascending: true })
+    .returns<EventRow[]>();
+
+  if (error) {
+    logger.error("Failed to list public events", { error: error.message });
+    throw new Error("Unable to load events");
+  }
+
+  return (events ?? [])
+    .sort((a, b) => {
+      const statusOrder: Record<string, number> = {
+        published: 0,
+        completed: 1,
+        cancelled: 2,
+      };
+
+      const orderA = statusOrder[a.status] ?? 3;
+      const orderB = statusOrder[b.status] ?? 3;
+
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      // Secondary sort by date
+      const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
+      const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
+      return dateA - dateB;
+    })
+    .map((event) => ({
+      id: event.id,
+      name: event.name,
+      bannerUrl: event.base_event_banner,
+      status: event.status,
+      eventDate: event.event_date,
+      city: event.city,
+      state: event.state,
+      country: event.country,
+      about: event.about,
+      registrationStart: event.registration_start,
+      registrationEnd: event.registration_end,
+    }));
+}
+export async function getPublicEventDetail(eventId: string) {
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error: eventError } = await supabase
+    .from("events")
+    .select(EVENT_SELECT_FIELDS)
+    .eq("id", eventId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  const event = data as EventRow | null;
+
+  if (eventError || !event) {
+    logger.error("Failed to get public event detail", {
+      eventId,
+      error: eventError?.message,
+    });
+    throw new Error("Unable to load event details");
+  }
+
+  const [
+    { data: tickets, error: ticketError },
+    { data: formFields, error: fieldError },
+    { data: bundleOffers, error: bundleOfferError },
+  ] = await Promise.all([
+    supabase
+      .from("event_tickets")
+      .select(TICKET_SELECT_FIELDS)
+      .eq("event_id", eventId)
+      .is("deleted_at", null)
+      .returns<TicketRow[]>(),
+    supabase
+      .from("event_form_fields")
+      .select(FORM_FIELD_SELECT_FIELDS)
+      .eq("event_id", eventId)
+      .order("display_order", { ascending: true })
+      .returns<FormFieldRow[]>(),
+    supabase
+      .from("event_bundle_offers")
+      .select(BUNDLE_OFFER_SELECT_FIELDS)
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true })
+      .returns<BundleOfferRow[]>(),
+  ]);
+
+  if (ticketError || fieldError || bundleOfferError) {
+    logger.error("Failed to get public event components", {
+      eventId,
+      ticketError: ticketError?.message,
+      fieldError: fieldError?.message,
+      bundleOfferError: bundleOfferError?.message,
+    });
+    throw new Error("Unable to load event details");
+  }
+
+  return {
+    event: {
+      id: event.id,
+      name: event.name,
+      bannerUrl: event.base_event_banner,
+      eventDate: event.event_date,
+      address1: event.address_line_1,
+      address2: event.address_line_2,
+      city: event.city,
+      state: event.state,
+      country: event.country,
+      about: event.about,
+      termsAndConditions: event.terms_and_conditions,
+      status: event.status,
+    },
+    tickets: (tickets ?? []).map(mapTicket),
+    formFields: (formFields ?? []).map(mapFormField),
+    bundleOffers: (bundleOffers ?? []).map(mapBundleOffer),
+  };
+}
+export async function createRegistration(input: {
+  eventId: string;
+  userId?: string | null;
+  quantity: number;
+  totalAmount: number;
+  finalAmount: number;
+  formResponse: JsonValue;
+}) {
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from("event_registrations")
+    .insert({
+      event_id: input.eventId,
+      user_id: input.userId ?? null,
+      tickets_bought: input.quantity,
+      total_amount: input.totalAmount,
+      final_amount: input.finalAmount,
+      payment_status: "pending",
+      form_response: input.formResponse,
+      is_verified: null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    logger.error("Failed to create registration", {
+      message: error?.message,
+      input,
+    });
+    throw new Error("Unable to create registration");
+  }
+
+  return data.id;
+}
+
+export async function validateCoupon(params: {
+  eventId: string;
+  code: string;
+}) {
+  const { eventId, code } = params;
+  const supabase = createSupabaseAdminClient();
+
+  const { data: coupon, error } = await supabase
+    .from("event_coupons")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("code", code)
+    .is("deleted_at", null)
+    .maybeSingle<CouponRow>();
+
+  if (error) {
+    logger.error("Error validating coupon", {
+      eventId,
+      code,
+      error: error.message,
+    });
+    throw new Error("Unable to validate coupon");
+  }
+
+  if (!coupon) {
+    throw new Error("Invalid coupon code");
+  }
+
+  if (!coupon.is_active) {
+    throw new Error("This coupon is no longer active");
+  }
+
+  const now = new Date();
+  if (coupon.valid_from && new Date(coupon.valid_from) > now) {
+    throw new Error("This coupon is not yet valid");
+  }
+
+  if (coupon.valid_until && new Date(coupon.valid_until) < now) {
+    throw new Error("This coupon has expired");
+  }
+
+  return mapCoupon(coupon);
 }
