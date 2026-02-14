@@ -84,16 +84,17 @@ export function buildEasebuzzInitiatePayload(args: {
     phone: args.input.phone,
     surl: callbackUrls.callback,
     furl: callbackUrls.callback,
-    udf1: args.input.registrationId || "",
-    udf2: args.input.eventId || "",
-    udf3: args.input.userId || "",
-    udf4: transactionId,
+    udf1: args.input.registrationId || "registrationId",
+    udf2: args.input.eventId || "eventId",
+    udf3: args.input.userId || "userId",
+    udf4: transactionId || "transactionId",
     udf5: args.input.udf5 || "",
     udf6: args.input.udf6 || "",
     udf7: args.input.udf7 || "",
     udf8: args.input.udf8 || "",
     udf9: args.input.udf9 || "",
     udf10: args.input.udf10 || "",
+    show_payment_mode: "NB,CC,DC,UPI",
   };
 
   const hashString =

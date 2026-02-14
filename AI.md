@@ -485,4 +485,58 @@ event_coupons	Defines discount logic
 event_form_fields	Defines registration schema
 event_registrations	Stores actual purchases
 
-##
+## Callback Flow Help
+Now we move to the callback flow, there you'll recieve a body that looks like - 
+```
+{
+  deduction_percentage: '2.5',
+  net_amount_debit: '10.12',
+  cardCategory: 'NA',
+  unmappedstatus: 'NA',
+  addedon: '2026-02-14 08:15:16',
+  cash_back_percentage: '50.0',
+  bank_ref_num: '11e5ecdb1e8ae0ef52bf35ae69fa8b8f',
+  error_Message: 'Transaction is successful.',
+  phone: '9876543210',
+  easepayid: 'S260214074JZU3',
+  cardnum: 'NA',
+  upi_va: 'NA',
+  payment_source: 'Easebuzz',
+  card_type: 'UPI',
+  mode: 'UPI',
+  error: 'Transaction is successful.',
+  bankcode: 'NA',
+  name_on_card: 'NA',
+  bank_name: 'NA',
+  issuing_bank: 'NA',
+  PG_TYPE: 'NA',
+  amount: '10.12',
+  furl: 'http://localhost:3000/api/payments/easebuzz/callback',
+  productinfo: 'Event About',
+  auth_code: '',
+  email: 'userEmail@mail.com',
+  status: 'success',
+  hash: 'f9a57d10714799328d66ef5b03bf80e407c3e911b7128e36cc0a06dc4a2b512286d29fdd042de730340ef04cd454e6575430d1bdad30cc3195acfa9045c3ba60',
+  firstname: 'Event Name',
+  surl: 'http://localhost:3000/api/payments/easebuzz/callback',
+  key: 'LDY4WLIA4',
+  merchant_logo: 'NA',
+  udf10: '',
+  txnid: '97463c0b-4991-462a-85b3-c3a738fabcb8',
+  udf1: '5b7dd4e0-5f4a-4294-a84c-bd861003ef39',
+  udf3: '9413e7b8-3025-4667-9c22-1492b2284c41',
+  udf2: 'eventId',
+  udf5: '',
+  udf4: '97463c0b-4991-462a-85b3-c3a738fabcb8',
+  udf7: '',
+  udf6: '',
+  udf9: '',
+  udf8: ''
+}
+```
+, Now I want you implement a few
+  things - 
+  1. Body should be stored in payment_logs fully whatever is received and should ideally never be missing or empty but in case it is we want to log that in the payment_logs too. 
+  2. Minimalistic DTO/body extraction so we get the fields we wanna work with - everything is
+  not of use to us, we want key, txnid, amount, productinfo, firstname, email, phone, surl, furl, udf1 to udf10, hash, status (can be 'success', 'failure','dropped', 'pending', 'userCancelled', 'initated', 'bounced'), error, error_message (Note while both error and error_message sound like failure, but in case of success they contain the success message instead)
+  3. Now first thing is verifying authenticity of hash, use the hash logic in backend/lib/payments/easebuzz/service.ts
