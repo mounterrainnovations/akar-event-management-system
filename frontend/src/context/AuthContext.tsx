@@ -8,7 +8,9 @@ interface User {
     id: string;
     name: string;
     email: string;
+    phoneNumber?: string;
     avatarUrl?: string;
+    provider?: string;
 }
 
 interface AuthContextType {
@@ -17,6 +19,8 @@ interface AuthContextType {
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ error: string | null }>;
     signUp: (email: string, password: string, name: string, phoneNumber: string) => Promise<{ error: string | null }>;
+    updateProfile: (data: { name?: string; phoneNumber?: string }) => Promise<{ error: string | null }>;
+    updatePassword: (password: string) => Promise<{ error: string | null }>;
     googleLogin: () => Promise<void>;
     logout: () => Promise<void>;
     isAuthModalOpen: boolean;
@@ -35,9 +39,11 @@ function mapSupabaseUser(supabaseUser: SupabaseUser): User {
             supabaseUser.email?.split('@')[0] ||
             'User',
         email: supabaseUser.email || '',
+        phoneNumber: supabaseUser.user_metadata?.phone || '',
         avatarUrl:
             supabaseUser.user_metadata?.avatar_url ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${supabaseUser.email}`,
+        provider: supabaseUser.app_metadata?.provider || 'email',
     };
 }
 
@@ -100,6 +106,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: null };
     };
 
+    const updateProfile = async (data: { name?: string; phoneNumber?: string }): Promise<{ error: string | null }> => {
+        try {
+            const updates: any = {};
+            if (data.name) updates.full_name = data.name;
+            if (data.phoneNumber) updates.phone = data.phoneNumber;
+
+            const { error, data: { user: updatedUser } } = await supabase.auth.updateUser({
+                data: updates
+            });
+
+            if (error) throw error;
+
+            if (updatedUser) {
+                setUser(mapSupabaseUser(updatedUser));
+            }
+
+            return { error: null };
+        } catch (error: any) {
+            return { error: error.message || 'Failed to update profile' };
+        }
+    };
+
+    const updatePassword = async (password: string): Promise<{ error: string | null }> => {
+        try {
+            const { error } = await supabase.auth.updateUser({
+                password: password
+            });
+
+            if (error) throw error;
+            return { error: null };
+        } catch (error: any) {
+            return { error: error.message || 'Failed to update password' };
+        }
+    };
+
     const googleLogin = async () => {
         await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -125,6 +166,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isLoading,
                 login,
                 signUp,
+                updateProfile,
+                updatePassword,
                 googleLogin,
                 logout,
                 isAuthModalOpen,

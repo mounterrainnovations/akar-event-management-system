@@ -92,26 +92,30 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {mode === 'register' && (
-                    <>
-                        <AuthInput
-                            label="Name"
-                            id="name"
-                            type="text"
-                            placeholder="John Doe"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
-                        <AuthInput
-                            label="Phone Number"
-                            id="phoneNumber"
-                            type="tel"
-                            placeholder="+1 (555) 000-0000"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            required
-                        />
-                    </>
+                    <div className="flex gap-4">
+                        <div className="flex-1">
+                            <AuthInput
+                                label="Name"
+                                id="name"
+                                type="text"
+                                placeholder="John Doe"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <AuthInput
+                                label="Phone Number"
+                                id="phoneNumber"
+                                type="tel"
+                                placeholder="+1 (555) 000-0000"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
                 )}
 
                 <AuthInput
