@@ -539,4 +539,20 @@ Now we move to the callback flow, there you'll recieve a body that looks like -
   1. Body should be stored in payment_logs fully whatever is received and should ideally never be missing or empty but in case it is we want to log that in the payment_logs too. 
   2. Minimalistic DTO/body extraction so we get the fields we wanna work with - everything is
   not of use to us, we want key, txnid, amount, productinfo, firstname, email, phone, surl, furl, udf1 to udf10, hash, status (can be 'success', 'failure','dropped', 'pending', 'userCancelled', 'initated', 'bounced'), error, error_message (Note while both error and error_message sound like failure, but in case of success they contain the success message instead)
-  3. Now first thing is verifying authenticity of hash, use the hash logic in backend/lib/payments/easebuzz/service.ts
+  3. Now first thing is verifying authenticity of hash, use the hash logic in backend/lib/payments/easebuzz/service.ts to build the hash with the body we received and then compare it against the hash they sent. Handle it
+  4. Remove the existing success and failure paths in callback because I don't think we'd route there.
+  5. Now udf1 is registrationId, udf2 is eventId, udf3 is userId, udf4 is transactionId, they'll be useful later.
+  
+  ### Business Logic
+   Now we move towards business logic, the status received can be 'success', 'failure','dropped', 'pending', 'userCancelled', 'initated', 'bounced', so define three flows - success flow has 'success', failure flow has 'failure', 'dropped', 'userCancelled', 'bounced' and pending flow(alis retry flow alias recheck flow) has 'pending' and 'initiated'.
+
+   1. In all these cases we want to make respective updates to the `payment` table and `event_registration` table (as required) with respective statuses (logging is already done so no issue). How you'll update is using the udf data you have - udf1 is registrationId, udf2 is eventId, udf3 is userId, udf4 is transactionId.
+  (GO through existing flows, doc/ and AI.md to understand schemas)
+   
+   2. Now in case of pending and initiated, i.e pending flow. Setup a retry logic to hit a transactions API every second for 5 seconds of easebuzz - https://testdashboard.easebuzz.in/transaction/v2.1/retrieve with body - `key`, `txnid` and `hash` all of which we have from above callback and the response will be the exact same as above callback's body that we get.
+
+   Note - There is more logic to it but we'll get there slowly.
+
+   3. webook at easebuzz portal will also be given the /callback endpoint only so we are sorted, we don't need to do anything about that
+
+   4. Finally just ensure all logic is clean, streamlines, DRY and production grade with readability, separation of logic

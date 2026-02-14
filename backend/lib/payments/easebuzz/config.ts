@@ -35,6 +35,13 @@ export function getEasebuzzPaymentPath() {
   return getOptionalEnv("EASEBUZZ_PAY_PATH", "/pay");
 }
 
+export function getEasebuzzRetrieveUrl() {
+  return getOptionalEnv(
+    "EASEBUZZ_RETRIEVE_URL",
+    "https://testdashboard.easebuzz.in/transaction/v2.1/retrieve",
+  );
+}
+
 export function getPaymentCallbackBaseUrl() {
   return process.env.PAYMENT_CALLBACK_BASE_URL?.trim() || null;
 }
