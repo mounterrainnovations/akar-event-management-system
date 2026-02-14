@@ -31,6 +31,10 @@ export function getEasebuzzInitiatePath() {
   return getOptionalEnv("EASEBUZZ_INITIATE_PATH", "/payment/initiateLink");
 }
 
+export function getEasebuzzPaymentPath() {
+  return getOptionalEnv("EASEBUZZ_PAY_PATH", "/pay");
+}
+
 export function getPaymentCallbackBaseUrl() {
   return process.env.PAYMENT_CALLBACK_BASE_URL?.trim() || null;
 }

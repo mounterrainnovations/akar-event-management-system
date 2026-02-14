@@ -20,7 +20,7 @@ type LogInitiatePaymentInput = {
   requestPayload: Record<string, string>;
   responsePayload: unknown;
   httpStatus: number;
-  easebuzzStatus?: string | null;
+  easebuzzStatus?: string | number | null;
   errorMessage?: string | null;
 };
 

@@ -32,7 +32,10 @@ export type EasebuzzInitiateResult = {
   ok: boolean;
   status: number;
   endpoint: string;
-  data: unknown;
+  data: {
+    status: number;
+    data: string;
+  };
 };
 
 function sha512(value: string) {
@@ -102,7 +105,6 @@ export function buildEasebuzzInitiatePayload(args: {
   return {
     payload,
     transactionId,
-    callbackUrls,
   };
 }
 
