@@ -8,6 +8,7 @@ const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 type UploadMediaInput = {
   userId: string;
   file: File;
+  bucketName?: string;
 };
 
 type MediaRecord = {
@@ -22,7 +23,8 @@ type MediaRecord = {
   deleted_at: string | null;
 };
 
-let bucketReady = false;
+// We'll keep track of ready buckets in a set instead of a single boolean
+const readyBuckets = new Set<string>();
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -34,28 +36,39 @@ function buildFilePath(userId: string, originalName: string) {
   return `${userId}/${timestamp}-${crypto.randomUUID()}-${safeName}`;
 }
 
-async function ensureMediaBucket() {
-  if (bucketReady) {
+async function ensureMediaBucket(bucketName: string) {
+  if (readyBuckets.has(bucketName)) {
     return;
   }
 
   const supabase = createSupabaseAdminClient();
-  const bucketName = getMediaBucketName();
 
-  const { error: createError } = await supabase.storage.createBucket(bucketName, {
-    public: true,
-    fileSizeLimit: `${MAX_FILE_SIZE_BYTES}`,
-  });
+  const { error: createError } = await supabase.storage.createBucket(
+    bucketName,
+    {
+      public: true,
+      fileSizeLimit: `${MAX_FILE_SIZE_BYTES}`,
+    },
+  );
 
-  if (createError && !createError.message.toLowerCase().includes("already exists")) {
-    logger.error("Failed to create media bucket", { bucketName, message: createError.message });
+  if (
+    createError &&
+    !createError.message.toLowerCase().includes("already exists")
+  ) {
+    logger.error("Failed to create media bucket", {
+      bucketName,
+      message: createError.message,
+    });
     throw new Error("Unable to initialize media bucket");
   }
 
-  const { error: updateError } = await supabase.storage.updateBucket(bucketName, {
-    public: true,
-    fileSizeLimit: `${MAX_FILE_SIZE_BYTES}`,
-  });
+  const { error: updateError } = await supabase.storage.updateBucket(
+    bucketName,
+    {
+      public: true,
+      fileSizeLimit: `${MAX_FILE_SIZE_BYTES}`,
+    },
+  );
 
   if (updateError) {
     logger.warn("Unable to enforce media bucket configuration", {
@@ -64,12 +77,12 @@ async function ensureMediaBucket() {
     });
   }
 
-  bucketReady = true;
+  readyBuckets.add(bucketName);
 }
 
 export async function uploadMediaFile(input: UploadMediaInput) {
   const { userId, file } = input;
-  const bucketName = getMediaBucketName();
+  const bucketName = input.bucketName ?? getMediaBucketName();
 
   if (!file || file.size <= 0) {
     throw new Error("File is required");
@@ -78,7 +91,7 @@ export async function uploadMediaFile(input: UploadMediaInput) {
     throw new Error("File is too large");
   }
 
-  await ensureMediaBucket();
+  await ensureMediaBucket(bucketName);
 
   const supabase = createSupabaseAdminClient();
   const filePath = buildFilePath(userId, file.name);
@@ -86,15 +99,28 @@ export async function uploadMediaFile(input: UploadMediaInput) {
   const mimeType = file.type || "application/octet-stream";
   const fileBytes = await file.arrayBuffer();
 
-  logger.info("Uploading media file", { userId, bucketName, filePath, fileSize: file.size, mimeType });
-
-  const { error: storageError } = await supabase.storage.from(bucketName).upload(filePath, fileBytes, {
-    contentType: mimeType,
-    upsert: false,
+  logger.info("Uploading media file", {
+    userId,
+    bucketName,
+    filePath,
+    fileSize: file.size,
+    mimeType,
   });
 
+  const { error: storageError } = await supabase.storage
+    .from(bucketName)
+    .upload(filePath, fileBytes, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
   if (storageError) {
-    logger.error("Storage upload failed", { userId, bucketName, filePath, message: storageError.message });
+    logger.error("Storage upload failed", {
+      userId,
+      bucketName,
+      filePath,
+      message: storageError.message,
+    });
     throw new Error("Unable to upload file");
   }
 
@@ -122,7 +148,12 @@ export async function uploadMediaFile(input: UploadMediaInput) {
     throw new Error("Unable to persist media metadata");
   }
 
-  logger.info("Media upload successful", { mediaId: mediaRow.id, userId, bucketName, filePath });
+  logger.info("Media upload successful", {
+    mediaId: mediaRow.id,
+    userId,
+    bucketName,
+    filePath,
+  });
   return mediaRow;
 }
 
@@ -145,8 +176,12 @@ export async function listMediaForUser(userId: string, limit = 50) {
   return data;
 }
 
-export function getPublicMediaUrl(filePath: string, bucketNameOverride?: string) {
+export function getPublicMediaUrl(
+  filePath: string,
+  bucketNameOverride?: string,
+) {
   const supabase = createSupabaseAdminClient();
   const bucketName = bucketNameOverride ?? getMediaBucketName();
-  return supabase.storage.from(bucketName).getPublicUrl(filePath).data.publicUrl;
+  return supabase.storage.from(bucketName).getPublicUrl(filePath).data
+    .publicUrl;
 }

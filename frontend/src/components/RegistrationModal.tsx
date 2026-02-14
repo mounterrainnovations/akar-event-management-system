@@ -52,6 +52,7 @@ interface RegistrationModalProps {
     formFields: FormField[];
     bundleOffers: BundleOffer[];
     backendUrl: string;
+    eventStatus?: string;
 }
 
 export default function RegistrationModal({
@@ -62,7 +63,8 @@ export default function RegistrationModal({
     tickets,
     formFields,
     bundleOffers,
-    backendUrl
+    backendUrl,
+    eventStatus
 }: RegistrationModalProps) {
     const { user, isAuthenticated, openAuthModal } = useAuth();
     const [step, setStep] = useState(1);
@@ -82,8 +84,25 @@ export default function RegistrationModal({
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+    const [dragOverField, setDragOverField] = useState<string | null>(null);
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
     // Initializations and Scroll Locking
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (openDropdown && !(e.target as Element).closest('.custom-dropdown-container')) {
+                setOpenDropdown(null);
+            }
+        };
+
+        if (openDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [openDropdown]);
+
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -102,6 +121,7 @@ export default function RegistrationModal({
             setRegistrationId(null);
             setPaymentUrl(null);
             setShowCloseConfirm(false);
+            setOpenDropdown(null);
         }
 
         return () => {
@@ -489,11 +509,49 @@ export default function RegistrationModal({
                                                         {formFields.map((field, idx) => (
                                                             <div key={`field-${idx}`} className="space-y-1">
                                                                 <label className="text-[9px] font-bold uppercase tracking-widest text-[#1a1a1a]/60">{field.label} {field.isRequired && '*'}</label>
-                                                                {field.fieldType === 'select' ? (
-                                                                    <select value={formValues[field.fieldName] || ''} onChange={e => handleInputChange(field.fieldName, e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-montserrat text-[#1a1a1a] outline-none">
-                                                                        <option value="">Select option</option>
-                                                                        {field.options?.map((opt: string, optIdx: number) => <option key={`field-${idx}-opt-${optIdx}`} value={opt}>{opt}</option>)}
-                                                                    </select>
+                                                                {field.fieldType === 'select' || field.fieldType === 'dropdown' ? (
+                                                                    <div className="relative custom-dropdown-container">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setOpenDropdown(openDropdown === field.fieldName ? null : field.fieldName)}
+                                                                            className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-xs font-montserrat text-[#1a1a1a] flex items-center justify-between transition-all duration-300 ${openDropdown === field.fieldName ? 'border-[#1a1a1a] shadow-sm ring-1 ring-[#1a1a1a]' : 'border-gray-200 hover:border-gray-400'}`}
+                                                                        >
+                                                                            <span className={formValues[field.fieldName] ? "text-[#1a1a1a] font-medium" : "text-[#1a1a1a]/40"}>
+                                                                                {formValues[field.fieldName] || "Select option"}
+                                                                            </span>
+                                                                            <ChevronLeft size={12} className={`text-[#1a1a1a]/40 transform transition-transform duration-300 ${openDropdown === field.fieldName ? 'rotate-90 text-[#1a1a1a]' : '-rotate-90'}`} />
+                                                                        </button>
+
+                                                                        <AnimatePresence>
+                                                                            {openDropdown === field.fieldName && (
+                                                                                <motion.div
+                                                                                    initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                                    exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                                                                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                                                                    className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-100 rounded-xl shadow-2xl z-[100] overflow-hidden max-h-56 overflow-y-auto ring-1 ring-black/5 py-1"
+                                                                                >
+                                                                                    {field.options?.map((opt: string, optIdx: number) => {
+                                                                                        const isSelected = formValues[field.fieldName] === opt;
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={`field-${idx}-opt-${optIdx}`}
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                    handleInputChange(field.fieldName, opt);
+                                                                                                    setOpenDropdown(null);
+                                                                                                }}
+                                                                                                className={`w-full text-left px-4 py-2 text-[10px] font-montserrat transition-all flex items-center justify-between group ${isSelected ? 'bg-[#1a1a1a] text-white' : 'text-[#1a1a1a]/70 hover:bg-gray-50 hover:text-[#1a1a1a]'}`}
+                                                                                            >
+                                                                                                <span className={isSelected ? 'font-bold' : 'font-medium'}>{opt}</span>
+                                                                                                {isSelected && <CheckCircle2 size={10} className="text-white" />}
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                </motion.div>
+                                                                            )}
+                                                                        </AnimatePresence>
+                                                                    </div>
                                                                 ) : field.fieldType === 'image' || field.fieldType === 'file' ? (
                                                                     <div className="space-y-1.5">
                                                                         {formValues[field.fieldName] ? (
@@ -502,10 +560,24 @@ export default function RegistrationModal({
                                                                                 <button onClick={() => handleInputChange(field.fieldName, '')} className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
                                                                             </div>
                                                                         ) : (
-                                                                            <label className="flex flex-col items-center justify-center w-full h-20 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                                                                            <label
+                                                                                onDragOver={(e) => { e.preventDefault(); setDragOverField(field.fieldName); }}
+                                                                                onDragLeave={() => setDragOverField(null)}
+                                                                                onDrop={async (e) => {
+                                                                                    e.preventDefault();
+                                                                                    setDragOverField(null);
+                                                                                    const file = e.dataTransfer.files?.[0];
+                                                                                    if (file && file.type.startsWith('image/')) {
+                                                                                        await handleFileUpload(field.fieldName, file);
+                                                                                    }
+                                                                                }}
+                                                                                className={`flex flex-col items-center justify-center w-full h-20 bg-gray-50 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-100 transition-all ${dragOverField === field.fieldName ? 'border-[#1a1a1a] bg-gray-100' : 'border-gray-200'}`}
+                                                                            >
                                                                                 <div className="flex flex-col items-center justify-center py-2">
-                                                                                    {uploadingField === field.fieldName ? <Loader2 size={16} className="animate-spin text-[#1a1a1a]/40" /> : <Upload size={16} className="text-[#1a1a1a]/40" />}
-                                                                                    <p className="mt-1 text-[8px] text-[#1a1a1a]/40 font-montserrat uppercase font-bold tracking-tight">Upload {field.label}</p>
+                                                                                    {uploadingField === field.fieldName ? <Loader2 size={16} className="animate-spin text-[#1a1a1a]/40" /> : <Upload size={16} className={`${dragOverField === field.fieldName ? 'text-[#1a1a1a]' : 'text-[#1a1a1a]/40'}`} />}
+                                                                                    <p className="mt-1 text-[8px] text-[#1a1a1a]/40 font-montserrat uppercase font-bold tracking-tight">
+                                                                                        {dragOverField === field.fieldName ? 'Drop to upload' : `Upload or drag ${field.label}`}
+                                                                                    </p>
                                                                                 </div>
                                                                                 <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleFileUpload(field.fieldName, e.target.files[0])} disabled={!!uploadingField} />
                                                                             </label>
@@ -578,19 +650,21 @@ export default function RegistrationModal({
                                                                         <p className="text-[10px] text-[#1a1a1a]/60 font-montserrat leading-tight mt-0.5">{ticket.description?.description || 'Access to event'}</p>
 
                                                                         <div className="mt-3 flex flex-wrap items-end gap-2 px-0.5">
-                                                                            <div className="flex flex-col">
-                                                                                {hasBundleSavings && (
-                                                                                    <span className="text-[9px] text-red-500 line-through font-montserrat font-medium leading-none">₹{qty * ticket.price}</span>
-                                                                                )}
-                                                                                <p className={`${instrumentSerif.className} text-xl text-[#1a1a1a] leading-tight`}>
-                                                                                    ₹{isSelected ? effectiveTotal : ticket.price}
-                                                                                    {!isSelected && <span className="text-[8px] font-montserrat text-[#1a1a1a]/40 ml-1 font-bold uppercase tracking-widest">/ Ticket</span>}
-                                                                                </p>
-                                                                            </div>
+                                                                            {eventStatus !== 'waitlist' && (
+                                                                                <div className="flex flex-col">
+                                                                                    {hasBundleSavings && (
+                                                                                        <span className="text-[9px] text-red-500 line-through font-montserrat font-medium leading-none">₹{qty * ticket.price}</span>
+                                                                                    )}
+                                                                                    <p className={`${instrumentSerif.className} text-xl text-[#1a1a1a] leading-tight`}>
+                                                                                        ₹{isSelected ? effectiveTotal : ticket.price}
+                                                                                        {!isSelected && <span className="text-[8px] font-montserrat text-[#1a1a1a]/40 ml-1 font-bold uppercase tracking-widest">/ Ticket</span>}
+                                                                                    </p>
+                                                                                </div>
+                                                                            )}
 
                                                                             {ticketBundle && (
                                                                                 <div className={`text-[8px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider h-fit mb-0.5 ${hasBundleSavings ? 'bg-[#1a1a1a] text-white' : 'bg-amber-100 text-amber-700'}`}>
-                                                                                    {hasBundleSavings ? `Applied: -₹${ticketDiscount}` : ticketBundle.name || `BUY ${ticketBundle.buyQuantity} GET ${ticketBundle.getQuantity} FREE`}
+                                                                                    {hasBundleSavings ? `Applied: -₹${ticketDiscount}` : (eventStatus === 'waitlist' ? 'Waitlist' : (ticketBundle.name || `BUY ${ticketBundle.buyQuantity} GET ${ticketBundle.getQuantity} FREE`))}
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -617,7 +691,7 @@ export default function RegistrationModal({
                                                 </div>
                                             </div>
 
-                                            {Object.keys(selectedTickets).length > 0 && (
+                                            {Object.keys(selectedTickets).length > 0 && eventStatus !== 'waitlist' && eventStatus !== 'cancelled' && (
                                                 <div className="space-y-4 pt-5 border-t border-gray-100">
                                                     <div className="space-y-2">
                                                         <p className="font-montserrat text-[9px] font-bold uppercase tracking-widest text-[#1a1a1a]/40">Promo Code</p>

@@ -29,7 +29,7 @@ const wordAnim = {
     },
 };
 
-const categories = ['All', 'Upcoming', 'Completed', 'Cancelled'];
+const categories = ['All', 'Upcoming', 'Waitlist', 'Completed', 'Cancelled'];
 
 const BACKEND_URL = getBackendUrl();
 
@@ -89,8 +89,11 @@ export default function EventsPage() {
 
             let matchesStatus = true;
             if (selectedCategory !== 'All') {
-                const normalizedStatus = event.status === 'published' ? 'Upcoming' :
-                    event.status.charAt(0).toUpperCase() + event.status.slice(1);
+                let normalizedStatus = '';
+                if (event.status === 'published') normalizedStatus = 'Upcoming';
+                else if (event.status === 'waitlist') normalizedStatus = 'Waitlist';
+                else normalizedStatus = event.status.charAt(0).toUpperCase() + event.status.slice(1);
+
                 matchesStatus = normalizedStatus === selectedCategory;
             }
 
@@ -443,7 +446,7 @@ export default function EventsPage() {
                                                 <div className="absolute top-6 right-6">
                                                     <div className="px-5 py-2 rounded-full backdrop-blur-xl border-t border-l border-white/20 bg-white/10 shadow-lg text-[10px] font-extrabold uppercase tracking-[0.2em] text-white">
                                                         <span className="relative drop-shadow-md">
-                                                            {event.status === 'published' ? 'Upcoming' : event.status}
+                                                            {event.status === 'published' ? 'Upcoming' : (event.status === 'waitlist' ? 'Waitlist' : event.status)}
                                                         </span>
                                                     </div>
                                                 </div>

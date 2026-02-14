@@ -1,7 +1,10 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
 import { getPublicMediaUrl, uploadMediaFile } from "@/lib/media/service";
-import { getSectionRules, type WebsiteSection } from "@/lib/media/website-sections";
+import {
+  getSectionRules,
+  type WebsiteSection,
+} from "@/lib/media/website-sections";
 
 const logger = getLogger("website-media-service");
 
@@ -62,20 +65,22 @@ export type PublicWebsiteSectionMedia = {
 
 async function getSectionCounts(section: WebsiteSection) {
   const supabase = createSupabaseAdminClient();
-  const [{ count: totalCount, error: totalError }, { count: activeCount, error: activeError }] =
-    await Promise.all([
-      supabase
-        .from("website_media")
-        .select("*", { count: "exact", head: true })
-        .eq("section", section)
-        .is("deleted_at", null),
-      supabase
-        .from("website_media")
-        .select("*", { count: "exact", head: true })
-        .eq("section", section)
-        .is("deleted_at", null)
-        .eq("is_active", true),
-    ]);
+  const [
+    { count: totalCount, error: totalError },
+    { count: activeCount, error: activeError },
+  ] = await Promise.all([
+    supabase
+      .from("website_media")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section)
+      .is("deleted_at", null),
+    supabase
+      .from("website_media")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section)
+      .is("deleted_at", null)
+      .eq("is_active", true),
+  ]);
 
   if (totalError || activeError) {
     logger.error("Failed to count section media", {
@@ -104,14 +109,19 @@ async function getNextDisplayOrder(section: WebsiteSection) {
     .maybeSingle<{ display_order: number }>();
 
   if (error) {
-    logger.error("Failed to fetch display order", { section, message: error.message });
+    logger.error("Failed to fetch display order", {
+      section,
+      message: error.message,
+    });
     throw new Error("Unable to compute display order");
   }
 
   return (data?.display_order ?? -1) + 1;
 }
 
-async function getWebsiteMediaRowForMutation(websiteMediaId: string): Promise<WebsiteMediaRowWithMedia> {
+async function getWebsiteMediaRowForMutation(
+  websiteMediaId: string,
+): Promise<WebsiteMediaRowWithMedia> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("website_media")
@@ -167,8 +177,10 @@ export async function uploadFilesToSection(params: {
   let nextDisplayOrder = await getNextDisplayOrder(section);
   const supabase = createSupabaseAdminClient();
 
+  const bucketName = section === "members" ? "members" : undefined;
+
   for (const file of validFiles) {
-    const media = await uploadMediaFile({ userId, file });
+    const media = await uploadMediaFile({ userId, file, bucketName });
     const { error } = await supabase.from("website_media").insert({
       media_id: media.id,
       section,
@@ -188,7 +200,11 @@ export async function uploadFilesToSection(params: {
     nextDisplayOrder += 1;
   }
 
-  logger.info("Section upload completed", { userId, section, fileCount: validFiles.length });
+  logger.info("Section upload completed", {
+    userId,
+    section,
+    fileCount: validFiles.length,
+  });
 }
 
 export async function listSectionMediaState(params: {
@@ -211,7 +227,10 @@ export async function listSectionMediaState(params: {
     .returns<WebsiteMediaRow[]>();
 
   if (error) {
-    logger.error("Failed to list section media", { section, message: error.message });
+    logger.error("Failed to list section media", {
+      section,
+      message: error.message,
+    });
     throw new Error("Unable to load media section");
   }
 
@@ -253,7 +272,10 @@ export async function listPublicSectionMedia(params: {
 }) {
   const { section, onlyActive = true, limit } = params;
   const rules = getSectionRules(section);
-  const cappedLimit = Math.max(1, Math.min(limit ?? rules.maxImages, rules.maxImages));
+  const cappedLimit = Math.max(
+    1,
+    Math.min(limit ?? rules.maxImages, rules.maxImages),
+  );
   const supabase = createSupabaseAdminClient();
 
   let query = supabase
@@ -275,7 +297,10 @@ export async function listPublicSectionMedia(params: {
   const { data, error } = await query.returns<WebsiteMediaRow[]>();
 
   if (error) {
-    logger.error("Failed to list public section media", { section, message: error.message });
+    logger.error("Failed to list public section media", {
+      section,
+      message: error.message,
+    });
     throw new Error("Unable to load section media");
   }
 
@@ -323,7 +348,9 @@ export async function toggleSectionMediaVisibility(params: {
   if (!nextActiveState) {
     const { activeCount } = await getSectionCounts(row.section);
     if (activeCount <= rules.minImages) {
-      throw new Error(`At least ${rules.minImages} active images are required in ${rules.label}`);
+      throw new Error(
+        `At least ${rules.minImages} active images are required in ${rules.label}`,
+      );
     }
   }
 
@@ -342,7 +369,9 @@ export async function toggleSectionMediaVisibility(params: {
   }
 }
 
-export async function deleteSectionMediaItem(params: { websiteMediaId: string }) {
+export async function deleteSectionMediaItem(params: {
+  websiteMediaId: string;
+}) {
   const { websiteMediaId } = params;
   const row = await getWebsiteMediaRowForMutation(websiteMediaId);
 
@@ -350,13 +379,14 @@ export async function deleteSectionMediaItem(params: { websiteMediaId: string })
   if (row.is_active) {
     const { activeCount } = await getSectionCounts(row.section);
     if (activeCount <= rules.minImages) {
-      throw new Error(`At least ${rules.minImages} active images are required in ${rules.label}`);
+      throw new Error(
+        `At least ${rules.minImages} active images are required in ${rules.label}`,
+      );
     }
   }
 
   const supabase = createSupabaseAdminClient();
-  const { error: storageDeleteError } = await supabase
-    .storage
+  const { error: storageDeleteError } = await supabase.storage
     .from(row.media.bucket_name)
     .remove([row.media.file_path]);
 
@@ -396,7 +426,10 @@ export async function deleteSectionMediaItem(params: { websiteMediaId: string })
     .is("deleted_at", null);
 
   if (refsError) {
-    logger.error("Failed to count media references", { mediaId: row.media_id, message: refsError.message });
+    logger.error("Failed to count media references", {
+      mediaId: row.media_id,
+      message: refsError.message,
+    });
     return;
   }
 

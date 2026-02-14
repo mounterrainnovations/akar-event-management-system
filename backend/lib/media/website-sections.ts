@@ -1,4 +1,4 @@
-export type WebsiteSection = "highlights";
+export type WebsiteSection = "highlights" | "members";
 
 export type SectionRules = {
   section: WebsiteSection;
@@ -14,6 +14,13 @@ const SECTION_RULES: Record<WebsiteSection, SectionRules> = {
     label: "Highlights",
     minImages: 6,
     maxImages: 18,
+    imagesOnly: true,
+  },
+  members: {
+    section: "members",
+    label: "Members",
+    minImages: 4,
+    maxImages: 50,
     imagesOnly: true,
   },
 };

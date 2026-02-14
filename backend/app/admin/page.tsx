@@ -36,6 +36,7 @@ type MediaCategory = "highlights" | "hero-carousel" | "members";
 
 const navItems: Array<{ title: string; section: AdminSection; icon: typeof Image; enabled: boolean }> = [
   { title: "Media", section: "media", icon: Image, enabled: true },
+  { title: "Members", section: "media", icon: Users, enabled: true },
   { title: "Events", section: "events", icon: CalendarPlus, enabled: true },
   { title: "Bookings", section: "bookings", icon: BookOpen, enabled: true },
   { title: "Events (Legacy)", section: "media", icon: CalendarBlank, enabled: false },
@@ -54,7 +55,7 @@ const mediaCategories: Array<{
 }> = [
     { id: "highlights", label: "Highlights", description: "Showcase images on the homepage", icon: Star, enabled: true },
     { id: "hero-carousel", label: "Hero Carousel", description: "Background images for the hero section", icon: Slideshow, enabled: false },
-    { id: "members", label: "Members", description: "Team and member photos", icon: Users, enabled: false },
+    { id: "members", label: "Members", description: "Team and member photos", icon: Users, enabled: true },
   ];
 
 function parseSection(value?: string): AdminSection {
@@ -96,8 +97,8 @@ export default async function AdminPage({
     rule: ReturnType<typeof listWebsiteSectionRules>[number];
     state: Awaited<ReturnType<typeof listSectionMediaState>>;
   }> = [];
-  if (activeSection === "media" && mediaCategory === "highlights") {
-    const sectionRules = listWebsiteSectionRules();
+  if (activeSection === "media" && (mediaCategory === "highlights" || mediaCategory === "members")) {
+    const sectionRules = listWebsiteSectionRules().filter(r => r.section === mediaCategory);
     sectionStates = await Promise.all(
       sectionRules.map(async (rule) => ({
         rule,

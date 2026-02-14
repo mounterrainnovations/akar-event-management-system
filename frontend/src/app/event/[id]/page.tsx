@@ -27,6 +27,7 @@ interface EventDetailData {
         about: string | null;
         termsAndConditions: string | null;
         status: string;
+        locationUrl: string | null;
     };
     tickets: Array<{
         id: string;
@@ -90,6 +91,13 @@ export default function EventDetailPage() {
         if (!data?.tickets || data.tickets.length === 0) return 0;
         return Math.min(...data.tickets.map(t => t.price));
     }, [data?.tickets]);
+
+    const getMapEmbedUrl = () => {
+        if (!data?.event) return "";
+        const { address1, city, state } = data.event;
+        const addressQuery = `${address1}, ${city}, ${state}`;
+        return `https://maps.google.com/maps?q=${encodeURIComponent(addressQuery)}&hl=en&z=14&output=embed`;
+    };
 
     if (isLoading) {
         return (
@@ -204,7 +212,7 @@ export default function EventDetailPage() {
                             </p>
                             <div className="w-full h-[400px] rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative grayscale hover:grayscale-0 transition-all duration-500">
                                 <iframe
-                                    src={`https://www.google.com/maps?q=${encodeURIComponent(`${event.address1} ${event.city} ${event.state}`)}&output=embed`}
+                                    src={getMapEmbedUrl()}
                                     width="100%"
                                     height="100%"
                                     style={{ border: 0 }}
@@ -213,6 +221,18 @@ export default function EventDetailPage() {
                                     referrerPolicy="no-referrer-when-downgrade"
                                 />
                             </div>
+                            {event.locationUrl && (
+                                <a
+                                    href={event.locationUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-6 inline-flex items-center gap-2 font-montserrat text-sm font-semibold text-[#1a1a1a] hover:text-primary transition-colors group"
+                                >
+                                    <MapPin className="w-4 h-4" />
+                                    <span>View on Google Maps</span>
+                                    <ArrowLeft className="w-4 h-4 rotate-180 group-hover:translate-x-1 transition-transform" />
+                                </a>
+                            )}
                         </div>
                     </div>
 
@@ -229,46 +249,54 @@ export default function EventDetailPage() {
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Location</p>
-                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl`}>{event.city}</p>
+                                    <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Time</p>
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl`}>
+                                        {eventDate ? eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'TBD'}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="h-px bg-gray-100" />
+                            {event.status !== 'published' && (
+                                <>
+                                    <div className="h-px bg-gray-100" />
 
-                            {/* Status */}
-                            <div>
-                                <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Status</p>
-                                <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl capitalize`}>
-                                    {event.status === 'published' ? 'Upcoming' : event.status}
-                                </p>
-                            </div>
+                                    {/* Status */}
+                                    <div>
+                                        <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Status</p>
+                                        <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl capitalize`}>
+                                            {event.status === 'published' ? 'Upcoming' : (event.status === 'waitlist' ? 'Waitlist' : event.status)}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
 
-                            <div className="h-px bg-gray-100" />
+                            {event.status !== 'waitlist' && event.status !== 'cancelled' && (
+                                <>
+                                    <div className="h-px bg-gray-100" />
+                                    {/* Price */}
+                                    <div>
+                                        <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Starting From</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <p className={`${instrumentSerif.className} text-[#1a1a1a] text-5xl`}>₹{minPrice}</p>
+                                            <span className="font-montserrat text-sm text-[#1a1a1a]/50">/ person</span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
-                            {/* Price */}
-                            <div>
-                                <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Starting From</p>
-                                <div className="flex items-baseline gap-2">
-                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-5xl`}>₹{minPrice}</p>
-                                    <span className="font-montserrat text-sm text-[#1a1a1a]/50">/ person</span>
-                                </div>
-                            </div>
-
-                            {/* CTA */}
                             <button
                                 onClick={handleBookNowClick}
-                                className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${event.status === 'published'
+                                className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${(event.status === 'published' || event.status === 'waitlist')
                                     ? 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
                                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                     }`}
-                                disabled={event.status !== 'published' || authLoading}
+                                disabled={(event.status !== 'published' && event.status !== 'waitlist') || authLoading}
                             >
-                                {event.status === 'published' ? 'Book Now' : 'Registration Closed'}
+                                {event.status === 'published' ? 'Book Now' : (event.status === 'waitlist' ? 'Join Waitlist' : 'Registration Closed')}
                             </button>
 
                             <p className="font-montserrat text-xs text-center text-[#1a1a1a]/40">
-                                {event.status === 'published' ? 'Limited seats available' : 'Event is no longer accepting registrations'}
+                                {event.status === 'published' ? 'Limited seats available' : (event.status === 'waitlist' ? 'Join the waitlist for future updates' : 'Event is no longer accepting registrations')}
                             </p>
                         </div>
                     </div>
@@ -285,6 +313,7 @@ export default function EventDetailPage() {
                     formFields={formFields}
                     bundleOffers={data.bundleOffers}
                     backendUrl={BACKEND_URL}
+                    eventStatus={event.status}
                 />
             )}
         </main>

@@ -118,6 +118,12 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
         </button>
       </div>
 
+      {section.section === "members" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">Note: Please upload vertical images for team members.</p>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="flex gap-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
