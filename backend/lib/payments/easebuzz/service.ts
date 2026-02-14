@@ -3,6 +3,7 @@ import {
   getEasebuzzBaseUrl,
   getEasebuzzInitiatePath,
   getEasebuzzKey,
+  getEasebuzzRetrieveUrl,
   getEasebuzzSalt,
   getPaymentCallbackBaseUrl,
 } from "@/lib/payments/easebuzz/config";
@@ -32,11 +33,117 @@ export type EasebuzzInitiateResult = {
   ok: boolean;
   status: number;
   endpoint: string;
-  data: unknown;
+  data: {
+    status: number;
+    data: string;
+  };
+};
+
+export type EasebuzzCallbackFlow =
+  | "success"
+  | "failure"
+  | "pending"
+  | "unknown";
+
+export const REQUIRED_EASEBUZZ_UDF_KEYS = [
+  "udf1",
+  "udf2",
+  "udf3",
+  "udf4",
+  "udf5",
+  "udf6",
+  "udf7",
+  "udf8",
+  "udf9",
+  "udf10",
+] as const;
+
+export type EasebuzzCallbackDto = {
+  key: string;
+  txnid: string;
+  amount: string;
+  productinfo: string;
+  firstname: string;
+  email: string;
+  phone: string;
+  surl: string;
+  furl: string;
+  udf1: string;
+  udf2: string;
+  udf3: string;
+  udf4: string;
+  udf5: string;
+  udf6: string;
+  udf7: string;
+  udf8: string;
+  udf9: string;
+  udf10: string;
+  hash: string;
+  status: string;
+  mode: string;
+  error: string;
+  errorMessage: string;
+};
+
+export type EasebuzzCallbackHashVerification = {
+  valid: boolean;
+  expectedHash: string;
+  receivedHash: string;
+  reason?: string;
 };
 
 function sha512(value: string) {
   return createHash("sha512").update(value, "utf8").digest("hex");
+}
+
+function toStringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(
+      ([key, fieldValue]) => [
+        key,
+        fieldValue === null || fieldValue === undefined
+          ? ""
+          : String(fieldValue),
+      ],
+    ),
+  );
+}
+
+function pickRetrievePayloadCandidate(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  const messagePayload = record.msg;
+  if (Array.isArray(messagePayload) && messagePayload.length > 0) {
+    return pickRetrievePayloadCandidate(messagePayload[0]);
+  }
+  if (messagePayload && typeof messagePayload === "object") {
+    return pickRetrievePayloadCandidate(messagePayload);
+  }
+
+  if (
+    typeof record.txnid === "string" ||
+    typeof record.hash === "string" ||
+    typeof record.status === "string"
+  ) {
+    return record;
+  }
+
+  const nestedData = record.data;
+  if (nestedData && typeof nestedData === "object") {
+    if (Array.isArray(nestedData) && nestedData.length > 0) {
+      return pickRetrievePayloadCandidate(nestedData[0]);
+    }
+    return pickRetrievePayloadCandidate(nestedData);
+  }
+
+  return record;
 }
 
 function normalizeAmount(amount: number) {
@@ -91,6 +198,7 @@ export function buildEasebuzzInitiatePayload(args: {
     udf8: args.input.udf8 || "",
     udf9: args.input.udf9 || "",
     udf10: args.input.udf10 || "",
+    show_payment_mode: "NB,CC,DC,UPI",
   };
 
   const hashString =
@@ -102,7 +210,141 @@ export function buildEasebuzzInitiatePayload(args: {
   return {
     payload,
     transactionId,
-    callbackUrls,
+  };
+}
+
+export function extractEasebuzzCallbackData(
+  payload: Record<string, string>,
+): EasebuzzCallbackDto {
+  return {
+    key: payload.key ?? "",
+    txnid: payload.txnid ?? "",
+    amount: payload.amount ?? "",
+    productinfo: payload.productinfo ?? "",
+    firstname: payload.firstname ?? "",
+    email: payload.email ?? "",
+    phone: payload.phone ?? "",
+    surl: payload.surl ?? "",
+    furl: payload.furl ?? "",
+    udf1: payload.udf1 ?? "",
+    udf2: payload.udf2 ?? "",
+    udf3: payload.udf3 ?? "",
+    udf4: payload.udf4 ?? "",
+    udf5: payload.udf5 ?? "",
+    udf6: payload.udf6 ?? "",
+    udf7: payload.udf7 ?? "",
+    udf8: payload.udf8 ?? "",
+    udf9: payload.udf9 ?? "",
+    udf10: payload.udf10 ?? "",
+    hash: payload.hash ?? "",
+    status: payload.status ?? "",
+    mode: payload.mode ?? "",
+    error: payload.error ?? "",
+    errorMessage: payload.error_message ?? payload.error_Message ?? "",
+  };
+}
+
+export function getMissingEasebuzzUdfKeys(payload: Record<string, string>) {
+  return REQUIRED_EASEBUZZ_UDF_KEYS.filter(
+    (key) => !Object.prototype.hasOwnProperty.call(payload, key),
+  );
+}
+
+export function resolveEasebuzzCallbackFlow(
+  status: string,
+): EasebuzzCallbackFlow {
+  const normalizedStatus = status.toLowerCase();
+  if (normalizedStatus === "success") {
+    return "success";
+  }
+
+  if (
+    normalizedStatus === "failure" ||
+    normalizedStatus === "dropped" ||
+    normalizedStatus === "usercancelled" ||
+    normalizedStatus === "bounced"
+  ) {
+    return "failure";
+  }
+
+  if (
+    normalizedStatus === "pending" ||
+    normalizedStatus === "initiated" ||
+    normalizedStatus === "initated"
+  ) {
+    return "pending";
+  }
+
+  return "unknown";
+}
+
+function buildEasebuzzCallbackHashString(
+  dto: EasebuzzCallbackDto,
+  merchantKey: string,
+) {
+  const salt = getEasebuzzSalt();
+  return [
+    salt,
+    dto.status,
+    dto.udf10,
+    dto.udf9,
+    dto.udf8,
+    dto.udf7,
+    dto.udf6,
+    dto.udf5,
+    dto.udf4,
+    dto.udf3,
+    dto.udf2,
+    dto.udf1,
+    dto.email,
+    dto.firstname,
+    dto.productinfo,
+    dto.amount,
+    dto.txnid,
+    merchantKey,
+  ].join("|");
+}
+
+export function verifyEasebuzzCallbackHash(
+  dto: EasebuzzCallbackDto,
+): EasebuzzCallbackHashVerification {
+  const merchantKey = getEasebuzzKey();
+  if (!dto.key) {
+    return {
+      valid: false,
+      expectedHash: "",
+      receivedHash: dto.hash.toLowerCase(),
+      reason: "missing_key",
+    };
+  }
+
+  if (dto.key !== merchantKey) {
+    return {
+      valid: false,
+      expectedHash: "",
+      receivedHash: dto.hash.toLowerCase(),
+      reason: "key_mismatch",
+    };
+  }
+
+  const receivedHash = dto.hash.toLowerCase();
+  if (!receivedHash) {
+    return {
+      valid: false,
+      expectedHash: "",
+      receivedHash,
+      reason: "missing_hash",
+    };
+  }
+
+  const expectedHash = sha512(
+    buildEasebuzzCallbackHashString(dto, merchantKey),
+  );
+  return {
+    valid: expectedHash === receivedHash,
+    expectedHash,
+    receivedHash,
+    reason: expectedHash === receivedHash ? undefined : "hash_mismatch",
   };
 }
 
@@ -135,5 +377,52 @@ export async function initiateEasebuzzTransaction(
     status: response.status,
     endpoint,
     data,
+  };
+}
+
+export async function retrieveEasebuzzTransaction(input: { txnid: string }) {
+  const key = getEasebuzzKey();
+  const salt = getEasebuzzSalt();
+  const hash = sha512(`${key}|${input.txnid}|${salt}`);
+  const endpoint = getEasebuzzRetrieveUrl();
+  const formPayload = new URLSearchParams({
+    key,
+    txnid: input.txnid,
+    hash,
+  });
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: formPayload,
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  let payload: Record<string, string> = {};
+  if (contentType.includes("application/json")) {
+    const jsonBody = await response.json();
+    payload = toStringRecord(pickRetrievePayloadCandidate(jsonBody));
+  } else {
+    const raw = await response.text();
+    try {
+      payload = toStringRecord(pickRetrievePayloadCandidate(JSON.parse(raw)));
+    } catch {
+      const params = new URLSearchParams(raw);
+      payload = Object.fromEntries(params.entries());
+    }
+  }
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    endpoint,
+    requestPayload: {
+      key,
+      txnid: input.txnid,
+      hash,
+    },
+    payload,
   };
 }

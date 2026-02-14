@@ -151,6 +151,7 @@ create table public.event_registrations (
   discount_amount numeric(10, 2) not null default 0,
   final_amount numeric(10, 2) not null,
   payment_status public.payment_status not null default 'pending'::payment_status,
+  transaction_id character varying(40) null,
   form_response jsonb not null,
   created_at timestamp with time zone not null default now(),
   is_verified boolean null,
@@ -159,6 +160,7 @@ create table public.event_registrations (
   constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
   constraint event_registrations_ticket_id_fkey foreign KEY (ticket_id) references event_tickets (id) on delete RESTRICT,
   constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
+  constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on delete set null,
   constraint event_registrations_quantity_check check ((quantity > 0)),
   constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
   constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric)),
@@ -168,6 +170,8 @@ create table public.event_registrations (
 create index IF not exists event_registrations_event_idx on public.event_registrations using btree (event_id) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_user_idx on public.event_registrations using btree (user_id) TABLESPACE pg_default;
+
+create index IF not exists event_registrations_transaction_idx on public.event_registrations using btree (transaction_id) TABLESPACE pg_default;
 
 ### Users
 
@@ -485,4 +489,74 @@ event_coupons	Defines discount logic
 event_form_fields	Defines registration schema
 event_registrations	Stores actual purchases
 
-##
+## Callback Flow Help
+Now we move to the callback flow, there you'll recieve a body that looks like - 
+```
+{
+  deduction_percentage: '2.5',
+  net_amount_debit: '10.12',
+  cardCategory: 'NA',
+  unmappedstatus: 'NA',
+  addedon: '2026-02-14 08:15:16',
+  cash_back_percentage: '50.0',
+  bank_ref_num: '11e5ecdb1e8ae0ef52bf35ae69fa8b8f',
+  error_Message: 'Transaction is successful.',
+  phone: '9876543210',
+  easepayid: 'S260214074JZU3',
+  cardnum: 'NA',
+  upi_va: 'NA',
+  payment_source: 'Easebuzz',
+  card_type: 'UPI',
+  mode: 'UPI',
+  error: 'Transaction is successful.',
+  bankcode: 'NA',
+  name_on_card: 'NA',
+  bank_name: 'NA',
+  issuing_bank: 'NA',
+  PG_TYPE: 'NA',
+  amount: '10.12',
+  furl: 'http://localhost:3000/api/payments/easebuzz/callback',
+  productinfo: 'Event About',
+  auth_code: '',
+  email: 'userEmail@mail.com',
+  status: 'success',
+  hash: 'f9a57d10714799328d66ef5b03bf80e407c3e911b7128e36cc0a06dc4a2b512286d29fdd042de730340ef04cd454e6575430d1bdad30cc3195acfa9045c3ba60',
+  firstname: 'Event Name',
+  surl: 'http://localhost:3000/api/payments/easebuzz/callback',
+  key: 'LDY4WLIA4',
+  merchant_logo: 'NA',
+  udf10: '',
+  txnid: '97463c0b-4991-462a-85b3-c3a738fabcb8',
+  udf1: '5b7dd4e0-5f4a-4294-a84c-bd861003ef39',
+  udf3: '9413e7b8-3025-4667-9c22-1492b2284c41',
+  udf2: 'eventId',
+  udf5: '',
+  udf4: '97463c0b-4991-462a-85b3-c3a738fabcb8',
+  udf7: '',
+  udf6: '',
+  udf9: '',
+  udf8: ''
+}
+```
+, Now I want you implement a few
+  things - 
+  1. Body should be stored in payment_logs fully whatever is received and should ideally never be missing or empty but in case it is we want to log that in the payment_logs too. 
+  2. Minimalistic DTO/body extraction so we get the fields we wanna work with - everything is
+  not of use to us, we want key, txnid, amount, productinfo, firstname, email, phone, surl, furl, udf1 to udf10, hash, status (can be 'success', 'failure','dropped', 'pending', 'userCancelled', 'initated', 'bounced'), error, error_message (Note while both error and error_message sound like failure, but in case of success they contain the success message instead)
+  3. Now first thing is verifying authenticity of hash, use the hash logic in backend/lib/payments/easebuzz/service.ts to build the hash with the body we received and then compare it against the hash they sent. Handle it
+  4. Remove the existing success and failure paths in callback because I don't think we'd route there.
+  5. Now udf1 is registrationId, udf2 is eventId, udf3 is userId, udf4 is transactionId, they'll be useful later.
+  
+  ### Business Logic
+   Now we move towards business logic, the status received can be 'success', 'failure','dropped', 'pending', 'userCancelled', 'initated', 'bounced', so define three flows - success flow has 'success', failure flow has 'failure', 'dropped', 'userCancelled', 'bounced' and pending flow(alis retry flow alias recheck flow) has 'pending' and 'initiated'.
+
+   1. In all these cases we want to make respective updates to the `payment` table and `event_registration` table (as required) with respective statuses (logging is already done so no issue). How you'll update is using the udf data you have - udf1 is registrationId, udf2 is eventId, udf3 is userId, udf4 is transactionId.
+  (GO through existing flows, doc/ and AI.md to understand schemas)
+   
+   2. Now in case of pending and initiated, i.e pending flow. Setup a retry logic to hit a transactions API every second for 5 seconds of easebuzz - https://testdashboard.easebuzz.in/transaction/v2.1/retrieve with body - `key`, `txnid` and `hash` all of which we have from above callback and the response will be the exact same as above callback's body that we get.
+
+   Note - There is more logic to it but we'll get there slowly.
+
+   3. webook at easebuzz portal will also be given the /callback endpoint only so we are sorted, we don't need to do anything about that
+
+   4. Finally just ensure all logic is clean, streamlines, DRY and production grade with readability, separation of logic

@@ -6,6 +6,10 @@ import {
   initiateEasebuzzTransaction,
   type InitiateEasebuzzPaymentInput,
 } from "@/lib/payments/easebuzz/service";
+import {
+  getEasebuzzBaseUrl,
+  getEasebuzzPaymentPath,
+} from "@/lib/payments/easebuzz/config";
 import { getPaymentCorsHeaders } from "@/lib/payments/http";
 import {
   createPendingPayment,
@@ -70,7 +74,12 @@ function parseInitiateBody(
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: getPaymentCorsHeaders(request) });
 }
-
+/**
+ * [INTERNAL API]
+ * Called in Booking FLow, on Booking Trigger
+ * @param request
+ * @returns
+ */
 export async function POST(request: NextRequest) {
   const corsHeaders = getPaymentCorsHeaders(request);
   let setTransactionId: string | null = null;
@@ -91,20 +100,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    //! Why this doesn't work ?
-    // if (!request.body) {
-    //   return NextResponse.json(
-    //     {
-    //       error: "No Body in Request",
-    //     },
-    //     {
-    //       status: 400,
-    //       headers: corsHeaders,
-    //     },
-    //   );
-    // }
+    const rawBody = await request.text();
+    if (!rawBody.trim()) {
+      return NextResponse.json(
+        {
+          error: "No Body in Request",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
 
-    const body = (await request.json()) as InitiatePaymentRequest;
+    let body: InitiatePaymentRequest;
+    try {
+      body = JSON.parse(rawBody) as InitiatePaymentRequest;
+    } catch {
+      return NextResponse.json(
+        {
+          error: "Invalid JSON body",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
+
     const input = parseInitiateBody(body);
     const userId = authValidation.userId || input.userId;
     if (!userId) {
@@ -119,14 +142,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { payload, transactionId, callbackUrls } =
-      buildEasebuzzInitiatePayload({
-        input: {
-          ...input,
-          userId,
-        },
-        requestOrigin: request.nextUrl.origin,
-      });
+    const { payload, transactionId } = buildEasebuzzInitiatePayload({
+      input: {
+        ...input,
+        userId,
+      },
+      requestOrigin: request.nextUrl.origin,
+    });
     const registrationId = input.registrationId;
     setTransactionId = transactionId;
     if (!registrationId) {
@@ -144,7 +166,7 @@ export async function POST(request: NextRequest) {
     const gatewayResponse = await initiateEasebuzzTransaction(payload);
     const gatewayStatus =
       typeof gatewayResponse.data === "object" && gatewayResponse.data !== null
-        ? String((gatewayResponse.data as { status?: string }).status || "")
+        ? gatewayResponse.data.status || ""
         : null;
 
     await logInitiatePaymentRequest({
@@ -183,11 +205,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const gatewayUrl = `${getEasebuzzBaseUrl()}${getEasebuzzPaymentPath()}`;
+    const paymentUrl = `${gatewayUrl}/${gatewayResponse.data?.data}`;
+
     return NextResponse.json(
       {
-        transactionId,
-        callbackUrls,
-        gateway: gatewayResponse.data,
+        paymentUrl: paymentUrl,
       },
       {
         status: 200,
