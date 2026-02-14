@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
 import {
@@ -101,6 +102,12 @@ function normalizeAmount(value: number) {
   }
 
   return value.toFixed(2);
+}
+
+function buildUniqueRegistrationName(eventName: string) {
+  const base = eventName.trim().slice(0, 80) || "booking";
+  const suffix = randomUUID().slice(0, 12);
+  return `${base}-${suffix}`;
 }
 
 function mapBooking(row: BookingRow): BookingRecord {
@@ -304,7 +311,7 @@ export async function createBookingForUser(params: {
     created_at: now,
     updated_at: now,
     deleted_at: null,
-    name: input.eventName,
+    name: buildUniqueRegistrationName(input.eventName),
     transaction_id: null,
     tickets_bought: input.ticketsBought,
     is_verified: event.verification_required ? false : null,
@@ -322,10 +329,6 @@ export async function createBookingForUser(params: {
       eventId: input.eventId,
       message: error?.message || "No row returned",
     });
-
-    if (error?.message?.includes("event_ticket_name")) {
-      throw new Error("Booking already exists with this event name");
-    }
 
     throw new Error("Unable to create booking");
   }

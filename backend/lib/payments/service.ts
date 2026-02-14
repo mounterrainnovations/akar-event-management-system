@@ -1,5 +1,13 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
+import {
+  buildEasebuzzInitiatePayload,
+  initiateEasebuzzTransaction,
+} from "@/lib/payments/easebuzz/service";
+import {
+  getEasebuzzBaseUrl,
+  getEasebuzzPaymentPath,
+} from "@/lib/payments/easebuzz/config";
 
 const logger = getLogger("payments-service");
 
@@ -52,6 +60,33 @@ type RegistrationTransactionLookup = {
   registrationId: string;
   transactionId: string;
 };
+
+export type InitiatePaymentFlowInput = {
+  amount: number;
+  productInfo: string;
+  firstName: string;
+  email: string;
+  phone: string;
+  userId: string;
+  eventId?: string;
+  registrationId: string;
+};
+
+export type InitiatePaymentFlowResult =
+  | {
+      ok: true;
+      status: 200;
+      transactionId: string;
+      paymentUrl: string;
+      gateway: unknown;
+    }
+  | {
+      ok: false;
+      status: 500 | 502;
+      transactionId: string | null;
+      error: string;
+      gateway: unknown;
+    };
 
 function normalizeAmount(amount: number) {
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -114,6 +149,111 @@ async function fetchPaymentIdByColumn(
   }
 
   return data.id;
+}
+
+export async function initiatePaymentFlow(params: {
+  input: InitiatePaymentFlowInput;
+  requestOrigin: string;
+}): Promise<InitiatePaymentFlowResult> {
+  let transactionId: string | null = null;
+
+  try {
+    const { payload, transactionId: generatedTransactionId } =
+      buildEasebuzzInitiatePayload({
+        input: params.input,
+        requestOrigin: params.requestOrigin,
+      });
+
+    transactionId = generatedTransactionId;
+
+    await createPendingPayment({
+      transactionId,
+      registrationId: params.input.registrationId,
+      userId: params.input.userId,
+      amount: params.input.amount,
+      easebuzzTxnId: transactionId,
+    });
+
+    const gatewayResponse = await initiateEasebuzzTransaction(payload);
+    const gatewayStatus =
+      typeof gatewayResponse.data === "object" && gatewayResponse.data !== null
+        ? gatewayResponse.data.status || ""
+        : null;
+
+    await logInitiatePaymentRequest({
+      transactionId,
+      easebuzzUrl: gatewayResponse.endpoint,
+      requestPayload: payload,
+      responsePayload: gatewayResponse.data,
+      httpStatus: gatewayResponse.status,
+      easebuzzStatus: gatewayStatus,
+      errorMessage: gatewayResponse.ok
+        ? null
+        : "Easebuzz initiate transaction failed",
+    });
+
+    if (!gatewayResponse.ok) {
+      await markPaymentInitiateFailed({
+        transactionId,
+        message: "Easebuzz initiate transaction failed",
+      });
+
+      logger.error("Easebuzz initiate call failed", {
+        status: gatewayResponse.status,
+        transactionId,
+      });
+
+      return {
+        ok: false,
+        status: 502,
+        transactionId,
+        error: "Easebuzz initiate transaction failed",
+        gateway: gatewayResponse.data,
+      };
+    }
+
+    const gatewayUrl = `${getEasebuzzBaseUrl()}${getEasebuzzPaymentPath()}`;
+    const paymentUrl = `${gatewayUrl}/${gatewayResponse.data?.data}`;
+
+    return {
+      ok: true,
+      status: 200,
+      transactionId,
+      paymentUrl,
+      gateway: gatewayResponse.data,
+    };
+  } catch (error) {
+    logger.error("Failed to initiate Easebuzz transaction", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      transactionId,
+    });
+
+    if (transactionId && error instanceof Error) {
+      try {
+        await markPaymentInitiateFailed({
+          transactionId,
+          message: error.message,
+        });
+      } catch (updateError) {
+        logger.error("Failed to mark payment as failed after initiate error", {
+          transactionId,
+          message:
+            updateError instanceof Error
+              ? updateError.message
+              : "Unknown error",
+        });
+      }
+    }
+
+    return {
+      ok: false,
+      status: 500,
+      transactionId,
+      error:
+        error instanceof Error ? error.message : "Unable to initiate transaction",
+      gateway: null,
+    };
+  }
 }
 
 async function fetchPaymentId(input: {

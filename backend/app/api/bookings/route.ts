@@ -6,6 +6,7 @@ import {
   parseInitiateBookingInput,
   parsePaginationParams,
 } from "@/lib/bookings/service";
+import { initiatePaymentFlow } from "@/lib/payments/service";
 import {
   parseJsonRequestBody,
   resolveBookingUserId,
@@ -80,16 +81,14 @@ export async function POST(request: NextRequest) {
       return auth.response;
     }
 
-    // AI.md explicitly asked to log the exact initiate payload at this stage.
-    console.log("[BOOKING_INITIATE_BODY]", body);
-
     let input: ReturnType<typeof parseInitiateBookingInput>;
     try {
       input = parseInitiateBookingInput(body);
     } catch (error) {
       return NextResponse.json(
         {
-          error: error instanceof Error ? error.message : "Invalid request body",
+          error:
+            error instanceof Error ? error.message : "Invalid request body",
         },
         {
           status: 400,
@@ -102,11 +101,45 @@ export async function POST(request: NextRequest) {
       input,
     });
 
+    const paymentResult = await initiatePaymentFlow({
+      input: {
+        amount: input.amount,
+        productInfo: input.eventName,
+        firstName: input.firstName,
+        email: input.email,
+        phone: input.phone,
+        userId: auth.userId,
+        eventId: input.eventId,
+        registrationId: result.booking.id,
+      },
+      requestOrigin: request.nextUrl.origin,
+    });
+
+    if (!paymentResult.ok) {
+      return NextResponse.json(
+        {
+          error: "Booking created but payment initiation failed",
+          details: paymentResult.error,
+          booking: result.booking,
+          pricing: result.pricing,
+          transactionId: paymentResult.transactionId,
+          gateway: paymentResult.gateway,
+        },
+        {
+          status: paymentResult.status,
+        },
+      );
+    }
+
     return NextResponse.json(
       {
         ok: true,
         booking: result.booking,
         pricing: result.pricing,
+        payment: {
+          paymentUrl: paymentResult.paymentUrl,
+          transactionId: paymentResult.transactionId,
+        },
       },
       {
         status: 201,
