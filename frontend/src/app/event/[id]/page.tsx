@@ -7,8 +7,11 @@ import Image from 'next/image';
 import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import RegistrationModal from '@/components/RegistrationModal';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
+import { getBackendUrl } from '@/lib/backend';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = getBackendUrl();
 
 interface EventDetailData {
     event: {
@@ -60,6 +63,8 @@ export default function EventDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+    const { isAuthenticated, isLoading: authLoading, openAuthModal } = useAuth();
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (!id) return;
@@ -109,6 +114,15 @@ export default function EventDetailPage() {
 
     const { event, tickets, formFields } = data;
     const eventDate = event.eventDate ? new Date(event.eventDate) : null;
+
+    const handleBookNowClick = () => {
+        if (!isAuthenticated) {
+            openAuthModal();
+            showToast('Please log in to continue with booking.', 'info');
+            return;
+        }
+        setIsRegModalOpen(true);
+    };
 
     return (
         <main className="min-h-screen bg-white">
@@ -243,12 +257,12 @@ export default function EventDetailPage() {
 
                             {/* CTA */}
                             <button
-                                onClick={() => setIsRegModalOpen(true)}
+                                onClick={handleBookNowClick}
                                 className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${event.status === 'published'
                                     ? 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
                                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                     }`}
-                                disabled={event.status !== 'published'}
+                                disabled={event.status !== 'published' || authLoading}
                             >
                                 {event.status === 'published' ? 'Book Now' : 'Registration Closed'}
                             </button>
