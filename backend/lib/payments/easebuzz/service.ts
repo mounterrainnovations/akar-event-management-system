@@ -80,6 +80,7 @@ export type EasebuzzCallbackDto = {
   udf10: string;
   hash: string;
   status: string;
+  mode: string;
   error: string;
   errorMessage: string;
 };
@@ -101,11 +102,48 @@ function toStringRecord(value: unknown): Record<string, string> {
   }
 
   return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, fieldValue]) => [
-      key,
-      fieldValue === null || fieldValue === undefined ? "" : String(fieldValue),
-    ]),
+    Object.entries(value as Record<string, unknown>).map(
+      ([key, fieldValue]) => [
+        key,
+        fieldValue === null || fieldValue === undefined
+          ? ""
+          : String(fieldValue),
+      ],
+    ),
   );
+}
+
+function pickRetrievePayloadCandidate(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  const messagePayload = record.msg;
+  if (Array.isArray(messagePayload) && messagePayload.length > 0) {
+    return pickRetrievePayloadCandidate(messagePayload[0]);
+  }
+  if (messagePayload && typeof messagePayload === "object") {
+    return pickRetrievePayloadCandidate(messagePayload);
+  }
+
+  if (
+    typeof record.txnid === "string" ||
+    typeof record.hash === "string" ||
+    typeof record.status === "string"
+  ) {
+    return record;
+  }
+
+  const nestedData = record.data;
+  if (nestedData && typeof nestedData === "object") {
+    if (Array.isArray(nestedData) && nestedData.length > 0) {
+      return pickRetrievePayloadCandidate(nestedData[0]);
+    }
+    return pickRetrievePayloadCandidate(nestedData);
+  }
+
+  return record;
 }
 
 function normalizeAmount(amount: number) {
@@ -200,6 +238,7 @@ export function extractEasebuzzCallbackData(
     udf10: payload.udf10 ?? "",
     hash: payload.hash ?? "",
     status: payload.status ?? "",
+    mode: payload.mode ?? "",
     error: payload.error ?? "",
     errorMessage: payload.error_message ?? payload.error_Message ?? "",
   };
@@ -211,7 +250,9 @@ export function getMissingEasebuzzUdfKeys(payload: Record<string, string>) {
   );
 }
 
-export function resolveEasebuzzCallbackFlow(status: string): EasebuzzCallbackFlow {
+export function resolveEasebuzzCallbackFlow(
+  status: string,
+): EasebuzzCallbackFlow {
   const normalizedStatus = status.toLowerCase();
   if (normalizedStatus === "success") {
     return "success";
@@ -339,16 +380,15 @@ export async function initiateEasebuzzTransaction(
   };
 }
 
-export async function retrieveEasebuzzTransaction(input: {
-  key: string;
-  txnid: string;
-  hash: string;
-}) {
+export async function retrieveEasebuzzTransaction(input: { txnid: string }) {
+  const key = getEasebuzzKey();
+  const salt = getEasebuzzSalt();
+  const hash = sha512(`${key}|${input.txnid}|${salt}`);
   const endpoint = getEasebuzzRetrieveUrl();
   const formPayload = new URLSearchParams({
-    key: input.key,
+    key,
     txnid: input.txnid,
-    hash: input.hash,
+    hash,
   });
 
   const response = await fetch(endpoint, {
@@ -362,11 +402,12 @@ export async function retrieveEasebuzzTransaction(input: {
   const contentType = response.headers.get("content-type") || "";
   let payload: Record<string, string> = {};
   if (contentType.includes("application/json")) {
-    payload = toStringRecord(await response.json());
+    const jsonBody = await response.json();
+    payload = toStringRecord(pickRetrievePayloadCandidate(jsonBody));
   } else {
     const raw = await response.text();
     try {
-      payload = toStringRecord(JSON.parse(raw));
+      payload = toStringRecord(pickRetrievePayloadCandidate(JSON.parse(raw)));
     } catch {
       const params = new URLSearchParams(raw);
       payload = Object.fromEntries(params.entries());
@@ -377,6 +418,11 @@ export async function retrieveEasebuzzTransaction(input: {
     ok: response.ok,
     status: response.status,
     endpoint,
+    requestPayload: {
+      key,
+      txnid: input.txnid,
+      hash,
+    },
     payload,
   };
 }

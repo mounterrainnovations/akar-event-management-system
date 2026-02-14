@@ -14,7 +14,6 @@ type CreatePendingPaymentInput = {
   userId: string;
   amount: number;
   easebuzzTxnId: string;
-  hash: string;
 };
 
 type LogInitiatePaymentInput = {
@@ -28,6 +27,7 @@ type LogInitiatePaymentInput = {
 };
 
 type LogCallbackPaymentInput = {
+  action?: "callback" | "transaction";
   transactionId?: string | null;
   easebuzzTxnId?: string | null;
   easebuzzUrl: string;
@@ -48,6 +48,11 @@ type CallbackBusinessUpdateInput = {
   paymentMode?: string | null;
 };
 
+type RegistrationTransactionLookup = {
+  registrationId: string;
+  transactionId: string;
+};
+
 function normalizeAmount(amount: number) {
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("amount must be a positive number");
@@ -60,6 +65,37 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
+}
+
+export async function getRegistrationTransactionLookup(
+  registrationId: string,
+): Promise<RegistrationTransactionLookup> {
+  if (!isUuid(registrationId)) {
+    throw new Error("registrationId must be a valid UUID");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: registrationData, error: registrationError } = await supabase
+    .from(EVENT_REGISTRATIONS_TABLE)
+    .select("id,transaction_id")
+    .eq("id", registrationId)
+    .maybeSingle<{ id: string; transaction_id: string | null }>();
+
+  if (registrationError || !registrationData?.id) {
+    throw new Error(
+      `Unable to find registration for transaction lookup: ${registrationError?.message || "Registration not found"}`,
+    );
+  }
+
+  const transactionId = registrationData.transaction_id?.trim() || "";
+  if (!transactionId) {
+    throw new Error("No transaction_id mapped for this registration");
+  }
+
+  return {
+    registrationId: registrationData.id,
+    transactionId,
+  };
 }
 
 async function fetchPaymentIdByColumn(
@@ -164,7 +200,6 @@ export async function createPendingPayment(input: CreatePendingPaymentInput) {
       registration_id: input.registrationId,
       user_id: input.userId,
       easebuzz_txnid: input.easebuzzTxnId,
-      hash: input.hash,
       amount: normalizeAmount(input.amount),
       status: "pending",
       initiated_at: new Date().toISOString(),
@@ -255,7 +290,7 @@ export async function logCallbackPaymentRequest(
 
   const { error } = await supabase.from(PAYMENT_LOGS_TABLE).insert({
     payment_id: paymentId,
-    action: "callback",
+    action: input.action || "callback",
     easebuzz_url: input.easebuzzUrl,
     request_payload: input.requestPayload,
     response_payload: input.responsePayload || null,

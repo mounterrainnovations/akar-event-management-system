@@ -113,9 +113,7 @@ export async function POST(request: NextRequest) {
       await sleep(1000);
       try {
         const retrieveResult = await retrieveEasebuzzTransaction({
-          key: effectiveData.key,
           txnid: effectiveData.txnid,
-          hash: effectiveData.hash,
         });
         const retrievedData = extractEasebuzzCallbackData(
           retrieveResult.payload,
@@ -126,11 +124,7 @@ export async function POST(request: NextRequest) {
           transactionId: effectiveData.udf4 || effectiveData.txnid || null,
           easebuzzTxnId: effectiveData.txnid || null,
           easebuzzUrl: retrieveResult.endpoint,
-          requestPayload: {
-            key: effectiveData.key,
-            txnid: effectiveData.txnid,
-            hash: effectiveData.hash,
-          },
+          requestPayload: retrieveResult.requestPayload,
           responsePayload: {
             callback: retrievedData,
             hashVerification: retrievedHashCheck,
@@ -142,10 +136,6 @@ export async function POST(request: NextRequest) {
             ? null
             : "Easebuzz retrieve API failed",
         });
-
-        if (!retrievedHashCheck.valid) {
-          continue;
-        }
 
         const retrievedFlow = resolveEasebuzzCallbackFlow(retrievedData.status);
         effectiveData = retrievedData;

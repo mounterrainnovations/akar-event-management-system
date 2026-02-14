@@ -263,7 +263,6 @@ create table public.payments (
   registration_id uuid not null,
   user_id uuid not null,
   easebuzz_txnid character varying(40) null,
-  hash text null,
   amount numeric(12, 2) not null,
   refund_amount numeric(12, 2) null default 0,
   status public.payment_status not null default 'pending'::payment_status,

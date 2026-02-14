@@ -161,7 +161,6 @@ export async function POST(request: NextRequest) {
       userId,
       amount: input.amount,
       easebuzzTxnId: transactionId,
-      hash: payload.hash,
     });
 
     const gatewayResponse = await initiateEasebuzzTransaction(payload);
