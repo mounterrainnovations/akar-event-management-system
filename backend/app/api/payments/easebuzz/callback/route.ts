@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await logCallbackPaymentRequest({
-      transactionId: data.txnid || null,
+      transactionId: data.udf4 || data.txnid || null,
       easebuzzTxnId: data.txnid || null,
       easebuzzUrl: request.nextUrl.pathname,
       requestPayload: null,
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     flow,
     callbackStatus: effectiveData.status,
     gatewayMessage: effectiveData.errorMessage || effectiveData.error || null,
-    paymentMode: body.mode || null,
+    paymentMode: effectiveData.mode || null,
   });
 
   return NextResponse.json(
