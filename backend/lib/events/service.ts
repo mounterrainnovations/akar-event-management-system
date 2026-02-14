@@ -88,12 +88,16 @@ type RegistrationRow = {
   event_id: string;
   user_id: string | null;
   coupon_id: string | null;
-  tickets_bought: number;
   total_amount: string;
   final_amount: string;
   payment_status: string;
   form_response: JsonValue;
   created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  name: string;
+  transaction_id: string | null;
+  tickets_bought: Record<string, number> | null;
   is_verified: boolean | null;
 };
 
@@ -125,7 +129,7 @@ export type BookingDetail = {
   id: string;
   eventId: string;
   eventName: string;
-  ticketId: string;
+  ticketId: string | null;
   ticketName: string;
   userId: string | null;
   userEmail: string | null;
@@ -137,8 +141,13 @@ export type BookingDetail = {
   totalAmount: number;
   finalAmount: number;
   paymentStatus: string;
-  formResponse: any;
+  formResponse: JsonValue;
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  name: string;
+  transactionId: string | null;
+  ticketsBought: Record<string, number>;
   isVerified: boolean | null;
 };
 
@@ -191,6 +200,7 @@ export type EventBundleOffer = {
 
 export type EventRegistration = {
   id: string;
+  ticketId: string | null;
   userId: string | null;
   couponId: string | null;
   quantity: number;
@@ -200,6 +210,11 @@ export type EventRegistration = {
   isVerified: boolean | null;
   formResponse: JsonValue;
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  name: string;
+  transactionId: string | null;
+  ticketsBought: Record<string, number>;
 };
 
 export type EventDetail = {
@@ -293,7 +308,7 @@ const FORM_FIELD_SELECT_FIELDS =
 const BUNDLE_OFFER_SELECT_FIELDS =
   "id,event_id,name,buy_quantity,get_quantity,offer_type,applicable_ticket_ids,created_at,updated_at";
 const REGISTRATION_SELECT_FIELDS =
-  "id,event_id,user_id,coupon_id,tickets_bought,total_amount,final_amount,payment_status,form_response,created_at,is_verified";
+  "id,event_id,user_id,coupon_id,tickets_bought,total_amount,final_amount,payment_status,form_response,created_at,updated_at,deleted_at,name,transaction_id,is_verified";
 
 function toNumber(value: string | number | null | undefined) {
   if (typeof value === "number") {
@@ -352,17 +367,30 @@ function mapFormField(
 }
 
 function mapRegistration(row: RegistrationRow): EventRegistration {
+  const ticketsBought = row.tickets_bought || {};
+  const quantity = Object.values(ticketsBought).reduce(
+    (acc, ticketQty) => acc + ticketQty,
+    0,
+  );
+  const totalAmount = toNumber(row.total_amount);
+  const finalAmount = toNumber(row.final_amount);
   return {
     id: row.id,
+    ticketId: Object.keys(ticketsBought)[0] || null,
     userId: row.user_id,
     couponId: row.coupon_id,
-    quantity: row.tickets_bought,
-    totalAmount: toNumber(row.total_amount),
-    finalAmount: toNumber(row.final_amount),
+    quantity: quantity,
+    totalAmount,
+    finalAmount,
     paymentStatus: row.payment_status,
     isVerified: row.is_verified,
     formResponse: row.form_response,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+    name: row.name,
+    transactionId: row.transaction_id,
+    ticketsBought,
   };
 }
 
@@ -759,7 +787,12 @@ export async function getEventAdminDetail(params: {
         (entry) => entry.paymentStatus !== "paid",
       ).length,
       totalQuantity: mappedRegistrations.reduce(
-        (acc, entry) => acc + entry.quantity,
+        (acc, entry) =>
+          acc +
+          Object.values(entry.ticketsBought).reduce(
+            (ticketAcc, ticketQty) => ticketAcc + ticketQty,
+            0,
+          ),
         0,
       ),
       totalRevenue: mappedRegistrations.reduce(
@@ -846,7 +879,14 @@ export async function createEvent(input: EventWriteInput) {
 
     if (insertedTickets) {
       insertedTickets.forEach((t) => {
-        const name = (t.description as any)?.name;
+        const description =
+          t.description && typeof t.description === "object"
+            ? (t.description as Record<string, unknown>)
+            : null;
+        const name =
+          description && typeof description.name === "string"
+            ? description.name
+            : null;
         if (name) ticketIdMap.set(name, t.id);
       });
     }
@@ -1218,6 +1258,30 @@ export async function deleteEventFormField(params: { formFieldId: string }) {
 }
 export async function listAllRegistrations(): Promise<BookingDetail[]> {
   const supabase = createSupabaseAdminClient();
+  type RegistrationListRow = {
+    id: string;
+    event_id: string;
+    user_id: string | null;
+    coupon_id: string | null;
+    total_amount: string;
+    final_amount: string;
+    payment_status: string;
+    form_response: JsonValue;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    name: string;
+    transaction_id: string | null;
+    tickets_bought: Record<string, number> | null;
+    is_verified: boolean | null;
+    events: { name: string } | null;
+    users: {
+      email: string | null;
+      full_name: string | null;
+      phone: string | null;
+    } | null;
+    event_coupons: { code: string | null } | null;
+  };
 
   // We'll fetch registrations and join with related tables
   // Note: Using select with joins in Supabase/PostgREST
@@ -1231,11 +1295,14 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
       coupon_id,
       tickets_bought,
       total_amount,
-      discount_amount,
       final_amount,
       payment_status,
       form_response,
       created_at,
+      updated_at,
+      deleted_at,
+      name,
+      transaction_id,
       is_verified,
       events (
         name
@@ -1276,6 +1343,11 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     paymentStatus: reg.payment_status,
     formResponse: reg.form_response,
     createdAt: reg.created_at,
+    updatedAt: reg.updated_at,
+    deletedAt: reg.deleted_at,
+    name: reg.name,
+    transactionId: reg.transaction_id,
+    ticketsBought: reg.tickets_bought,
     isVerified: reg.is_verified,
   }));
 }

@@ -103,10 +103,7 @@ create table public.event_coupons (
   id uuid not null default gen_random_uuid (),
   event_id uuid not null,
   code text not null,
-  discount_type public.discount_type not null,
   discount_value numeric(10, 2) not null,
-  usage_limit integer null,
-  used_count integer not null default 0,
   valid_from timestamp with time zone null,
   valid_until timestamp with time zone null,
   is_active boolean not null default true,
@@ -116,14 +113,7 @@ create table public.event_coupons (
   constraint event_coupons_pkey primary key (id),
   constraint event_coupon_unique unique (event_id, code),
   constraint event_coupons_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-  constraint event_coupons_discount_value_check check ((discount_value > (0)::numeric)),
-  constraint event_coupons_usage_limit_check check (
-    (
-      (usage_limit is null)
-      or (usage_limit > 0)
-    )
-  ),
-  constraint event_coupons_used_count_check check ((used_count >= 0))
+  constraint event_coupons_discount_value_check check ((discount_value > (0)::numeric))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_coupons_event_idx on public.event_coupons using btree (event_id) TABLESPACE pg_default;
@@ -172,12 +162,9 @@ execute FUNCTION set_updated_at ();
 create table public.event_registrations (
   id uuid not null default gen_random_uuid (),
   event_id uuid not null,
-  ticket_id uuid not null,
   user_id uuid not null,
   coupon_id uuid null,
-  quantity integer not null default 1,
   total_amount numeric(10, 2) not null,
-  discount_amount numeric(10, 2) not null default 0,
   final_amount numeric(10, 2) not null,
   payment_status public.payment_status not null default 'pending'::payment_status,
   form_response jsonb not null,
@@ -187,22 +174,27 @@ create table public.event_registrations (
   deleted_at timestamp with time zone null,
   name text not null,
   transaction_id text null,
+  tickets_bought jsonb null,
   constraint event_registrations_pkey primary key (id),
   constraint event_ticket_name unique (event_id, name),
   constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
   constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-  constraint event_registrations_ticket_id_fkey foreign KEY (ticket_id) references event_tickets (id) on delete RESTRICT,
   constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on update CASCADE on delete set null,
   constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
   constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
-  constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric)),
-  constraint event_registrations_quantity_check check ((quantity > 0)),
-  constraint event_registrations_discount_amount_check check ((discount_amount >= (0)::numeric))
+  constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_event_idx on public.event_registrations using btree (event_id) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_user_idx on public.event_registrations using btree (user_id) TABLESPACE pg_default;
+
+Note - 
+tickets bought works like - tickets
+{
+  "83acc059-39a4-4c16-9055-1bfb03d41967": 4,
+  "b9672e9f-1b36-4189-8075-acabdda40976": 2
+}, meaning a user can have different quantities of different tickets of the same event hence we pass like this.
 
 ### Users
 
@@ -328,3 +320,44 @@ create table public.payment_logs (
   constraint payment_logs_pkey primary key (id),
   constraint payment_logs_payment_id_fkey foreign KEY (payment_id) references payments (id) on delete CASCADE
 ) TABLESPACE pg_default;
+
+## Booking Flow
+
+### Phase - 1 (Logic Implementation Current Phase)
+We need booking flows:
+  - Initiate Booking (When the book now button will be pressed on frontend we'll hit the initiate booking endpoint) - This makes an entry in the `events_registrations` table and THEN triggers the payment flow of `initiate` payment.
+  - Cancel Booking (When the button is clicked then the registration entry in `event_registrations` will mark deleted_at `now`)
+  
+  - Get Bookings (All booking of the user, irrespective of event, pagination limit 20)
+  - Get BookingByEventId (All booking of the user for an event, irrespective of event, pagination limit 20)
+  - Get BookingById (A specific booking of the user, pagination limit 20)
+
+  Some things to note:
+  - Auth protected routes, use supabase auth validation to get the user_id too.
+  - Keep queries centralized in a query file, use variable parametrization to fetch according to our needs based on what is passed in the function.
+
+  Payment Interation - 
+  WE WILL GET TO THIS, For now make the entire functioning booking flow and entries to respective tables (this non-payment flow can be extended later to trigger when amount is 0)
+
+  What I body do I need on initiate booking - 
+  I need (console.log for now) the exact body it has to receive is -
+  {
+    userId: fetched from supabase;
+    eventId: string;
+    
+    firstName: string;
+    email: string;
+    phone: string;
+    eventName: string; // product_info
+    
+    amount: number;
+    tickets_bought: jsonb;
+    coupon_id?: uuid (references event_coupons table)
+
+    form_response?: jsonb;
+  }
+
+  #### PART - 2
+  Now its time to integrate booking initiate (only inititate, company has no refund policy so no payment flow in cancel) with the existing payment flow, gracefully.
+
+### Phase - 2 (UI Integration)
