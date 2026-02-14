@@ -101,6 +101,23 @@ export async function POST(request: NextRequest) {
       input,
     });
 
+    if (input.amount <= 0) {
+      return NextResponse.json(
+        {
+          ok: true,
+          booking: result.booking,
+          pricing: result.pricing,
+          payment: {
+            paymentUrl: null,
+            transactionId: null,
+          },
+        },
+        {
+          status: 201,
+        },
+      );
+    }
+
     const paymentResult = await initiatePaymentFlow({
       input: {
         amount: input.amount,

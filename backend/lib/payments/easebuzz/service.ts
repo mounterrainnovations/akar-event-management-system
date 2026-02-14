@@ -6,6 +6,7 @@ import {
   getEasebuzzRetrieveUrl,
   getEasebuzzSalt,
   getPaymentCallbackBaseUrl,
+  getPaymentResultBaseUrl,
 } from "@/lib/payments/easebuzz/config";
 import { getLogger } from "@/lib/logger";
 
@@ -44,6 +45,8 @@ export type EasebuzzCallbackFlow =
   | "failure"
   | "pending"
   | "unknown";
+
+type ResolvedEasebuzzFlow = Exclude<EasebuzzCallbackFlow, "unknown">;
 
 export const REQUIRED_EASEBUZZ_UDF_KEYS = [
   "udf1",
@@ -164,6 +167,37 @@ export function buildEasebuzzCallbackUrls(args: { requestOrigin: string }) {
   return {
     callback: callbackUrl.toString(),
   };
+}
+
+export function buildBookingResultUrl(args: {
+  flow: ResolvedEasebuzzFlow;
+  callbackStatus?: string;
+  transactionId?: string | null;
+  registrationId?: string | null;
+  message?: string | null;
+}) {
+  const baseUrl = new URL(getPaymentResultBaseUrl());
+  const pathByFlow: Record<ResolvedEasebuzzFlow, string> = {
+    success: "/booking/success",
+    failure: "/booking/failure",
+    pending: "/booking/pending",
+  };
+
+  const url = new URL(pathByFlow[args.flow], baseUrl);
+  if (args.callbackStatus) {
+    url.searchParams.set("status", args.callbackStatus);
+  }
+  if (args.transactionId) {
+    url.searchParams.set("txnid", args.transactionId);
+  }
+  if (args.registrationId) {
+    url.searchParams.set("registrationId", args.registrationId);
+  }
+  if (args.message) {
+    url.searchParams.set("message", args.message);
+  }
+
+  return url;
 }
 
 export function buildEasebuzzInitiatePayload(args: {

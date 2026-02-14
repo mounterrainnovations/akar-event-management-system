@@ -1,10 +1,9 @@
 ## Absolute Rules to Follow
 
-1. All work is to be done in /backend.
-2. /frontend is only for reference.
-3. Always write clean code with production conventions and naming practices.
-4. Once a task is complete make updates/create new md file in /docs following convention.
-5. Strictly follow DRY
+1. All work is to be done in /backend and then connected to /frontend
+2. Always write clean code with production conventions and naming practices.
+3. Once a task is complete make updates/create new md file in /docs following convention.
+4. Strictly follow DRY
 
 ## Table Schemas
 
@@ -367,3 +366,9 @@ eventId: string;
 Now its time to integrate booking initiate (only inititate, company has no refund policy so no payment flow in cancel) with the existing payment flow, gracefully.
 
 ### Phase - 2 (UI Integration)
+
+I want you to find the frontend Button Book Now, I want you to :
+1. Enforce that without a logged in user, we cannot make a booking because we want the bearer token.
+2. Then understand the book now flow, notice that a form is filled and at the last continue a backend url is called.
+3. I want you to first collect and prepare the correct payload that the our booking initiate endpoint expects and then hit it.
+4. Go over the complete flow, optimize the codes, use DRY, ensure no redundant code is there in the flow.

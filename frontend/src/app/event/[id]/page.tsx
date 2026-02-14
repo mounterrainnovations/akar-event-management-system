@@ -7,8 +7,11 @@ import Image from 'next/image';
 import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import RegistrationModal from '@/components/RegistrationModal';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
+import { getBackendUrl } from '@/lib/backend';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = getBackendUrl();
 
 interface EventDetailData {
     event: {
@@ -61,6 +64,8 @@ export default function EventDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+    const { isAuthenticated, isLoading: authLoading, openAuthModal } = useAuth();
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (!id) return;
@@ -89,60 +94,9 @@ export default function EventDetailPage() {
 
     const getMapEmbedUrl = () => {
         if (!data?.event) return "";
-        let { locationUrl } = data.event;
         const { address1, city, state } = data.event;
-
-        if (locationUrl) {
-            // 1. If user pasted the whole iframe code, extract the src
-            const iframeSrcMatch = locationUrl.match(/src="([^"]+)"/);
-            if (iframeSrcMatch && iframeSrcMatch[1]) {
-                const src = iframeSrcMatch[1];
-                // Ensure it has output=embed or is a direct embed URL
-                return src.includes('iwloc=') ? src : `${src}${src.includes('?') ? '&' : '?'}iwloc=0`;
-            }
-
-            // 2. If it's already an embed URL
-            if (locationUrl.includes('/maps/embed') || locationUrl.includes('output=embed')) {
-                return locationUrl.includes('iwloc=')
-                    ? locationUrl
-                    : `${locationUrl}${locationUrl.includes('?') ? '&' : '?'}iwloc=0`;
-            }
-
-            // 3. Handle My Maps
-            if (locationUrl.includes('maps/d/')) {
-                const myMapMatch = locationUrl.match(/maps\/d\/(?:edit|u\/\d+\/viewer)\?mid=([^&]+)/) || locationUrl.match(/maps\/d\/embed\?mid=([^&]+)/);
-                if (myMapMatch && myMapMatch[1]) {
-                    return `https://www.google.com/maps/d/embed?mid=${myMapMatch[1]}`;
-                }
-            }
-
-            // 4. Handle standard google maps links by extracting place name or coords
-            // Format: .../place/Place+Name/@...
-            const placeMatch = locationUrl.match(/\/place\/([^\/@?]+)/);
-            if (placeMatch && placeMatch[1]) {
-                const place = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
-                return `https://maps.google.com/maps?q=${encodeURIComponent(place)}&hl=en&z=14&output=embed&iwloc=0`;
-            }
-
-            // Format: .../@lat,lng,...
-            const coordMatch = locationUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (coordMatch && coordMatch[1] && coordMatch[2]) {
-                return `https://maps.google.com/maps?q=${coordMatch[1]},${coordMatch[2]}&hl=en&z=14&output=embed&iwloc=0`;
-            }
-
-            // Format: query param ?q=... (But ONLY if it's not a URL itself)
-            const queryMatch = locationUrl.match(/[?&]q=([^&]+)/);
-            if (queryMatch && queryMatch[1]) {
-                const query = decodeURIComponent(queryMatch[1]);
-                if (!query.startsWith('http')) {
-                    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&hl=en&z=14&output=embed&iwloc=0`;
-                }
-            }
-        }
-
-        // Default fallback to address
         const addressQuery = `${address1}, ${city}, ${state}`;
-        return `https://maps.google.com/maps?q=${encodeURIComponent(addressQuery)}&hl=en&z=14&output=embed&iwloc=0`;
+        return `https://maps.google.com/maps?q=${encodeURIComponent(addressQuery)}&hl=en&z=14&output=embed`;
     };
 
     if (isLoading) {
@@ -168,6 +122,15 @@ export default function EventDetailPage() {
 
     const { event, tickets, formFields } = data;
     const eventDate = event.eventDate ? new Date(event.eventDate) : null;
+
+    const handleBookNowClick = () => {
+        if (!isAuthenticated) {
+            openAuthModal();
+            showToast('Please log in to continue with booking.', 'info');
+            return;
+        }
+        setIsRegModalOpen(true);
+    };
 
     return (
         <main className="min-h-screen bg-white">
@@ -321,14 +284,13 @@ export default function EventDetailPage() {
                                 </>
                             )}
 
-                            {/* CTA */}
                             <button
-                                onClick={() => setIsRegModalOpen(true)}
-                                className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${event.status === 'published' || event.status === 'waitlist'
+                                onClick={handleBookNowClick}
+                                className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${(event.status === 'published' || event.status === 'waitlist')
                                     ? 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
                                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                     }`}
-                                disabled={event.status !== 'published' && event.status !== 'waitlist'}
+                                disabled={(event.status !== 'published' && event.status !== 'waitlist') || authLoading}
                             >
                                 {event.status === 'published' ? 'Book Now' : (event.status === 'waitlist' ? 'Join Waitlist' : 'Registration Closed')}
                             </button>

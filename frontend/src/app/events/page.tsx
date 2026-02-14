@@ -8,6 +8,7 @@ import { Search, Calendar as CalendarIcon, MapPin, ArrowUpRight, X, ChevronLeft,
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { instrumentSerif } from '@/lib/fonts';
+import { getBackendUrl } from '@/lib/backend';
 
 const container = {
     hidden: {},
@@ -30,7 +31,7 @@ const wordAnim = {
 
 const categories = ['All', 'Upcoming', 'Waitlist', 'Completed', 'Cancelled'];
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = getBackendUrl();
 
 interface ApiEvent {
     id: string;

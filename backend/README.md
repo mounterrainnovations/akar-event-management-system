@@ -88,6 +88,9 @@ EASEBUZZ_INITIATE_PATH=/payment/initiateLink
 # If set, callback URLs use this base URL instead of request origin
 PAYMENT_CALLBACK_BASE_URL=https://your-backend-domain.com
 
+# Frontend base URL for callback result redirects
+PAYMENT_RESULT_BASE_URL=http://localhost:3001
+
 # CSV for CORS allowlist on payment routes
 PAYMENT_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 

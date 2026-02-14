@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, CheckCircle2, AlertCircle, Upload, Trash2, Tag, ChevronRight, ChevronLeft } from 'lucide-react';
 import { instrumentSerif } from '@/lib/fonts';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface Ticket {
     id: string;
@@ -64,14 +66,14 @@ export default function RegistrationModal({
     backendUrl,
     eventStatus
 }: RegistrationModalProps) {
-    const [step, setStep] = useState(1); // 1: Attendee Info + Custom Fields, 2: Ticket Selection, 3: Confirmation/Payment
+    const { user, isAuthenticated, openAuthModal } = useAuth();
+    const [step, setStep] = useState(1);
     const [formValues, setFormValues] = useState<Record<string, any>>({
         name: '',
         phone: '',
         email: ''
     });
     const [selectedTickets, setSelectedTickets] = useState<Record<string, number>>({});
-    const [quantity, setQuantity] = useState(1); // Keeping for legacy/compatibility if needed, but per-ticket is better
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -79,6 +81,7 @@ export default function RegistrationModal({
     const [uploadingField, setUploadingField] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [registrationId, setRegistrationId] = useState<string | null>(null);
+    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [dragOverField, setDragOverField] = useState<string | null>(null);
@@ -112,11 +115,11 @@ export default function RegistrationModal({
             setStep(1);
             setFormValues({ name: '', phone: '', email: '' });
             setSelectedTickets({});
-            setQuantity(1);
             setCouponCode('');
             setAppliedCoupon(null);
             setError(null);
             setRegistrationId(null);
+            setPaymentUrl(null);
             setShowCloseConfirm(false);
             setOpenDropdown(null);
         }
@@ -357,46 +360,64 @@ export default function RegistrationModal({
         }
     };
 
+    async function getBearerToken() {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+            throw new Error(sessionError.message || 'Unable to fetch session');
+        }
+
+        const accessToken = data.session?.access_token;
+        if (!accessToken) {
+            throw new Error('Missing access token. Please log in again.');
+        }
+
+        return accessToken;
+    }
+
+    function buildBookingPayload() {
+        return {
+            user_id: user?.id,
+            eventId,
+            firstName: formValues.name,
+            email: formValues.email,
+            phone: formValues.phone,
+            eventName,
+            amount: Number(finalAmount.toFixed(2)),
+            tickets_bought: selectedTickets,
+            coupon_id: appliedCoupon?.id,
+            form_response: formValues,
+        };
+    }
+
     const handleSubmit = async () => {
-        const ticketEntries = Object.entries(selectedTickets);
-        if (ticketEntries.length === 0) return;
+        if (!Object.keys(selectedTickets).length) return;
+
+        if (!isAuthenticated || !user?.id) {
+            setError('Please log in to continue with booking.');
+            openAuthModal();
+            return;
+        }
 
         setIsLoading(true);
         setError(null);
         try {
-            let lastRegId = '';
-            for (const [ticketId, qty] of ticketEntries) {
-                const ticket = tickets.find(t => t.id === ticketId);
-                if (!ticket) continue;
+            const accessToken = await getBearerToken();
+            const response = await fetch(`${backendUrl}/api/bookings`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(buildBookingPayload())
+            });
 
-                const ticketTotal = ticket.price * qty;
-                const shareOfTotal = totalBaseAmount > 0 ? ticketTotal / totalBaseAmount : 0;
-                const allocatedDiscount = (bundleDiscount + couponDiscount) * shareOfTotal;
-
-                const response = await fetch(`${backendUrl}/api/registrations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        eventId,
-                        ticketId,
-                        quantity: qty,
-                        totalAmount: ticketTotal,
-                        discountAmount: allocatedDiscount,
-                        finalAmount: Math.max(0, ticketTotal - allocatedDiscount),
-                        formResponse: formValues
-                    })
-                });
-
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Failed to register');
-                }
-
-                const data = await response.json();
-                lastRegId = data.registrationId;
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.details || data?.error || 'Failed to initiate booking');
             }
 
-            setRegistrationId(lastRegId);
+            setRegistrationId(data?.booking?.id || null);
+            setPaymentUrl(data?.payment?.paymentUrl || null);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -739,13 +760,27 @@ export default function RegistrationModal({
                                     <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center"><CheckCircle2 size={40} /></div>
                                     <div className="space-y-1">
                                         <h3 className={`${instrumentSerif.className} text-3xl text-[#1a1a1a]`}>Booking Initiated!</h3>
-                                        <p className="text-[#1a1a1a]/60 font-montserrat text-xs max-w-xs mx-auto">Redirecting you to complete the payment for seat confirmation.</p>
+                                        <p className="text-[#1a1a1a]/60 font-montserrat text-xs max-w-xs mx-auto">
+                                            Complete payment to confirm your seat.
+                                        </p>
                                     </div>
                                     <div className="bg-gray-50 p-4 rounded-xl w-full text-left space-y-0.5">
                                         <p className="text-[8px] font-bold uppercase tracking-widest text-[#1a1a1a]/30">Registration ID</p>
                                         <p className="font-mono text-xs text-[#1a1a1a] break-all">{registrationId}</p>
                                     </div>
-                                    <button onClick={() => onClose()} className="w-full py-3 rounded-full bg-[#1a1a1a] text-white font-montserrat font-bold hover:bg-black transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2 text-sm">Pay Now <ChevronRight size={18} /></button>
+                                    <button
+                                        onClick={() => {
+                                            if (paymentUrl) {
+                                                window.location.assign(paymentUrl);
+                                                return;
+                                            }
+                                            onClose();
+                                        }}
+                                        className="w-full py-3 rounded-full bg-[#1a1a1a] text-white font-montserrat font-bold hover:bg-black transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        {paymentUrl ? 'Pay Now' : 'Done'}
+                                        <ChevronRight size={18} />
+                                    </button>
                                 </div>
                             )}
 

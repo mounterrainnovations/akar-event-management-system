@@ -50,6 +50,7 @@ export type InitiateBookingInput = {
   eventName: string;
   amount: number;
   ticketsBought: Record<string, number>;
+  couponId?: string | null;
   formResponse?: JsonValue;
 };
 
@@ -228,6 +229,16 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     throw new Error("eventId must be a valid UUID");
   }
 
+  const couponIdRaw = payload.couponId || payload.coupon_id;
+  let couponId: string | null = null;
+  if (couponIdRaw) {
+    const cid = normalizeNonEmptyString(couponIdRaw, "couponId");
+    if (!isUuid(cid)) {
+      throw new Error("couponId must be a valid UUID");
+    }
+    couponId = cid;
+  }
+
   return {
     eventId,
     firstName: normalizeNonEmptyString(payload.firstName, "firstName"),
@@ -236,6 +247,7 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     eventName: normalizeNonEmptyString(payload.eventName, "eventName"),
     amount: normalizePositiveAmount(payload.amount),
     ticketsBought: normalizeTicketsBought(payload.tickets_bought),
+    couponId,
     formResponse: normalizeJsonObject(payload.form_response),
   };
 }
@@ -303,7 +315,7 @@ export async function createBookingForUser(params: {
   const insertPayload = {
     event_id: input.eventId,
     user_id: userId,
-    coupon_id: null,
+    coupon_id: input.couponId ?? null,
     total_amount: normalizeAmount(subtotal),
     final_amount: normalizeAmount(finalAmount),
     payment_status: "pending",
