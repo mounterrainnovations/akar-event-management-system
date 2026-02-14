@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  buildBookingResultUrl,
   extractEasebuzzCallbackData,
   resolveEasebuzzCallbackFlow,
   retrieveEasebuzzTransaction,
@@ -25,8 +26,30 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function shouldReturnJson(request: NextRequest) {
+  if (request.nextUrl.searchParams.get("format") === "json") {
+    return true;
+  }
+
+  const accept = (request.headers.get("accept") || "").toLowerCase();
+  if (accept.includes("text/html")) {
+    return false;
+  }
+  if (accept.includes("application/json")) {
+    return true;
+  }
+
+  const fetchMode = request.headers.get("sec-fetch-mode") || "";
+  if (fetchMode.toLowerCase() === "navigate") {
+    return false;
+  }
+
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   const corsHeaders = getPaymentCorsHeaders(request);
+  const returnJson = shouldReturnJson(request);
   const contentType = request.headers.get("content-type") || "";
   const rawBody = await request.text();
   let parseError: string | null = null;
@@ -70,6 +93,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (!hasBody) {
+    if (!returnJson) {
+      const redirectUrl = buildBookingResultUrl({
+        flow: "failure",
+        callbackStatus: data.status || "invalid",
+        transactionId: data.udf4 || data.txnid || null,
+        registrationId: data.udf1 || null,
+        message: "Callback body is empty",
+      });
+      return NextResponse.redirect(redirectUrl, {
+        status: 303,
+        headers: corsHeaders,
+      });
+    }
+
     return NextResponse.json(
       {
         error: "Callback body is empty",
@@ -82,6 +119,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (parseError) {
+    if (!returnJson) {
+      const redirectUrl = buildBookingResultUrl({
+        flow: "failure",
+        callbackStatus: data.status || "invalid",
+        transactionId: data.udf4 || data.txnid || null,
+        registrationId: data.udf1 || null,
+        message: "Invalid callback body",
+      });
+      return NextResponse.redirect(redirectUrl, {
+        status: 303,
+        headers: corsHeaders,
+      });
+    }
+
     return NextResponse.json(
       {
         error: "Invalid callback body",
@@ -94,6 +145,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (!hashVerification.valid) {
+    if (!returnJson) {
+      const redirectUrl = buildBookingResultUrl({
+        flow: "failure",
+        callbackStatus: data.status || "invalid",
+        transactionId: data.udf4 || data.txnid || null,
+        registrationId: data.udf1 || null,
+        message: "Invalid callback hash",
+      });
+      return NextResponse.redirect(redirectUrl, {
+        status: 303,
+        headers: corsHeaders,
+      });
+    }
+
     return NextResponse.json(
       {
         error: "Invalid callback hash",
@@ -154,6 +219,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (flow === "unknown") {
+    if (!returnJson) {
+      const redirectUrl = buildBookingResultUrl({
+        flow: "failure",
+        callbackStatus: effectiveData.status || "unknown",
+        transactionId: effectiveData.udf4 || effectiveData.txnid || null,
+        registrationId: effectiveData.udf1 || null,
+        message: "Unsupported callback status",
+      });
+      return NextResponse.redirect(redirectUrl, {
+        status: 303,
+        headers: corsHeaders,
+      });
+    }
+
     return NextResponse.json(
       {
         error: "Unsupported callback status",
@@ -174,6 +253,20 @@ export async function POST(request: NextRequest) {
     gatewayMessage: effectiveData.errorMessage || effectiveData.error || null,
     paymentMode: effectiveData.mode || null,
   });
+
+  if (!returnJson) {
+    const redirectUrl = buildBookingResultUrl({
+      flow,
+      callbackStatus: effectiveData.status || undefined,
+      transactionId: effectiveData.udf4 || effectiveData.txnid || null,
+      registrationId: effectiveData.udf1 || null,
+      message: effectiveData.errorMessage || effectiveData.error || null,
+    });
+    return NextResponse.redirect(redirectUrl, {
+      status: 303,
+      headers: corsHeaders,
+    });
+  }
 
   return NextResponse.json(
     {

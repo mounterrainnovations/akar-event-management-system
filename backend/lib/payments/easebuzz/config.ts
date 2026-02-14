@@ -46,6 +46,14 @@ export function getPaymentCallbackBaseUrl() {
   return process.env.PAYMENT_CALLBACK_BASE_URL?.trim() || null;
 }
 
+export function getPaymentResultBaseUrl() {
+  return (
+    process.env.PAYMENT_RESULT_BASE_URL?.trim() ||
+    process.env.FRONTEND_BASE_URL?.trim() ||
+    "http://localhost:3001"
+  );
+}
+
 export function getPaymentAllowedOrigins() {
   const configured = process.env.PAYMENT_ALLOWED_ORIGINS?.trim();
   if (!configured) {
