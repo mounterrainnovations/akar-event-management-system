@@ -89,16 +89,18 @@ type BundleOfferRow = {
 type RegistrationRow = {
   id: string;
   event_id: string;
-  ticket_id: string;
   user_id: string | null;
   coupon_id: string | null;
-  quantity: number;
   total_amount: string;
-  discount_amount: string;
   final_amount: string;
   payment_status: string;
   form_response: JsonValue;
   created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  name: string;
+  transaction_id: string | null;
+  tickets_bought: Record<string, number> | null;
   is_verified: boolean | null;
 };
 
@@ -130,7 +132,7 @@ export type BookingDetail = {
   id: string;
   eventId: string;
   eventName: string;
-  ticketId: string;
+  ticketId: string | null;
   ticketName: string;
   userId: string | null;
   userEmail: string | null;
@@ -143,8 +145,13 @@ export type BookingDetail = {
   discountAmount: number;
   finalAmount: number;
   paymentStatus: string;
-  formResponse: any;
+  formResponse: JsonValue;
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  name: string;
+  transactionId: string | null;
+  ticketsBought: Record<string, number>;
   isVerified: boolean | null;
 };
 
@@ -200,7 +207,7 @@ export type EventBundleOffer = {
 
 export type EventRegistration = {
   id: string;
-  ticketId: string;
+  ticketId: string | null;
   userId: string | null;
   couponId: string | null;
   quantity: number;
@@ -211,6 +218,11 @@ export type EventRegistration = {
   isVerified: boolean | null;
   formResponse: JsonValue;
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  name: string;
+  transactionId: string | null;
+  ticketsBought: Record<string, number>;
 };
 
 export type EventDetail = {
@@ -307,7 +319,7 @@ const FORM_FIELD_SELECT_FIELDS =
 const BUNDLE_OFFER_SELECT_FIELDS =
   "id,event_id,name,buy_quantity,get_quantity,offer_type,applicable_ticket_ids,created_at,updated_at";
 const REGISTRATION_SELECT_FIELDS =
-  "id,event_id,ticket_id,user_id,coupon_id,quantity,total_amount,discount_amount,final_amount,payment_status,form_response,created_at,is_verified";
+  "id,event_id,user_id,coupon_id,total_amount,final_amount,payment_status,form_response,created_at,updated_at,deleted_at,name,transaction_id,tickets_bought,is_verified";
 
 function toNumber(value: string | number | null | undefined) {
   if (typeof value === "number") {
@@ -369,19 +381,31 @@ function mapFormField(
 }
 
 function mapRegistration(row: RegistrationRow): EventRegistration {
+  const ticketsBought = row.tickets_bought || {};
+  const quantity = Object.values(ticketsBought).reduce(
+    (acc, ticketQty) => acc + ticketQty,
+    0,
+  );
+  const totalAmount = toNumber(row.total_amount);
+  const finalAmount = toNumber(row.final_amount);
   return {
     id: row.id,
-    ticketId: row.ticket_id,
+    ticketId: Object.keys(ticketsBought)[0] || null,
     userId: row.user_id,
     couponId: row.coupon_id,
-    quantity: row.quantity,
-    totalAmount: toNumber(row.total_amount),
-    discountAmount: toNumber(row.discount_amount),
-    finalAmount: toNumber(row.final_amount),
+    quantity,
+    totalAmount,
+    discountAmount: Math.max(totalAmount - finalAmount, 0),
+    finalAmount,
     paymentStatus: row.payment_status,
     isVerified: row.is_verified,
     formResponse: row.form_response,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+    name: row.name,
+    transactionId: row.transaction_id,
+    ticketsBought,
   };
 }
 
@@ -567,12 +591,12 @@ export async function listEventAdminSummaries(params?: {
       .returns<Array<Pick<FormFieldRow, "id" | "event_id">>>(),
     supabase
       .from("event_registrations")
-      .select("id,event_id,quantity,final_amount,payment_status")
+      .select("id,event_id,final_amount,payment_status,tickets_bought")
       .returns<
         Array<
           Pick<
             RegistrationRow,
-            "id" | "event_id" | "quantity" | "final_amount" | "payment_status"
+            "id" | "event_id" | "final_amount" | "payment_status" | "tickets_bought"
           >
         >
       >(),
@@ -777,7 +801,12 @@ export async function getEventAdminDetail(params: {
         (entry) => entry.paymentStatus !== "paid",
       ).length,
       totalQuantity: mappedRegistrations.reduce(
-        (acc, entry) => acc + entry.quantity,
+        (acc, entry) =>
+          acc +
+          Object.values(entry.ticketsBought).reduce(
+            (ticketAcc, ticketQty) => ticketAcc + ticketQty,
+            0,
+          ),
         0,
       ),
       totalRevenue: mappedRegistrations.reduce(
@@ -864,7 +893,14 @@ export async function createEvent(input: EventWriteInput) {
 
     if (insertedTickets) {
       insertedTickets.forEach((t) => {
-        const name = (t.description as any)?.name;
+        const description =
+          t.description && typeof t.description === "object"
+            ? (t.description as Record<string, unknown>)
+            : null;
+        const name =
+          description && typeof description.name === "string"
+            ? description.name
+            : null;
         if (name) ticketIdMap.set(name, t.id);
       });
     }
@@ -1232,6 +1268,26 @@ export async function deleteEventFormField(params: { formFieldId: string }) {
 }
 export async function listAllRegistrations(): Promise<BookingDetail[]> {
   const supabase = createSupabaseAdminClient();
+  type RegistrationListRow = {
+    id: string;
+    event_id: string;
+    user_id: string | null;
+    coupon_id: string | null;
+    total_amount: string;
+    final_amount: string;
+    payment_status: string;
+    form_response: JsonValue;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    name: string;
+    transaction_id: string | null;
+    tickets_bought: Record<string, number> | null;
+    is_verified: boolean | null;
+    events: { name: string } | null;
+    users: { email: string | null; full_name: string | null; phone: string | null } | null;
+    event_coupons: { code: string | null } | null;
+  };
 
   // We'll fetch registrations and join with related tables
   // Note: Using select with joins in Supabase/PostgREST
@@ -1241,22 +1297,21 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
       `
       id,
       event_id,
-      ticket_id,
       user_id,
       coupon_id,
-      quantity,
       total_amount,
-      discount_amount,
       final_amount,
       payment_status,
       form_response,
       created_at,
+      updated_at,
+      deleted_at,
+      name,
+      transaction_id,
+      tickets_bought,
       is_verified,
       events (
         name
-      ),
-      event_tickets (
-        description
       ),
       users (
         email,
@@ -1275,26 +1330,44 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     throw new Error("Unable to load bookings");
   }
 
-  return (data || []).map((reg: any) => ({
-    id: reg.id,
-    eventId: reg.event_id,
-    eventName: reg.events?.name || "Unknown Event",
-    ticketId: reg.ticket_id,
-    ticketName:
-      (reg.event_tickets?.description as any)?.name || "Unknown Ticket",
-    userId: reg.user_id,
-    userEmail: reg.users?.email || null,
-    userName: reg.users?.full_name || null,
-    userPhone: reg.users?.phone || null,
-    couponId: reg.coupon_id,
-    couponCode: reg.event_coupons?.code || null,
-    quantity: reg.quantity,
-    totalAmount: parseFloat(reg.total_amount),
-    discountAmount: parseFloat(reg.discount_amount),
-    finalAmount: parseFloat(reg.final_amount),
-    paymentStatus: reg.payment_status,
-    formResponse: reg.form_response,
-    createdAt: reg.created_at,
-    isVerified: reg.is_verified,
-  }));
+  return ((data || []) as RegistrationListRow[]).map((reg) => {
+    const ticketsBought =
+      reg.tickets_bought && typeof reg.tickets_bought === "object"
+        ? (reg.tickets_bought as Record<string, number>)
+        : {};
+    const quantity = Object.values(ticketsBought).reduce(
+      (acc, qty) => acc + (Number.isFinite(qty) ? Number(qty) : 0),
+      0,
+    );
+    const ticketIds = Object.keys(ticketsBought);
+    const totalAmount = parseFloat(reg.total_amount);
+    const finalAmount = parseFloat(reg.final_amount);
+
+    return {
+      id: reg.id,
+      eventId: reg.event_id,
+      eventName: reg.events?.name || "Unknown Event",
+      ticketId: ticketIds[0] || null,
+      ticketName: ticketIds.length <= 1 ? "Single Ticket Type" : "Multiple Tickets",
+      userId: reg.user_id,
+      userEmail: reg.users?.email || null,
+      userName: reg.users?.full_name || null,
+      userPhone: reg.users?.phone || null,
+      couponId: reg.coupon_id,
+      couponCode: reg.event_coupons?.code || null,
+      quantity,
+      totalAmount,
+      discountAmount: Math.max(totalAmount - finalAmount, 0),
+      finalAmount,
+      paymentStatus: reg.payment_status,
+      formResponse: reg.form_response,
+      createdAt: reg.created_at,
+      updatedAt: reg.updated_at,
+      deletedAt: reg.deleted_at,
+      name: reg.name,
+      transactionId: reg.transaction_id,
+      ticketsBought,
+      isVerified: reg.is_verified,
+    };
+  });
 }

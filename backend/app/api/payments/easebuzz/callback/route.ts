@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       easebuzzUrl: request.nextUrl.pathname,
       requestPayload: null,
       responsePayload: {
-        callback: data,
+        callback: body, // Raw complete body
         hashVerification,
       },
       httpStatus: callbackError ? 400 : 200,

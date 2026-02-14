@@ -141,8 +141,8 @@ export async function EventsSectionManager({
         <p className="mt-2 text-sm text-muted-foreground">
           events is the root record. event_tickets, event_coupons, event_form_fields, and
           event_registrations all attach to one event via event_id. Registrations also link to
-          ticket_id and optional coupon_id. Enums are mapped from AI.md: event_status, ticket_status,
-          discount_type, payment_status.
+          optional coupon_id and maintain per-ticket quantities in tickets_bought jsonb. Enums are
+          mapped from AI.md: event_status, ticket_status, discount_type, payment_status.
         </p>
       </div>
 
