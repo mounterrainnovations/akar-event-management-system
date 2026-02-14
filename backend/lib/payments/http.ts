@@ -60,3 +60,16 @@ export async function parseCallbackBody(request: NextRequest) {
     request.headers.get("content-type") || "",
   );
 }
+
+export function parseJsonBodyFromRaw<T>(rawBody: string): T {
+  const normalizedRawBody = rawBody.trim();
+  if (!normalizedRawBody) {
+    throw new Error("Request body is empty");
+  }
+
+  try {
+    return JSON.parse(normalizedRawBody) as T;
+  } catch {
+    throw new Error("Invalid JSON body");
+  }
+}

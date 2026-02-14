@@ -7,7 +7,10 @@ import {
   retrieveEasebuzzTransaction,
   verifyEasebuzzCallbackHash,
 } from "@/lib/payments/easebuzz/service";
-import { getPaymentCorsHeaders } from "@/lib/payments/http";
+import {
+  getPaymentCorsHeaders,
+  parseJsonBodyFromRaw,
+} from "@/lib/payments/http";
 import {
   applyCallbackBusinessStatus,
   getRegistrationTransactionLookup,
@@ -55,25 +58,13 @@ export async function POST(request: NextRequest) {
     }
 
     const rawBody = await request.text();
-    if (!rawBody.trim()) {
-      return NextResponse.json(
-        {
-          error: "No Body in Request",
-        },
-        {
-          status: 400,
-          headers: corsHeaders,
-        },
-      );
-    }
-
     let body: TransactionStatusRequest;
     try {
-      body = JSON.parse(rawBody) as TransactionStatusRequest;
-    } catch {
+      body = parseJsonBodyFromRaw<TransactionStatusRequest>(rawBody);
+    } catch (error) {
       return NextResponse.json(
         {
-          error: "Invalid JSON body",
+          error: error instanceof Error ? error.message : "Invalid request body",
         },
         {
           status: 400,
@@ -82,8 +73,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const input = parseRequestBody(body);
-    const lookup = await getRegistrationTransactionLookup(input.registrationId);
+    let input: ReturnType<typeof parseRequestBody>;
+    try {
+      input = parseRequestBody(body);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: error instanceof Error ? error.message : "Invalid request body",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
+    let lookup: Awaited<ReturnType<typeof getRegistrationTransactionLookup>>;
+    try {
+      lookup = await getRegistrationTransactionLookup(input.registrationId);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to resolve registration transaction";
+      const status = message.includes("valid UUID") ? 400 : 404;
+      return NextResponse.json(
+        {
+          error: message,
+        },
+        {
+          status,
+          headers: corsHeaders,
+        },
+      );
+    }
 
     const retrieveResult = await retrieveEasebuzzTransaction({
       txnid: lookup.transactionId,
@@ -108,7 +130,7 @@ export async function POST(request: NextRequest) {
       errorMessage: retrieveResult.ok ? null : "Easebuzz retrieve API failed",
     });
 
-    if (flow !== "unknown") {
+    if (hashVerification.valid && flow !== "unknown") {
       await applyCallbackBusinessStatus({
         transactionId: lookup.transactionId,
         easebuzzTxnId: lookup.transactionId,

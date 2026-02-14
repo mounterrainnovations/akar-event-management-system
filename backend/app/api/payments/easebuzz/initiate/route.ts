@@ -10,7 +10,10 @@ import {
   getEasebuzzBaseUrl,
   getEasebuzzPaymentPath,
 } from "@/lib/payments/easebuzz/config";
-import { getPaymentCorsHeaders } from "@/lib/payments/http";
+import {
+  getPaymentCorsHeaders,
+  parseJsonBodyFromRaw,
+} from "@/lib/payments/http";
 import {
   createPendingPayment,
   logInitiatePaymentRequest,
@@ -30,9 +33,16 @@ type InitiatePaymentRequest = {
   registrationId: string;
 };
 
+type ParsedInitiateInput = Omit<
+  InitiateEasebuzzPaymentInput,
+  "registrationId"
+> & {
+  registrationId: string;
+};
+
 function parseInitiateBody(
   body: InitiatePaymentRequest,
-): InitiateEasebuzzPaymentInput {
+): ParsedInitiateInput {
   if (!Number.isFinite(body.amount) || body.amount <= 0) {
     throw new Error("amount must be a positive number");
   }
@@ -64,7 +74,7 @@ function parseInitiateBody(
     productInfo,
     firstName,
     email,
-    phone: body.phone?.trim(),
+    phone,
     userId: body.userId?.trim(),
     eventId: body.eventId?.trim(),
     registrationId,
@@ -101,25 +111,13 @@ export async function POST(request: NextRequest) {
     }
 
     const rawBody = await request.text();
-    if (!rawBody.trim()) {
-      return NextResponse.json(
-        {
-          error: "No Body in Request",
-        },
-        {
-          status: 400,
-          headers: corsHeaders,
-        },
-      );
-    }
-
     let body: InitiatePaymentRequest;
     try {
-      body = JSON.parse(rawBody) as InitiatePaymentRequest;
-    } catch {
+      body = parseJsonBodyFromRaw<InitiatePaymentRequest>(rawBody);
+    } catch (error) {
       return NextResponse.json(
         {
-          error: "Invalid JSON body",
+          error: error instanceof Error ? error.message : "Invalid request body",
         },
         {
           status: 400,
@@ -128,7 +126,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const input = parseInitiateBody(body);
+    let input: ParsedInitiateInput;
+    try {
+      input = parseInitiateBody(body);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: error instanceof Error ? error.message : "Invalid request body",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
     const userId = authValidation.userId || input.userId;
     if (!userId) {
       return NextResponse.json(
@@ -149,11 +160,8 @@ export async function POST(request: NextRequest) {
       },
       requestOrigin: request.nextUrl.origin,
     });
-    const registrationId = input.registrationId;
+    const { registrationId } = input;
     setTransactionId = transactionId;
-    if (!registrationId) {
-      throw new Error("registrationId is required");
-    }
 
     await createPendingPayment({
       transactionId,
