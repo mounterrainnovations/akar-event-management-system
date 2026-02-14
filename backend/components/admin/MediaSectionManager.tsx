@@ -1,11 +1,18 @@
+"use client";
+
+import { useRef, useState } from "react";
 import {
   deleteSectionMediaAction,
   toggleSectionMediaAction,
   uploadSectionMediaAction,
 } from "@/app/admin/actions";
-import { Button } from "@/components/ui/button";
-import { Eye, EyeSlash, Image, Trash } from "@phosphor-icons/react/dist/ssr";
+import { Eye, EyeSlash, Trash, UploadSimple, X, Image } from "@phosphor-icons/react";
 import { type WebsiteSectionState } from "@/lib/media/website-media-service";
+import { toast } from "react-toastify";
+
+const MAX_FILE_SIZE_MB = 1.5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const ALLOWED_TYPES = ["image/png", "image/jpeg"];
 
 type MediaSectionManagerProps = {
   title: string;
@@ -14,87 +21,271 @@ type MediaSectionManagerProps = {
 };
 
 export function MediaSectionManager({ title, description, section }: MediaSectionManagerProps) {
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
+
   const canUpload = section.totalCount < section.maxAllowed;
-  const uploadRemaining = section.maxAllowed - section.totalCount;
-  const minRuleMet = section.activeCount >= section.minRequired;
+
+  function validateAndSetFiles(files: File[]) {
+    const invalidFormat = files.filter((f) => !ALLOWED_TYPES.includes(f.type));
+    if (invalidFormat.length > 0) {
+      toast.error(
+        `Only PNG and JPG files are allowed. Rejected: ${invalidFormat.map((f) => f.name).join(", ")}`,
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const oversized = files.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+    if (oversized.length > 0) {
+      toast.error(
+        `${oversized.length} file(s) exceed ${MAX_FILE_SIZE_MB} MB limit: ${oversized.map((f) => f.name).join(", ")}`,
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setSelectedFiles(files);
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    validateAndSetFiles(files);
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (dragCounter.current === 1) setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      validateAndSetFiles(files);
+      // Sync with the file input for form submission
+      const dt = new DataTransfer();
+      files.forEach((f) => dt.items.add(f));
+      if (fileInputRef.current) fileInputRef.current.files = dt.files;
+    }
+  }
+
+  function closeModal() {
+    setIsUploadOpen(false);
+    setSelectedFiles([]);
+    setIsDragging(false);
+    dragCounter.current = 0;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   return (
-    <div className="space-y-4 rounded-xl border bg-card p-4">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-
-      <div className="grid gap-2 rounded-lg border bg-background p-3 text-sm md:grid-cols-3">
-        <p>
-          Total: <span className="font-semibold">{section.totalCount}</span> / {section.maxAllowed}
-        </p>
-        <p>
-          Active: <span className="font-semibold">{section.activeCount}</span> (min {section.minRequired})
-        </p>
-        <p className={minRuleMet ? "text-emerald-600" : "text-amber-600"}>
-          {minRuleMet ? "Minimum requirement met" : "Need more active images"}
-        </p>
-      </div>
-
-      <form action={uploadSectionMediaAction} className="space-y-3 rounded-lg border p-4">
-        <input type="hidden" name="section" value={section.section} />
-        <label className="block text-sm font-medium" htmlFor={`mediaFiles-${section.section}`}>
-          Upload images
-        </label>
-        <input
-          id={`mediaFiles-${section.section}`}
-          name="mediaFiles"
-          type="file"
-          accept="image/*"
-          multiple
-          required
+    <div className="space-y-5">
+      {/* Header Row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        </div>
+        <button
+          type="button"
           disabled={!canUpload}
-          className="block w-full cursor-pointer rounded-md border bg-background p-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-        />
-        <p className="text-xs text-muted-foreground">
-          Select multiple images at once. Remaining slots: {Math.max(uploadRemaining, 0)}.
-        </p>
-        <Button type="submit" disabled={!canUpload}>
-          Upload to {title}
-        </Button>
-      </form>
+          onClick={() => setIsUploadOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <UploadSimple className="size-4" weight="bold" />
+          Upload Image
+        </button>
+      </div>
 
+      {/* Stats */}
+      <div className="flex gap-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="text-lg font-semibold text-foreground">{section.totalCount}</span>
+          Total Images
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="text-lg font-semibold text-emerald-600">{section.activeCount}</span>
+          Active
+        </div>
+      </div>
+
+      {/* Image Grid */}
       {section.items.length === 0 ? (
-        <div className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-dashed bg-background/70 p-6 text-center">
-          <Image className="size-12 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">No images uploaded for this section yet.</p>
+        <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/60 p-8 text-center">
+          <Image className="size-12 text-muted-foreground/40" />
+          <p className="mt-3 text-sm text-muted-foreground">No images uploaded yet.</p>
         </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {section.items.map((item) => (
-            <li key={item.id} className="overflow-hidden rounded-lg border bg-background">
-              <div className="aspect-video bg-black/5">
-                <img src={item.previewUrl} alt={item.fileName} className="h-full w-full object-cover" />
-              </div>
-              <div className="space-y-2 p-3">
-                <p className="truncate text-sm font-medium">{item.fileName}</p>
-                <p className="text-xs text-muted-foreground">{item.isActive ? "Visible" : "Hidden"}</p>
+            <div
+              key={item.id}
+              className="group relative aspect-square overflow-hidden rounded-xl bg-muted"
+            >
+              <img
+                src={item.previewUrl}
+                alt={item.fileName}
+                className={`h-full w-full object-cover ${!item.isActive ? "opacity-50 grayscale" : ""}`}
+              />
+
+              {/* Hidden badge */}
+              {!item.isActive && (
+                <span className="absolute left-2 top-2 z-10 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/80">
+                  Hidden
+                </span>
+              )}
+
+              {/* Single hover overlay: background + actions */}
+              <div
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 will-change-[opacity] group-hover:opacity-100"
+                style={{ transition: "opacity 120ms ease-out" }}
+              >
                 <div className="flex gap-2">
-                  <form action={toggleSectionMediaAction} className="flex-1">
+                  <form action={toggleSectionMediaAction}>
                     <input type="hidden" name="websiteMediaId" value={item.id} />
-                    <Button type="submit" variant="outline" className="w-full">
-                      {item.isActive ? <EyeSlash /> : <Eye />}
-                      <span>{item.isActive ? "Hide" : "Show"}</span>
-                    </Button>
+                    <button
+                      type="submit"
+                      className="flex size-10 items-center justify-center rounded-full bg-white text-foreground shadow-lg hover:bg-neutral-200"
+                      title={item.isActive ? "Hide" : "Show"}
+                    >
+                      {item.isActive ? (
+                        <EyeSlash className="size-5" weight="bold" />
+                      ) : (
+                        <Eye className="size-5" weight="bold" />
+                      )}
+                    </button>
                   </form>
-                  <form action={deleteSectionMediaAction} className="flex-1">
+                  <form action={deleteSectionMediaAction}>
                     <input type="hidden" name="websiteMediaId" value={item.id} />
-                    <Button type="submit" variant="destructive" className="w-full">
-                      <Trash />
-                      <span>Delete</span>
-                    </Button>
+                    <button
+                      type="submit"
+                      className="flex size-10 items-center justify-center rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600"
+                      title="Delete"
+                    >
+                      <Trash className="size-5" weight="bold" />
+                    </button>
                   </form>
                 </div>
+                <span className="absolute bottom-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white/90">
+                  {item.fileSize < 1024 * 1024
+                    ? `${(item.fileSize / 1024).toFixed(0)} KB`
+                    : `${(item.fileSize / 1024 / 1024).toFixed(2)} MB`}
+                </span>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {isUploadOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={closeModal}
+          />
+
+          {/* Modal */}
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl">
+            {/* Close */}
+            <button
+              type="button"
+              onClick={closeModal}
+              className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-5" />
+            </button>
+
+            <h3 className="text-lg font-semibold text-foreground">Upload Images</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Max {MAX_FILE_SIZE_MB} MB per file. Remaining slots:{" "}
+              {Math.max(section.maxAllowed - section.totalCount, 0)}.
+            </p>
+
+            <form
+              action={uploadSectionMediaAction}
+              className="mt-5 space-y-4"
+            >
+              <input type="hidden" name="section" value={section.section} />
+
+              {/* Drop zone */}
+              <div
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                <label
+                  htmlFor={`upload-${section.section}`}
+                  className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-border/60 hover:border-primary/50 hover:bg-muted/50"
+                    }`}
+                >
+                  <UploadSimple className={`size-8 ${isDragging ? "text-primary" : "text-muted-foreground/50"}`} />
+                  <p className="mt-2 text-sm font-medium text-foreground">
+                    {isDragging ? "Drop your images here" : "Click or drag & drop images"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    PNG, JPG only — up to {MAX_FILE_SIZE_MB} MB each
+                  </p>
+                </label>
+              </div>
+              <input
+                ref={fileInputRef}
+                id={`upload-${section.section}`}
+                name="mediaFiles"
+                type="file"
+                accept=".png,.jpg,.jpeg"
+                multiple
+                required
+                onChange={handleFileChange}
+                className="sr-only"
+              />
+
+              {selectedFiles.length > 0 && (
+                <div className="space-y-1">
+                  {selectedFiles.map((file, i) => (
+                    <p key={i} className="truncate text-sm text-muted-foreground">
+                      {file.name}{" "}
+                      <span className="text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={selectedFiles.length === 0}
+                className="w-full rounded-lg bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Upload {selectedFiles.length > 0 ? `${selectedFiles.length} file(s)` : ""}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

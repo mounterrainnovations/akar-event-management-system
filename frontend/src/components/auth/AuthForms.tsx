@@ -23,6 +23,7 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,13 +32,14 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
 
         try {
             if (mode === 'register') {
-                const result = await signUp(email, password, name);
+                const result = await signUp(email, password, name, phoneNumber);
                 if (result.error) {
                     setError(result.error);
                 } else {
                     // Sign-up successful — show toast and switch to login
                     showToast('Account created successfully! Please sign in.', 'success');
                     setName('');
+                    setPhoneNumber('');
                     setPassword('');
                     onToggleMode(); // Switch to login tab
                 }
@@ -90,15 +92,26 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {mode === 'register' && (
-                    <AuthInput
-                        label="Name"
-                        id="name"
-                        type="text"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                    />
+                    <>
+                        <AuthInput
+                            label="Name"
+                            id="name"
+                            type="text"
+                            placeholder="John Doe"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                        />
+                        <AuthInput
+                            label="Phone Number"
+                            id="phoneNumber"
+                            type="tel"
+                            placeholder="+1 (555) 000-0000"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            required
+                        />
+                    </>
                 )}
 
                 <AuthInput
