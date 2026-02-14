@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   extractEasebuzzCallbackData,
-  getMissingEasebuzzUdfKeys,
   resolveEasebuzzCallbackFlow,
   retrieveEasebuzzTransaction,
   verifyEasebuzzCallbackHash,
@@ -46,37 +45,17 @@ export async function POST(request: NextRequest) {
   }
 
   const data = extractEasebuzzCallbackData(body);
-  const missingUdfKeys = getMissingEasebuzzUdfKeys(body);
   const hashVerification = verifyEasebuzzCallbackHash(data);
-  const callbackError = !hasBody
-    ? "Callback body is empty"
-    : parseError
-      ? parseError
-      : missingUdfKeys.length > 0
-        ? `Missing required callback keys: ${missingUdfKeys.join(", ")}`
-        : !hashVerification.valid
-          ? hashVerification.reason || "hash_mismatch"
-          : null;
+  const callbackError = !hasBody ? "Callback body is empty" : parseError;
 
   try {
     await logCallbackPaymentRequest({
       transactionId: data.txnid || null,
       easebuzzTxnId: data.txnid || null,
       easebuzzUrl: request.nextUrl.pathname,
-      requestPayload: parseError
-        ? {
-            _raw_body: rawBody,
-            _parse_error: parseError,
-          }
-        : hasBody
-          ? body
-          : {
-              _raw_body: "",
-              _error: "Callback body is empty",
-            },
+      requestPayload: null,
       responsePayload: {
         callback: data,
-        missingUdfKeys,
         hashVerification,
       },
       httpStatus: callbackError ? 400 : 200,
@@ -114,18 +93,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (missingUdfKeys.length > 0) {
-    return NextResponse.json(
-      {
-        error: `Missing required callback keys: ${missingUdfKeys.join(", ")}`,
-      },
-      {
-        status: 400,
-        headers: corsHeaders,
-      },
-    );
-  }
-
   if (!hashVerification.valid) {
     return NextResponse.json(
       {
@@ -150,7 +117,9 @@ export async function POST(request: NextRequest) {
           txnid: effectiveData.txnid,
           hash: effectiveData.hash,
         });
-        const retrievedData = extractEasebuzzCallbackData(retrieveResult.payload);
+        const retrievedData = extractEasebuzzCallbackData(
+          retrieveResult.payload,
+        );
         const retrievedHashCheck = verifyEasebuzzCallbackHash(retrievedData);
 
         await logCallbackPaymentRequest({
@@ -169,7 +138,9 @@ export async function POST(request: NextRequest) {
           },
           httpStatus: retrieveResult.status,
           easebuzzStatus: retrievedData.status,
-          errorMessage: retrieveResult.ok ? null : "Easebuzz retrieve API failed",
+          errorMessage: retrieveResult.ok
+            ? null
+            : "Easebuzz retrieve API failed",
         });
 
         if (!retrievedHashCheck.valid) {
@@ -208,8 +179,6 @@ export async function POST(request: NextRequest) {
     transactionId: effectiveData.udf4 || effectiveData.txnid || null,
     easebuzzTxnId: effectiveData.txnid || null,
     registrationId: effectiveData.udf1 || null,
-    eventId: effectiveData.udf2 || null,
-    userId: effectiveData.udf3 || null,
     flow,
     callbackStatus: effectiveData.status,
     gatewayMessage: effectiveData.errorMessage || effectiveData.error || null,

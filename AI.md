@@ -151,6 +151,7 @@ create table public.event_registrations (
   discount_amount numeric(10, 2) not null default 0,
   final_amount numeric(10, 2) not null,
   payment_status public.payment_status not null default 'pending'::payment_status,
+  transaction_id character varying(40) null,
   form_response jsonb not null,
   created_at timestamp with time zone not null default now(),
   is_verified boolean null,
@@ -159,6 +160,7 @@ create table public.event_registrations (
   constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
   constraint event_registrations_ticket_id_fkey foreign KEY (ticket_id) references event_tickets (id) on delete RESTRICT,
   constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
+  constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on delete set null,
   constraint event_registrations_quantity_check check ((quantity > 0)),
   constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
   constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric)),
@@ -168,6 +170,8 @@ create table public.event_registrations (
 create index IF not exists event_registrations_event_idx on public.event_registrations using btree (event_id) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_user_idx on public.event_registrations using btree (user_id) TABLESPACE pg_default;
+
+create index IF not exists event_registrations_transaction_idx on public.event_registrations using btree (transaction_id) TABLESPACE pg_default;
 
 ### Users
 
@@ -259,6 +263,7 @@ create table public.payments (
   registration_id uuid not null,
   user_id uuid not null,
   easebuzz_txnid character varying(40) null,
+  hash text null,
   amount numeric(12, 2) not null,
   refund_amount numeric(12, 2) null default 0,
   status public.payment_status not null default 'pending'::payment_status,

@@ -14,6 +14,7 @@ type CreatePendingPaymentInput = {
   userId: string;
   amount: number;
   easebuzzTxnId: string;
+  hash: string;
 };
 
 type LogInitiatePaymentInput = {
@@ -30,7 +31,7 @@ type LogCallbackPaymentInput = {
   transactionId?: string | null;
   easebuzzTxnId?: string | null;
   easebuzzUrl: string;
-  requestPayload: Record<string, string>;
+  requestPayload: Record<string, string> | null;
   responsePayload: unknown;
   httpStatus: number;
   easebuzzStatus?: string | number | null;
@@ -41,8 +42,6 @@ type CallbackBusinessUpdateInput = {
   transactionId?: string | null;
   easebuzzTxnId?: string | null;
   registrationId?: string | null;
-  eventId?: string | null;
-  userId?: string | null;
   flow: "success" | "failure" | "pending";
   callbackStatus: string;
   gatewayMessage?: string | null;
@@ -57,7 +56,16 @@ function normalizeAmount(amount: number) {
   return amount.toFixed(2);
 }
 
-async function fetchPaymentIdByColumn(column: "id" | "easebuzz_txnid", value: string) {
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+async function fetchPaymentIdByColumn(
+  column: "id" | "easebuzz_txnid",
+  value: string,
+) {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from(PAYMENTS_TABLE)
@@ -156,6 +164,7 @@ export async function createPendingPayment(input: CreatePendingPaymentInput) {
       registration_id: input.registrationId,
       user_id: input.userId,
       easebuzz_txnid: input.easebuzzTxnId,
+      hash: input.hash,
       amount: normalizeAmount(input.amount),
       status: "pending",
       initiated_at: new Date().toISOString(),
@@ -175,6 +184,19 @@ export async function createPendingPayment(input: CreatePendingPaymentInput) {
     userId: input.userId,
     easebuzzTxnId: input.easebuzzTxnId,
   });
+
+  const { error: registrationLinkError } = await supabase
+    .from(EVENT_REGISTRATIONS_TABLE)
+    .update({
+      transaction_id: input.easebuzzTxnId,
+    })
+    .eq("id", input.registrationId);
+
+  if (registrationLinkError) {
+    throw new Error(
+      `Unable to link registration with transaction id during initiate: ${registrationLinkError.message}`,
+    );
+  }
 
   return data.id;
 }
@@ -268,7 +290,8 @@ export async function applyCallbackBusinessStatus(
   } = {
     status: paymentStatus,
     gateway_response_message:
-      input.gatewayMessage || `Easebuzz callback status: ${input.callbackStatus}`,
+      input.gatewayMessage ||
+      `Easebuzz callback status: ${input.callbackStatus}`,
     completed_at: paymentStatus === "paid" ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   };
@@ -299,29 +322,43 @@ export async function applyCallbackBusinessStatus(
 
   const registrationId = input.registrationId?.trim();
   if (!registrationId) {
-    logger.warn("Callback registrationId missing; skipped registration update", {
-      transactionId: input.transactionId || null,
-      flow: input.flow,
-    });
+    logger.warn(
+      "Callback registrationId missing; skipped registration update",
+      {
+        transactionId: input.transactionId || null,
+        flow: input.flow,
+      },
+    );
+    return;
+  }
+  if (!isUuid(registrationId)) {
+    logger.warn(
+      "Callback registrationId is not a valid UUID; skipped registration update",
+      {
+        registrationId,
+        transactionId: input.transactionId || null,
+        flow: input.flow,
+      },
+    );
     return;
   }
 
-  let registrationUpdateQuery = supabase
+  const registrationUpdatePayload: {
+    payment_status: "paid" | "failed" | "pending";
+    transaction_id?: string;
+  } = {
+    payment_status: paymentStatus,
+  };
+  const transactionIdForRegistration =
+    input.easebuzzTxnId?.trim() || input.transactionId?.trim();
+  if (transactionIdForRegistration) {
+    registrationUpdatePayload.transaction_id = transactionIdForRegistration;
+  }
+
+  const registrationUpdateQuery = supabase
     .from(EVENT_REGISTRATIONS_TABLE)
-    .update({
-      payment_status: paymentStatus,
-    })
+    .update(registrationUpdatePayload)
     .eq("id", registrationId);
-
-  const eventId = input.eventId?.trim();
-  if (eventId) {
-    registrationUpdateQuery = registrationUpdateQuery.eq("event_id", eventId);
-  }
-
-  const userId = input.userId?.trim();
-  if (userId) {
-    registrationUpdateQuery = registrationUpdateQuery.eq("user_id", userId);
-  }
 
   const { error } = await registrationUpdateQuery;
   if (error) {
