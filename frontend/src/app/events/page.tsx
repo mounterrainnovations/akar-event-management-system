@@ -1,66 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { Search, Calendar as CalendarIcon, MapPin, ArrowUpRight, X, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, MapPin, ArrowUpRight, X, ChevronLeft, ChevronRight, SlidersHorizontal, Loader2 } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { instrumentSerif } from '@/lib/fonts';
-
-const categories = ['All', 'Conference', 'Exhibition', 'Workshop', 'Gala', 'Festival', 'Launch'];
-
-const mockEvents = [
-    {
-        id: 1,
-        title: 'Future of Design Summit',
-        date: '2026-10-24',
-        location: 'New York, NY',
-        category: 'Conference',
-        image: 'https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    },
-    {
-        id: 2,
-        title: 'Global Tech Expo',
-        date: '2026-11-12',
-        location: 'San Francisco, CA',
-        category: 'Exhibition',
-        image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=2012&auto=format&fit=crop',
-    },
-    {
-        id: 3,
-        title: 'Akar Creative Workshop',
-        date: '2026-09-15',
-        location: 'London, UK',
-        category: 'Workshop',
-        image: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=2000',
-    },
-    {
-        id: 4,
-        title: 'Sustainability Gala',
-        date: '2026-12-05',
-        location: 'Paris, France',
-        category: 'Gala',
-        image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop',
-    },
-    {
-        id: 5,
-        title: 'Digital Arts Festival',
-        date: '2026-08-20',
-        location: 'Berlin, Germany',
-        category: 'Festival',
-        image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 6,
-        title: 'Innovation Lab Launch',
-        date: '2026-11-30',
-        location: 'Tokyo, Japan',
-        category: 'Launch',
-        image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop',
-    },
-];
 
 const container = {
     hidden: {},
@@ -81,18 +28,70 @@ const wordAnim = {
     },
 };
 
+const categories = ['All', 'Upcoming', 'Completed', 'Cancelled'];
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
+interface ApiEvent {
+    id: string;
+    name: string;
+    bannerUrl: string | null;
+    status: string;
+    eventDate: string | null;
+    city: string;
+    state: string;
+    country: string;
+    about: string | null;
+}
+
 export default function EventsPage() {
+    const [events, setEvents] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+    useEffect(() => {
+        const fetchEvents = async () => {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/events`);
+                if (!response.ok) throw new Error('Failed to fetch events');
+                const data: ApiEvent[] = await response.json();
+
+                const mappedEvents = data.map(event => ({
+                    id: event.id,
+                    title: event.name,
+                    date: event.eventDate || new Date().toISOString(),
+                    location: `${event.city}, ${event.state}`,
+                    category: 'Event', // Default category since not in DB
+                    image: event.bannerUrl || 'https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1170&auto=format&fit=crop',
+                    status: event.status
+                }));
+
+                setEvents(mappedEvents);
+            } catch (error) {
+                console.error('Error fetching events:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchEvents();
+    }, []);
+
     const filteredEvents = useMemo(() => {
-        return mockEvents.filter((event) => {
+        return events.filter((event) => {
             const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 event.location.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
+
+            let matchesStatus = true;
+            if (selectedCategory !== 'All') {
+                const normalizedStatus = event.status === 'published' ? 'Upcoming' :
+                    event.status.charAt(0).toUpperCase() + event.status.slice(1);
+                matchesStatus = normalizedStatus === selectedCategory;
+            }
 
             let matchesDate = true;
             if (dateRange[0] && dateRange[1]) {
@@ -103,9 +102,9 @@ export default function EventsPage() {
                 matchesDate = eventDate.toDateString() === dateRange[0].toDateString();
             }
 
-            return matchesSearch && matchesCategory && matchesDate;
+            return matchesSearch && matchesStatus && matchesDate;
         });
-    }, [searchQuery, selectedCategory, dateRange]);
+    }, [searchQuery, selectedCategory, dateRange, events]);
 
     return (
         <main className="min-h-screen relative bg-white pb-32">
@@ -410,20 +409,25 @@ export default function EventsPage() {
                 {/* Events Grid */}
                 <section className="min-h-[600px]">
                     <AnimatePresence mode="popLayout">
-                        {filteredEvents.length > 0 ? (
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-40 text-center w-full col-span-full">
+                                <Loader2 className="w-10 h-10 text-[#1a1a1a]/20 animate-spin mb-4" />
+                                <p className="text-[#1a1a1a]/40 font-medium">Loading events...</p>
+                            </div>
+                        ) : filteredEvents.length > 0 ? (
                             <motion.div
                                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-20"
                                 layout
                             >
                                 {filteredEvents.map((event) => (
-                                    <Link href="/event" key={event.id}>
+                                    <Link href={`/event/${event.id}`} key={event.id}>
                                         <motion.div
                                             layout
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9 }}
                                             transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-                                            className="group cursor-pointer"
+                                            className="relative group cursor-pointer"
                                         >
                                             <div className="relative aspect-[16/10] overflow-hidden rounded-[2.5rem] bg-gray-100 mb-8 shadow-sm group-hover:shadow-2xl transition-all duration-700">
                                                 <Image
@@ -434,6 +438,14 @@ export default function EventsPage() {
                                                 />
                                                 <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-500" />
 
+                                                {/* Status Badge */}
+                                                <div className="absolute top-6 right-6">
+                                                    <div className="px-5 py-2 rounded-full backdrop-blur-xl border-t border-l border-white/20 bg-white/10 shadow-lg text-[10px] font-extrabold uppercase tracking-[0.2em] text-white">
+                                                        <span className="relative drop-shadow-md">
+                                                            {event.status === 'published' ? 'Upcoming' : event.status}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
                                                 {/* Hover Icon */}
                                                 <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
@@ -452,10 +464,6 @@ export default function EventsPage() {
                                                     <div className="flex items-center gap-2">
                                                         <MapPin className="w-3.5 h-3.5" />
                                                         {event.location}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-[#1a1a1a]/60">
-                                                        <SlidersHorizontal className="w-3 h-3" />
-                                                        {event.category}
                                                     </div>
                                                 </div>
 

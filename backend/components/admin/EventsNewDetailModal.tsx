@@ -367,11 +367,9 @@ export async function EventsNewDetailModal({
                                         <div key={c.id} className="rounded-md border border-border/60 bg-muted/10 px-3 py-1.5 text-xs">
                                             <span className="font-mono font-semibold text-primary">{c.code}</span>
                                             <span className="mx-2 text-muted-foreground">
-                                                {c.discountType === 'percentage' ? `${c.discountValue}%` : formatCurrency(c.discountValue)} OFF
+                                                {formatCurrency(c.discountValue)} OFF
                                             </span>
-                                            <span className="text-[10px] text-muted-foreground/60">
-                                                ({c.usedCount}/{c.usageLimit ?? "∞"} used)
-                                            </span>
+
                                         </div>
                                     ))}
                                 </div>

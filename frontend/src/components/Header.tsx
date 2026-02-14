@@ -22,7 +22,7 @@ const secondaryNavItems = [
 
 export default function Header() {
     const pathname = usePathname();
-    const isEventPage = pathname === '/event';
+    const isEventPage = pathname === '/event' || pathname?.startsWith('/event/');
     const isWorkPage = pathname === '/work';
     const isContactPage = pathname === '/contact';
     const isHighlightsPage = pathname === '/highlights';
@@ -33,7 +33,8 @@ export default function Header() {
     const isLegalPage = pathname === '/legal';
     const isTermsPage = pathname === '/terms';
     const isRefundPolicyPage = pathname === '/refund-policy';
-    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage || isPrivacyPolicyPage || isLegalPage || isTermsPage || isRefundPolicyPage;
+    const isSettingsPage = pathname === '/settings';
+    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage || isPrivacyPolicyPage || isLegalPage || isTermsPage || isRefundPolicyPage || isSettingsPage;
 
     const [isHidden, setIsHidden] = useState(false);
     const [isPastHero, setIsPastHero] = useState(false);

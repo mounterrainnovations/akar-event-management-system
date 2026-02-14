@@ -127,7 +127,7 @@ function EventRow({ event, includeDeleted }: { event: EventSummary; includeDelet
 
             {/* Arrow */}
             <Link
-                href={`/admin?section=events-new&eventId=${event.id}${includeDeletedQuery}`}
+                href={`/admin?section=events&eventId=${event.id}${includeDeletedQuery}`}
                 className="shrink-0"
             >
                 <CaretRight className="size-4 text-muted-foreground/40 transition-colors group-hover:text-primary" weight="bold" />
