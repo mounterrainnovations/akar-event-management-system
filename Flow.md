@@ -1,0 +1,1 @@
+Booking Button Click -> `event_registration` table entry -> Trigger payment

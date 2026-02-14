@@ -16,7 +16,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ error: string | null }>;
-    signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
+    signUp: (email: string, password: string, name: string, phoneNumber: string) => Promise<{ error: string | null }>;
     googleLogin: () => Promise<void>;
     logout: () => Promise<void>;
     isAuthModalOpen: boolean;
@@ -84,13 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signUp = async (
         email: string,
         password: string,
-        name: string
+        name: string,
+        phoneNumber: string
     ): Promise<{ error: string | null }> => {
         // Call server-side API that creates user with auto-confirm
         const res = await fetch('/api/auth/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, name }),
+            body: JSON.stringify({ email, password, name, phoneNumber }),
         });
         const data = await res.json();
         if (!res.ok) {

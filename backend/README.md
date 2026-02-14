@@ -64,6 +64,41 @@ Optional env:
 SUPABASE_MEDIA_BUCKET=mediaBucket
 ```
 
+## Easebuzz payment API (Phase-3 foundation)
+
+Routes added:
+
+- `POST /api/payments/easebuzz/initiate`
+- `POST /api/payments/easebuzz/callback`
+
+Required env vars:
+
+```bash
+EASEBUZZ_KEY=...
+EASEBUZZ_SALT=...
+```
+
+Optional env vars:
+
+```bash
+# Defaults to test endpoint
+EASEBUZZ_BASE_URL=https://testpay.easebuzz.in
+EASEBUZZ_INITIATE_PATH=/payment/initiateLink
+
+# If set, callback URLs use this base URL instead of request origin
+PAYMENT_CALLBACK_BASE_URL=https://your-backend-domain.com
+
+# CSV for CORS allowlist on payment routes
+PAYMENT_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+
+# Keep false while testing; enable in final hardening step
+PAYMENT_ENFORCE_AUTH=false
+
+# Table names (defaults shown)
+PAYMENTS_TABLE=payments
+PAYMENT_LOGS_TABLE=payment_logs
+```
+
 ## Getting Started
 
 First, run the development server:

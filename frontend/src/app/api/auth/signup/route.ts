@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    const { email, password, name, phoneNumber } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
       email_confirm: true,
       user_metadata: {
         full_name: name || "",
+        phone: phoneNumber || "",
       },
     });
 
