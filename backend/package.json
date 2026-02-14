@@ -20,7 +20,7 @@
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.564.0",
     "motion": "^12.34.0",
@@ -32,6 +32,11 @@
     "react-toastify": "^11.0.5",
     "tailwind-merge": "^3.4.0",
     "winston": "^3.19.0"
+  },
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom",
+    "date-fns": "$date-fns"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
