@@ -1,1 +1,2 @@
-Booking Button Click -> `event_registration` table entry -> Trigger payment
+Booking Button Click -> [BACKEND] -> `event_registration` table entry -> Trigger payment initiate
+
