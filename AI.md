@@ -176,6 +176,7 @@ create table public.event_registrations (
   name text not null,
   transaction_id text null,
   tickets_bought jsonb null,
+  is_waitlisted boolean null,
   constraint event_registrations_pkey primary key (id),
   constraint event_ticket_name unique (event_id, name),
   constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
