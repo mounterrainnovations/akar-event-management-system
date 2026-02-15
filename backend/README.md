@@ -103,11 +103,13 @@ CRON_SECRET=super-secret-value
 # Table names (defaults shown)
 PAYMENTS_TABLE=payments
 PAYMENT_LOGS_TABLE=payment_logs
+EVENTS_TABLE=events
 ```
 
 Cron route:
 
 - `GET /api/payments/cron/sync-pending`
+- `GET /api/events/cron/sync-completed`
 - Strict auth: `Authorization: Bearer ${CRON_SECRET}`
 
 ## Getting Started
