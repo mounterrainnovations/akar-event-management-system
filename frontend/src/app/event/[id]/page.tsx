@@ -44,6 +44,7 @@ interface EventDetailData {
         label: string;
         fieldType: string;
         isRequired: boolean;
+        isHidden: boolean;
         options: any;
         displayOrder: number;
     }>;

@@ -299,6 +299,83 @@ async function ensureEventExists(eventId: string) {
   return data;
 }
 
+async function validateFormResponse(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  eventId: string,
+  formResponse: JsonValue,
+) {
+  const { data: fields, error } = await supabase
+    .from("event_form_fields")
+    .select(
+      "field_name, label, field_type, is_required, is_hidden, options, display_order",
+    )
+    .eq("event_id", eventId)
+    .order("display_order");
+
+  if (error) {
+    logger.error("Failed to fetch form fields for validation", {
+      eventId,
+      error: error.message,
+    });
+    // If we can't fetch fields, we can't validate. Should we block?
+    // Safer to block if validation is critical.
+    throw new Error("Unable to validate form fields");
+  }
+
+  if (!fields || fields.length === 0) return;
+
+  const responseObj = (formResponse || {}) as Record<string, any>;
+
+  // 1. Calculate Visible Fields
+  const visibleFieldNames = new Set<string>();
+
+  // Initialize with non-hidden fields
+  fields.forEach((f) => {
+    if (!f.is_hidden) visibleFieldNames.add(f.field_name);
+  });
+
+  // Iteratively trigger fields based on values
+  // Simple pass: Check all fields. If a field has a value that triggers others, add them.
+  // Note: strict topological sort not needed if we just check "is this value present -> trigger this".
+  // A field appearing later might be triggered by an earlier one.
+  // We just need to know what IS visible based on CURRENT selections.
+
+  fields.forEach((field) => {
+    const value = responseObj[field.field_name];
+    if (
+      value &&
+      (field.field_type === "dropdown" || field.field_type === "select") &&
+      Array.isArray(field.options)
+    ) {
+      const selectedOption = field.options.find(
+        (opt: any) => (typeof opt === "string" ? opt : opt.value) === value,
+      );
+
+      if (
+        selectedOption &&
+        typeof selectedOption !== "string" &&
+        Array.isArray(selectedOption.triggers)
+      ) {
+        selectedOption.triggers.forEach((trigger: string) =>
+          visibleFieldNames.add(trigger),
+        );
+      }
+    }
+  });
+
+  // 2. Validate Required Fields
+  for (const field of fields) {
+    if (visibleFieldNames.has(field.field_name) && field.is_required) {
+      const value = responseObj[field.field_name];
+      // Check for empty values. null, undefined, empty string.
+      // 0 is valid. false is valid (checkbox?).
+      if (value === null || value === undefined || value === "") {
+        throw new Error(`Field '${field.label}' is required`);
+      }
+    }
+  }
+}
+
 export async function createBookingForUser(params: {
   userId: string;
   input: InitiateBookingInput;
@@ -306,11 +383,15 @@ export async function createBookingForUser(params: {
   const { userId, input } = params;
 
   const event = await ensureEventExists(input.eventId);
+  const supabase = createSupabaseAdminClient();
+
+  // Validate Form Response
+  await validateFormResponse(supabase, input.eventId, input.formResponse || {});
+
   const subtotal = input.amount;
   const finalAmount = input.amount;
 
   const now = new Date().toISOString();
-  const supabase = createSupabaseAdminClient();
 
   const insertPayload = {
     event_id: input.eventId,
