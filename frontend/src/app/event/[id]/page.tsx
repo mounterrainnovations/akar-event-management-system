@@ -124,8 +124,11 @@ export default function EventDetailPage() {
 
                 const payload = await response.json();
                 const items = Array.isArray(payload?.items) ? payload.items : [];
-                const activeBooking = items.find((item: { deletedAt?: string | null }) => !item?.deletedAt);
-                setHasJoinedWaitlist(Boolean(activeBooking));
+                const activeWaitlistBooking = items.find(
+                    (item: { deletedAt?: string | null; isWaitlisted?: boolean }) =>
+                        !item?.deletedAt && item?.isWaitlisted === true,
+                );
+                setHasJoinedWaitlist(Boolean(activeWaitlistBooking));
             } catch {
                 setHasJoinedWaitlist(false);
             } finally {
@@ -374,6 +377,11 @@ export default function EventDetailPage() {
                 <RegistrationModal
                     isOpen={isRegModalOpen}
                     onClose={() => setIsRegModalOpen(false)}
+                    onBookingCreated={(mode) => {
+                        if (mode === 'waitlist') {
+                            setHasJoinedWaitlist(true);
+                        }
+                    }}
                     eventId={event.id}
                     eventName={event.name}
                     tickets={tickets}

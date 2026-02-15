@@ -35,6 +35,7 @@ type BookingRow = {
   transaction_id: string | null;
   tickets_bought: Record<string, number> | null;
   is_verified: boolean | null;
+  is_waitlisted: boolean | null;
 };
 
 type EventRow = {
@@ -74,6 +75,7 @@ export type BookingRecord = {
   transactionId: string | null;
   ticketsBought: Record<string, number>;
   isVerified: boolean | null;
+  isWaitlisted: boolean;
 };
 
 type BookingMode = "payment" | "waitlist";
@@ -136,6 +138,7 @@ function mapBooking(row: BookingRow): BookingRecord {
     transactionId: row.transaction_id,
     ticketsBought: row.tickets_bought || {},
     isVerified: row.is_verified,
+    isWaitlisted: Boolean(row.is_waitlisted),
   };
 }
 
@@ -189,6 +192,10 @@ function normalizeJsonObject(value: unknown): JsonValue {
 }
 
 function normalizeTicketsBought(value: unknown) {
+  if (value === undefined || value === null) {
+    return {};
+  }
+
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(
       "tickets_bought must be an object map of ticketId -> quantity",
@@ -196,10 +203,6 @@ function normalizeTicketsBought(value: unknown) {
   }
 
   const entries = Object.entries(value as Record<string, unknown>);
-  if (entries.length === 0) {
-    throw new Error("tickets_bought cannot be empty");
-  }
-
   const normalized: Record<string, number> = {};
   for (const [ticketId, quantity] of entries) {
     if (!isUuid(ticketId)) {
@@ -416,9 +419,13 @@ export async function createBookingForUser(params: {
   // Validate Form Response
   await validateFormResponse(input.eventId, input.formResponse || {});
 
+  const bookingMode = resolveBookingMode(event.status);
+  if (bookingMode === "payment" && Object.keys(input.ticketsBought).length === 0) {
+    throw new Error("tickets_bought cannot be empty");
+  }
+
   const subtotal = input.amount;
   const finalAmount = input.amount;
-  const bookingMode = resolveBookingMode(event.status);
 
   const now = new Date().toISOString();
 
@@ -437,6 +444,7 @@ export async function createBookingForUser(params: {
     transaction_id: null,
     tickets_bought: input.ticketsBought,
     is_verified: event.verification_required ? false : null,
+    is_waitlisted: bookingMode === "waitlist",
   };
 
   let data: BookingRow;

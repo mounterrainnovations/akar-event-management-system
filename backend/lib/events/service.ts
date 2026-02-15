@@ -1539,6 +1539,7 @@ export async function createRegistration(input: {
       payment_status: "pending",
       form_response: input.formResponse,
       is_verified: null,
+      is_waitlisted: false,
     })
     .select("id")
     .single();

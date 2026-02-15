@@ -47,6 +47,7 @@ interface Coupon {
 interface RegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onBookingCreated?: (mode: 'payment' | 'waitlist') => void;
     eventId: string;
     eventName: string;
     tickets: Ticket[];
@@ -59,6 +60,7 @@ interface RegistrationModalProps {
 export default function RegistrationModal({
     isOpen,
     onClose,
+    onBookingCreated,
     eventId,
     eventName,
     tickets,
@@ -109,7 +111,7 @@ export default function RegistrationModal({
         if (isOpen) {
             document.body.style.overflow = 'hidden';
             // Auto-select first ticket by default if nothing is selected
-            if (Object.keys(selectedTickets).length === 0 && tickets.length > 0) {
+            if (eventStatus !== 'waitlist' && Object.keys(selectedTickets).length === 0 && tickets.length > 0) {
                 setSelectedTickets({ [tickets[0].id]: 1 });
             }
         } else {
@@ -130,7 +132,7 @@ export default function RegistrationModal({
         return () => {
             document.body.style.overflow = 'unset';
         };
-    }, [isOpen, tickets]);
+    }, [isOpen, tickets, eventStatus]);
 
     const hasChanges = useMemo(() => {
         const hasFormValues = Object.values(formValues).some(v => Array.isArray(v) ? v.length > 0 : !!v);
@@ -397,8 +399,12 @@ export default function RegistrationModal({
                     return;
                 }
             }
-            setStep(2);
             setError(null);
+            if (eventStatus === 'waitlist') {
+                handleSubmit();
+                return;
+            }
+            setStep(2);
         }
     };
 
@@ -417,6 +423,7 @@ export default function RegistrationModal({
     }
 
     function buildBookingPayload() {
+        const isWaitlist = eventStatus === 'waitlist';
         return {
             user_id: user?.id,
             eventId,
@@ -424,15 +431,15 @@ export default function RegistrationModal({
             email: formValues.email,
             phone: formValues.phone,
             eventName,
-            amount: Number(finalAmount.toFixed(2)),
-            tickets_bought: selectedTickets,
+            amount: isWaitlist ? 0 : Number(finalAmount.toFixed(2)),
+            tickets_bought: isWaitlist ? {} : selectedTickets,
             coupon_id: appliedCoupon?.id,
             form_response: formValues,
         };
     }
 
     const handleSubmit = async () => {
-        if (!Object.keys(selectedTickets).length) return;
+        if (eventStatus !== 'waitlist' && !Object.keys(selectedTickets).length) return;
 
         if (!isAuthenticated || !user?.id) {
             setError('Please log in to continue with booking.');
@@ -458,9 +465,11 @@ export default function RegistrationModal({
                 throw new Error(data?.details || data?.error || 'Failed to initiate booking');
             }
 
+            const mode = data?.bookingMode === 'waitlist' ? 'waitlist' : 'payment';
             setRegistrationId(data?.booking?.id || null);
             setPaymentUrl(data?.payment?.paymentUrl || null);
-            setBookingMode(data?.bookingMode === 'waitlist' ? 'waitlist' : 'payment');
+            setBookingMode(mode);
+            onBookingCreated?.(mode);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -511,7 +520,7 @@ export default function RegistrationModal({
                             <div>
                                 <h2 className={`${instrumentSerif.className} text-xl text-[#1a1a1a]`}>{registrationId ? 'Success' : eventName}</h2>
                                 {!registrationId && (
-                                    <p className="text-[#1a1a1a]/40 font-montserrat text-[9px] font-bold uppercase tracking-widest mt-0.5">Step {step} of 2</p>
+                                    <p className="text-[#1a1a1a]/40 font-montserrat text-[9px] font-bold uppercase tracking-widest mt-0.5">Step {step} of {eventStatus === 'waitlist' ? 1 : 2}</p>
                                 )}
                             </div>
                             <button onClick={handleCloseAttempt} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-[#1a1a1a]/40"><X size={18} /></button>
@@ -875,7 +884,7 @@ export default function RegistrationModal({
                                 {step === 2 && <button onClick={() => setStep(1)} className="px-3 py-2 font-montserrat font-bold text-[#1a1a1a]/40 hover:text-[#1a1a1a] text-[9px] uppercase tracking-widest">Back</button>}
                                 <div className="flex-1" />
                                 <button onClick={step === 1 ? handleNext : handleSubmit} disabled={isLoading || (step === 2 && Object.keys(selectedTickets).length === 0)} className="px-6 py-2.5 rounded-full bg-[#1a1a1a] text-white font-montserrat font-bold hover:bg-black transition-all flex items-center gap-2 disabled:opacity-50 text-xs shadow-lg shadow-black/5">
-                                    {isLoading ? <Loader2 className="animate-spin" size={16} /> : (step === 1 ? 'Continue' : (eventStatus === 'waitlist' ? 'Join Waitlist' : 'Book Now'))}
+                                    {isLoading ? <Loader2 className="animate-spin" size={16} /> : (step === 1 ? (eventStatus === 'waitlist' ? 'Join Waitlist' : 'Continue') : (eventStatus === 'waitlist' ? 'Join Waitlist' : 'Book Now'))}
                                 </button>
                             </div>
                         )}
