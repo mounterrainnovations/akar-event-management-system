@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
+import { getEventRegistrationTransactionLookup } from "@/lib/queries/event-registrations";
 import {
   buildEasebuzzInitiatePayload,
   initiateEasebuzzTransaction,
@@ -109,26 +110,14 @@ export async function getRegistrationTransactionLookup(
     throw new Error("registrationId must be a valid UUID");
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data: registrationData, error: registrationError } = await supabase
-    .from(EVENT_REGISTRATIONS_TABLE)
-    .select("id,transaction_id")
-    .eq("id", registrationId)
-    .maybeSingle<{ id: string; transaction_id: string | null }>();
-
-  if (registrationError || !registrationData?.id) {
-    throw new Error(
-      `Unable to find registration for transaction lookup: ${registrationError?.message || "Registration not found"}`,
-    );
-  }
-
-  const transactionId = registrationData.transaction_id?.trim() || "";
+  const lookup = await getEventRegistrationTransactionLookup(registrationId);
+  const transactionId = lookup.transactionId;
   if (!transactionId) {
     throw new Error("No transaction_id mapped for this registration");
   }
 
   return {
-    registrationId: registrationData.id,
+    registrationId: lookup.registrationId,
     transactionId,
   };
 }

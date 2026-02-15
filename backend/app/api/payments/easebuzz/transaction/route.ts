@@ -1,38 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLogger } from "@/lib/logger";
-import { validateSupabaseAccessToken } from "@/lib/payments/auth";
-import {
-  extractEasebuzzCallbackData,
-  resolveEasebuzzCallbackFlow,
-  retrieveEasebuzzTransaction,
-  verifyEasebuzzCallbackHash,
-} from "@/lib/payments/easebuzz/service";
+import { resolvePaymentRouteAccess } from "@/lib/payments/auth";
 import {
   getPaymentCorsHeaders,
   parseJsonBodyFromRaw,
 } from "@/lib/payments/http";
-import {
-  applyCallbackBusinessStatus,
-  getRegistrationTransactionLookup,
-  logCallbackPaymentRequest,
-} from "@/lib/payments/service";
+import { parseTransactionRouteBody } from "@/lib/payments/read-service";
+import { syncRegistrationTransactions } from "@/lib/payments/transaction-status";
 
 const logger = getLogger("api-payments-easebuzz-transaction");
 
 type TransactionStatusRequest = {
-  registrationId: string;
+  registrationId?: string;
+  registrationIds?: string[];
 };
-
-function parseRequestBody(body: TransactionStatusRequest) {
-  const registrationId = body.registrationId?.trim();
-  if (!registrationId) {
-    throw new Error("registrationId is required");
-  }
-
-  return {
-    registrationId,
-  };
-}
 
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: getPaymentCorsHeaders(request) });
@@ -42,13 +23,11 @@ export async function POST(request: NextRequest) {
   const corsHeaders = getPaymentCorsHeaders(request);
 
   try {
-    const authValidation = await validateSupabaseAccessToken(
-      request.headers.get("authorization"),
-    );
-    if (!authValidation.valid) {
+    const auth = await resolvePaymentRouteAccess(request);
+    if (!auth.ok) {
       return NextResponse.json(
         {
-          error: authValidation.reason || "Unauthorized",
+          error: "Unauthorized",
         },
         {
           status: 401,
@@ -73,9 +52,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let input: ReturnType<typeof parseRequestBody>;
+    let input: ReturnType<typeof parseTransactionRouteBody>;
     try {
-      input = parseRequestBody(body);
+      input = parseTransactionRouteBody(body);
     } catch (error) {
       return NextResponse.json(
         {
@@ -87,70 +66,17 @@ export async function POST(request: NextRequest) {
         },
       );
     }
-    let lookup: Awaited<ReturnType<typeof getRegistrationTransactionLookup>>;
-    try {
-      lookup = await getRegistrationTransactionLookup(input.registrationId);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to resolve registration transaction";
-      const status = message.includes("valid UUID") ? 400 : 404;
-      return NextResponse.json(
-        {
-          error: message,
-        },
-        {
-          status,
-          headers: corsHeaders,
-        },
-      );
-    }
-
-    const retrieveResult = await retrieveEasebuzzTransaction({
-      txnid: lookup.transactionId,
-    });
-
-    const callbackData = extractEasebuzzCallbackData(retrieveResult.payload);
-    const hashVerification = verifyEasebuzzCallbackHash(callbackData);
-    const flow = resolveEasebuzzCallbackFlow(callbackData.status);
-
-    await logCallbackPaymentRequest({
-      action: "transaction",
-      transactionId: lookup.transactionId,
-      easebuzzTxnId: lookup.transactionId,
-      easebuzzUrl: retrieveResult.endpoint,
-      requestPayload: retrieveResult.requestPayload,
-      responsePayload: {
-        callback: callbackData,
-        hashVerification,
-      },
-      httpStatus: retrieveResult.status,
-      easebuzzStatus: callbackData.status,
-      errorMessage: retrieveResult.ok ? null : "Easebuzz retrieve API failed",
-    });
-
-    if (hashVerification.valid && flow !== "unknown") {
-      await applyCallbackBusinessStatus({
-        transactionId: lookup.transactionId,
-        easebuzzTxnId: lookup.transactionId,
-        registrationId: lookup.registrationId,
-        flow,
-        callbackStatus: callbackData.status,
-        gatewayMessage: callbackData.errorMessage || callbackData.error || null,
-        paymentMode: callbackData.mode || null,
-      });
-    }
+    const results = await syncRegistrationTransactions(input.registrationIds);
+    const successful = results.filter((item) => item.ok);
+    const failed = results.filter((item) => !item.ok);
 
     return NextResponse.json(
       {
-        ok: true,
-        registrationId: lookup.registrationId,
-        transactionId: lookup.transactionId,
-        status: callbackData.status || null,
-        flow,
-        hashVerification,
-        gateway: retrieveResult.payload,
+        ok: failed.length === 0,
+        total: results.length,
+        successful: successful.length,
+        failed: failed.length,
+        items: results,
       },
       {
         status: 200,
