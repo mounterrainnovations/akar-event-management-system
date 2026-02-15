@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
+import { listEventFormFieldsForValidation } from "@/lib/queries/event-form-fields";
+import { getEventBookingMeta } from "@/lib/queries/events";
+import { insertEventRegistration } from "@/lib/queries/event-registrations";
 import {
   BOOKING_PAGE_LIMIT,
   BOOKING_SELECT_FIELDS,
-  EVENT_EXISTENCE_SELECT_FIELDS,
 } from "@/lib/bookings/queries";
 
 const logger = getLogger("bookings-service");
@@ -38,6 +40,7 @@ type BookingRow = {
 type EventRow = {
   id: string;
   name: string;
+  status: string;
   verification_required: boolean;
   deleted_at: string | null;
 };
@@ -72,6 +75,8 @@ export type BookingRecord = {
   ticketsBought: Record<string, number>;
   isVerified: boolean | null;
 };
+
+type BookingMode = "payment" | "waitlist";
 
 export type BookingListResult = {
   page: number;
@@ -150,15 +155,15 @@ function normalizeEmail(value: unknown) {
   return email.toLowerCase();
 }
 
-function normalizePositiveAmount(value: unknown) {
+function normalizeNonNegativeAmount(value: unknown) {
   const amount =
     typeof value === "number"
       ? value
       : typeof value === "string"
         ? Number.parseFloat(value)
         : Number.NaN;
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("amount must be a positive number");
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("amount must be a non-negative number");
   }
   return amount;
 }
@@ -245,7 +250,7 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     email: normalizeEmail(payload.email),
     phone: normalizePhone(payload.phone),
     eventName: normalizeNonEmptyString(payload.eventName, "eventName"),
-    amount: normalizePositiveAmount(payload.amount),
+    amount: normalizeNonNegativeAmount(payload.amount),
     ticketsBought: normalizeTicketsBought(payload.tickets_bought),
     couponId,
     formResponse: normalizeJsonObject(payload.form_response),
@@ -275,19 +280,39 @@ export function parsePaginationParams(searchParams: URLSearchParams) {
   };
 }
 
-async function ensureEventExists(eventId: string) {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("events")
-    .select(EVENT_EXISTENCE_SELECT_FIELDS)
-    .eq("id", eventId)
-    .is("deleted_at", null)
-    .maybeSingle<EventRow>();
+function resolveBookingMode(eventStatus: string): BookingMode {
+  if (eventStatus === "waitlist") {
+    return "waitlist";
+  }
+  return "payment";
+}
 
-  if (error) {
+function validateEventStatusForBooking(eventStatus: string) {
+  if (eventStatus === "published" || eventStatus === "waitlist") {
+    return;
+  }
+
+  if (eventStatus === "draft") {
+    throw new Error("Bookings are not open for draft events");
+  }
+  if (eventStatus === "cancelled") {
+    throw new Error("Bookings are not allowed for cancelled events");
+  }
+  if (eventStatus === "completed") {
+    throw new Error("Bookings are not allowed for completed events");
+  }
+
+  throw new Error("Bookings are not allowed for this event status");
+}
+
+async function ensureEventExists(eventId: string) {
+  let data: EventRow | null = null;
+  try {
+    data = (await getEventBookingMeta(eventId)) as EventRow | null;
+  } catch (error) {
     logger.error("Failed to load event while initiating booking", {
       eventId,
-      message: error.message,
+      message: error instanceof Error ? error.message : "Unknown error",
     });
     throw new Error("Unable to validate event");
   }
@@ -296,35 +321,34 @@ async function ensureEventExists(eventId: string) {
     throw new Error("Event not found");
   }
 
+  validateEventStatusForBooking(data.status);
   return data;
 }
 
-async function validateFormResponse(
-  supabase: ReturnType<typeof createSupabaseAdminClient>,
-  eventId: string,
-  formResponse: JsonValue,
-) {
-  const { data: fields, error } = await supabase
-    .from("event_form_fields")
-    .select(
-      "field_name, label, field_type, is_required, is_hidden, options, display_order",
-    )
-    .eq("event_id", eventId)
-    .order("display_order");
+type TriggerableOption = {
+  value?: string;
+  triggers?: string[];
+};
 
-  if (error) {
+function isTriggerableOption(option: unknown): option is TriggerableOption {
+  return Boolean(option && typeof option === "object");
+}
+
+async function validateFormResponse(eventId: string, formResponse: JsonValue) {
+  let fields;
+  try {
+    fields = await listEventFormFieldsForValidation(eventId);
+  } catch (error) {
     logger.error("Failed to fetch form fields for validation", {
       eventId,
-      error: error.message,
+      error: error instanceof Error ? error.message : "Unknown error",
     });
-    // If we can't fetch fields, we can't validate. Should we block?
-    // Safer to block if validation is critical.
     throw new Error("Unable to validate form fields");
   }
 
-  if (!fields || fields.length === 0) return;
+  if (!fields.length) return;
 
-  const responseObj = (formResponse || {}) as Record<string, any>;
+  const responseObj = (formResponse || {}) as Record<string, unknown>;
 
   // 1. Calculate Visible Fields
   const visibleFieldNames = new Set<string>();
@@ -348,15 +372,20 @@ async function validateFormResponse(
       Array.isArray(field.options)
     ) {
       const selectedOption = field.options.find(
-        (opt: any) => (typeof opt === "string" ? opt : opt.value) === value,
+        (opt) =>
+          (typeof opt === "string"
+            ? opt
+            : isTriggerableOption(opt)
+              ? opt.value
+              : undefined) === value,
       );
 
       if (
         selectedOption &&
-        typeof selectedOption !== "string" &&
+        isTriggerableOption(selectedOption) &&
         Array.isArray(selectedOption.triggers)
       ) {
-        selectedOption.triggers.forEach((trigger: string) =>
+        selectedOption.triggers.forEach((trigger) =>
           visibleFieldNames.add(trigger),
         );
       }
@@ -383,13 +412,13 @@ export async function createBookingForUser(params: {
   const { userId, input } = params;
 
   const event = await ensureEventExists(input.eventId);
-  const supabase = createSupabaseAdminClient();
 
   // Validate Form Response
-  await validateFormResponse(supabase, input.eventId, input.formResponse || {});
+  await validateFormResponse(input.eventId, input.formResponse || {});
 
   const subtotal = input.amount;
   const finalAmount = input.amount;
+  const bookingMode = resolveBookingMode(event.status);
 
   const now = new Date().toISOString();
 
@@ -404,29 +433,29 @@ export async function createBookingForUser(params: {
     created_at: now,
     updated_at: now,
     deleted_at: null,
-    name: buildUniqueRegistrationName(input.eventName),
+    name: buildUniqueRegistrationName(event.name),
     transaction_id: null,
     tickets_bought: input.ticketsBought,
     is_verified: event.verification_required ? false : null,
   };
 
-  const { data, error } = await supabase
-    .from("event_registrations")
-    .insert(insertPayload)
-    .select(BOOKING_SELECT_FIELDS)
-    .single<BookingRow>();
-
-  if (error || !data) {
+  let data: BookingRow;
+  try {
+    data = await insertEventRegistration<BookingRow>(
+      insertPayload,
+      BOOKING_SELECT_FIELDS,
+    );
+  } catch (error) {
     logger.error("Failed to create booking registration", {
       userId,
       eventId: input.eventId,
-      message: error?.message || "No row returned",
+      message: error instanceof Error ? error.message : "Unknown error",
     });
-
     throw new Error("Unable to create booking");
   }
 
   return {
+    bookingMode,
     booking: mapBooking(data),
     pricing: {
       subtotal,

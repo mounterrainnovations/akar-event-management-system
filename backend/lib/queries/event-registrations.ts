@@ -9,6 +9,26 @@ export type EventRegistrationRow = {
   payment_status: string;
 };
 
+export async function insertEventRegistration<T extends Record<string, unknown>>(
+  payload: Record<string, unknown>,
+  selectFields: string,
+) {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from(EVENT_REGISTRATIONS_TABLE)
+    .insert(payload)
+    .select(selectFields)
+    .single<T>();
+
+  if (error || !data) {
+    throw new Error(
+      `Unable to create event registration: ${error?.message || "No row returned"}`,
+    );
+  }
+
+  return data;
+}
+
 export async function listEventRegistrationIdsByEventId(input: {
   eventId: string;
   paymentStatus?: "pending" | "paid" | "failed" | "refunded";
