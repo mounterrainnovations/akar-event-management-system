@@ -23,6 +23,7 @@ interface FormField {
     label: string;
     fieldType: string;
     isRequired: boolean;
+    isHidden?: boolean; // New: Conditional
     options: any;
     displayOrder: number;
 }
@@ -143,6 +144,36 @@ export default function RegistrationModal({
         }
     };
 
+    const visibleFormFields = useMemo(() => {
+        const visibleNames = new Set<string>();
+
+        // 1. Add fields that are NOT hidden
+        formFields.forEach(f => {
+            if (!f.isHidden) visibleNames.add(f.fieldName);
+        });
+
+        // 2. Check for triggers from dropdown selections
+        formFields.forEach(field => {
+            const currentValue = formValues[field.fieldName];
+            if ((field.fieldType === 'dropdown' || field.fieldType === 'select') && currentValue && Array.isArray(field.options)) {
+                // Find selected option object
+                const selectedOpt = field.options.find((opt: any) => {
+                    const optVal = typeof opt === 'string' ? opt : opt.value;
+                    // String comparison for safety
+                    return String(optVal) === String(currentValue);
+                });
+
+                if (selectedOpt && typeof selectedOpt !== 'string' && Array.isArray(selectedOpt.triggers)) {
+                    selectedOpt.triggers.forEach((targetName: string) => visibleNames.add(targetName));
+                }
+            }
+        });
+
+        return formFields
+            .filter(f => visibleNames.has(f.fieldName))
+            .sort((a, b) => a.displayOrder - b.displayOrder);
+    }, [formFields, formValues]);
+
     // Calculations
     const totalBaseAmount = useMemo(() => {
         return Object.entries(selectedTickets).reduce((acc, [id, qty]) => {
@@ -164,8 +195,17 @@ export default function RegistrationModal({
     };
 
     const updateTicketQuantity = (ticketId: string, delta: number) => {
+        const ticket = tickets.find(t => t.id === ticketId);
+        const maxLimit = ticket?.maxQuantityPerPerson || 10; // Default fallback to 10 if undefined
+
         setSelectedTickets(prev => {
-            const newQty = Math.max(0, (prev[ticketId] || 0) + delta);
+            const currentQty = prev[ticketId] || 0;
+            let newQty = currentQty + delta;
+
+            // Enforce limits
+            if (newQty < 0) newQty = 0;
+            if (newQty > maxLimit) newQty = maxLimit;
+
             const newSelected = { ...prev };
             if (newQty === 0) {
                 delete newSelected[ticketId];
@@ -348,8 +388,8 @@ export default function RegistrationModal({
                 setError('Please fill in mandatory fields (Name, Email, Phone)');
                 return;
             }
-            // Check custom required fields
-            for (const field of formFields) {
+            // Check custom required fields among VISIBLE ones only
+            for (const field of visibleFormFields) {
                 if (field.isRequired && !formValues[field.fieldName]) {
                     setError(`Please fill in ${field.label}`);
                     return;
@@ -502,11 +542,11 @@ export default function RegistrationModal({
                                                 </div>
                                             </div>
 
-                                            {formFields.length > 0 && (
+                                            {visibleFormFields.length > 0 && (
                                                 <div className="space-y-3 pt-5 border-t border-gray-100">
                                                     <p className="font-montserrat text-[9px] font-bold uppercase tracking-widest text-[#1a1a1a]/40">Additional Info</p>
                                                     <div className="space-y-3">
-                                                        {formFields.map((field, idx) => (
+                                                        {visibleFormFields.map((field, idx) => (
                                                             <div key={`field-${idx}`} className="space-y-1">
                                                                 <label className="text-[9px] font-bold uppercase tracking-widest text-[#1a1a1a]/60">{field.label} {field.isRequired && '*'}</label>
                                                                 {field.fieldType === 'select' || field.fieldType === 'dropdown' ? (
@@ -531,19 +571,21 @@ export default function RegistrationModal({
                                                                                     transition={{ duration: 0.2, ease: "easeOut" }}
                                                                                     className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-100 rounded-xl shadow-2xl z-[100] overflow-hidden max-h-56 overflow-y-auto ring-1 ring-black/5 py-1"
                                                                                 >
-                                                                                    {field.options?.map((opt: string, optIdx: number) => {
-                                                                                        const isSelected = formValues[field.fieldName] === opt;
+                                                                                    {field.options?.map((opt: any, optIdx: number) => {
+                                                                                        const optValue = typeof opt === 'string' ? opt : opt.value;
+                                                                                        const optLabel = typeof opt === 'string' ? opt : opt.label;
+                                                                                        const isSelected = formValues[field.fieldName] === optValue;
                                                                                         return (
                                                                                             <button
                                                                                                 key={`field-${idx}-opt-${optIdx}`}
                                                                                                 type="button"
                                                                                                 onClick={() => {
-                                                                                                    handleInputChange(field.fieldName, opt);
+                                                                                                    handleInputChange(field.fieldName, optValue);
                                                                                                     setOpenDropdown(null);
                                                                                                 }}
                                                                                                 className={`w-full text-left px-4 py-2 text-[10px] font-montserrat transition-all flex items-center justify-between group ${isSelected ? 'bg-[#1a1a1a] text-white' : 'text-[#1a1a1a]/70 hover:bg-gray-50 hover:text-[#1a1a1a]'}`}
                                                                                             >
-                                                                                                <span className={isSelected ? 'font-bold' : 'font-medium'}>{opt}</span>
+                                                                                                <span className={isSelected ? 'font-bold' : 'font-medium'}>{optLabel}</span>
                                                                                                 {isSelected && <CheckCircle2 size={10} className="text-white" />}
                                                                                             </button>
                                                                                         );
@@ -566,51 +608,70 @@ export default function RegistrationModal({
                                                                                 onDrop={async (e) => {
                                                                                     e.preventDefault();
                                                                                     setDragOverField(null);
-                                                                                    const file = e.dataTransfer.files?.[0];
-                                                                                    if (file && file.type.startsWith('image/')) {
-                                                                                        await handleFileUpload(field.fieldName, file);
-                                                                                    }
+                                                                                    const file = e.dataTransfer.files[0];
+                                                                                    if (file) await handleFileUpload(field.fieldName, file);
                                                                                 }}
-                                                                                className={`flex flex-col items-center justify-center w-full h-20 bg-gray-50 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-100 transition-all ${dragOverField === field.fieldName ? 'border-[#1a1a1a] bg-gray-100' : 'border-gray-200'}`}
+                                                                                className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${dragOverField === field.fieldName ? 'border-[#1a1a1a] bg-[#1a1a1a]/5' : 'border-gray-200 hover:border-[#1a1a1a]/40 bg-gray-50'}`}
                                                                             >
-                                                                                <div className="flex flex-col items-center justify-center py-2">
-                                                                                    {uploadingField === field.fieldName ? <Loader2 size={16} className="animate-spin text-[#1a1a1a]/40" /> : <Upload size={16} className={`${dragOverField === field.fieldName ? 'text-[#1a1a1a]' : 'text-[#1a1a1a]/40'}`} />}
-                                                                                    <p className="mt-1 text-[8px] text-[#1a1a1a]/40 font-montserrat uppercase font-bold tracking-tight">
-                                                                                        {dragOverField === field.fieldName ? 'Drop to upload' : `Upload or drag ${field.label}`}
-                                                                                    </p>
+                                                                                <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                                                                                    {uploadingField === field.fieldName ? (
+                                                                                        <Loader2 className="w-6 h-6 text-[#1a1a1a] animate-spin" />
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <Upload className="w-6 h-6 mb-2 text-[#1a1a1a]/40" />
+                                                                                            <p className="mb-1 text-[9px] text-[#1a1a1a]/60 font-bold uppercase tracking-widest">
+                                                                                                Click to upload
+                                                                                            </p>
+                                                                                        </>
+                                                                                    )}
+                                                                                    <input
+                                                                                        type="file"
+                                                                                        className="hidden"
+                                                                                        onChange={(e) => {
+                                                                                            const file = e.target.files?.[0];
+                                                                                            if (file) handleFileUpload(field.fieldName, file);
+                                                                                        }}
+                                                                                    />
                                                                                 </div>
-                                                                                <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleFileUpload(field.fieldName, e.target.files[0])} disabled={!!uploadingField} />
                                                                             </label>
                                                                         )}
                                                                     </div>
                                                                 ) : field.fieldType === 'checkbox' ? (
                                                                     <div className="grid grid-cols-1 gap-1.5">
-                                                                        {field.options?.map((opt: string, optIdx: number) => (
-                                                                            <label key={`field-${idx}-opt-${optIdx}`} className="flex items-center gap-2 cursor-pointer group">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={(formValues[field.fieldName] as string[] || []).includes(opt)}
-                                                                                    onChange={e => handleCheckboxChange(field.fieldName, opt, e.target.checked)}
-                                                                                    className="w-3.5 h-3.5 rounded border-gray-300 text-[#1a1a1a] focus:ring-[#1a1a1a]/10"
-                                                                                />
-                                                                                <span className="text-[10px] text-[#1a1a1a]/70 font-montserrat group-hover:text-[#1a1a1a]">{opt}</span>
-                                                                            </label>
-                                                                        ))}
+                                                                        {field.options?.map((opt: any, optIdx: number) => {
+                                                                            const optValue = typeof opt === 'string' ? opt : opt.value;
+                                                                            const optLabel = typeof opt === 'string' ? opt : opt.label;
+                                                                            return (
+                                                                                <label key={`field-${idx}-opt-${optIdx}`} className="flex items-center gap-2 cursor-pointer group">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={(formValues[field.fieldName] as string[] || []).includes(optValue)}
+                                                                                        onChange={e => handleCheckboxChange(field.fieldName, optValue, e.target.checked)}
+                                                                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#1a1a1a] focus:ring-[#1a1a1a]/10"
+                                                                                    />
+                                                                                    <span className="text-[10px] text-[#1a1a1a]/70 font-montserrat group-hover:text-[#1a1a1a]">{optLabel}</span>
+                                                                                </label>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 ) : field.fieldType === 'radio' ? (
                                                                     <div className="grid grid-cols-1 gap-1.5">
-                                                                        {field.options?.map((opt: string, optIdx: number) => (
-                                                                            <label key={`field-${idx}-opt-${optIdx}`} className="flex items-center gap-2 cursor-pointer group">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name={field.fieldName}
-                                                                                    checked={formValues[field.fieldName] === opt}
-                                                                                    onChange={() => handleInputChange(field.fieldName, opt)}
-                                                                                    className="w-3.5 h-3.5 border-gray-300 text-[#1a1a1a] focus:ring-[#1a1a1a]/10"
-                                                                                />
-                                                                                <span className="text-[10px] text-[#1a1a1a]/70 font-montserrat group-hover:text-[#1a1a1a]">{opt}</span>
-                                                                            </label>
-                                                                        ))}
+                                                                        {field.options?.map((opt: any, optIdx: number) => {
+                                                                            const optValue = typeof opt === 'string' ? opt : opt.value;
+                                                                            const optLabel = typeof opt === 'string' ? opt : opt.label;
+                                                                            return (
+                                                                                <label key={`field-${idx}-opt-${optIdx}`} className="flex items-center gap-2 cursor-pointer group">
+                                                                                    <input
+                                                                                        type="radio"
+                                                                                        name={field.fieldName}
+                                                                                        checked={formValues[field.fieldName] === optValue}
+                                                                                        onChange={() => handleInputChange(field.fieldName, optValue)}
+                                                                                        className="w-3.5 h-3.5 border-gray-300 text-[#1a1a1a] focus:ring-[#1a1a1a]/10"
+                                                                                    />
+                                                                                    <span className="text-[10px] text-[#1a1a1a]/70 font-montserrat group-hover:text-[#1a1a1a]">{optLabel}</span>
+                                                                                </label>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 ) : (
                                                                     <input value={formValues[field.fieldName] || ''} onChange={e => handleInputChange(field.fieldName, e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-montserrat text-[#1a1a1a] outline-none" placeholder={`Enter ${field.label.toLowerCase()}`} />
@@ -738,13 +799,16 @@ export default function RegistrationModal({
                                                                     </div>
                                                                 ))}
                                                             </div>
+
                                                         )}
+
                                                         {appliedCoupon && (
                                                             <div className="flex justify-between text-emerald-600 font-montserrat text-[10px]">
                                                                 <span className="flex items-center gap-1"><Tag size={12} /> Coupon</span>
                                                                 <span>- ₹{couponDiscount}</span>
                                                             </div>
                                                         )}
+
                                                         <div className="flex justify-between pt-2 border-t border-gray-200 text-[#1a1a1a] font-bold font-montserrat text-sm">
                                                             <span>Total</span>
                                                             <span>₹{finalAmount}</span>
@@ -803,8 +867,8 @@ export default function RegistrationModal({
                             </div>
                         )}
                     </motion.div>
-                </div>
-            </AnimatePresence>
+                </div >
+            </AnimatePresence >
             <style jsx>{`
             .custom-scrollbar::-webkit-scrollbar { width: 5px; }
             .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

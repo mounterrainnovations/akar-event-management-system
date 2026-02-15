@@ -455,6 +455,7 @@ export async function EventsNewDetailModal({
                                                 <th className="px-3 py-2">Type</th>
                                                 <th className="px-3 py-2">Options</th>
                                                 <th className="px-3 py-2 text-center">Required</th>
+                                                <th className="px-3 py-2 text-center">Hidden</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/30 bg-card">
@@ -467,14 +468,28 @@ export async function EventsNewDetailModal({
                                                             {f.fieldType}
                                                         </span>
                                                     </td>
-                                                    <td className="px-3 py-2 text-xs text-muted-foreground max-w-[200px] truncate" title={f.options ? JSON.stringify(f.options) : ""}>
+                                                    <td className="px-3 py-2 text-xs text-muted-foreground max-w-[200px]" title={f.options ? JSON.stringify(f.options) : ""}>
                                                         {f.options && Array.isArray(f.options)
-                                                            ? f.options.map(o => typeof o === 'object' ? (o as any).label || (o as any).value : o).join(", ")
+                                                            ? f.options.map(o => {
+                                                                if (typeof o === 'object') {
+                                                                    const label = (o as any).label || (o as any).value;
+                                                                    const triggers = (o as any).triggers;
+                                                                    return triggers && triggers.length > 0 ? `${label} (→ ${triggers.join(", ")})` : label;
+                                                                }
+                                                                return o;
+                                                            }).join(", ")
                                                             : f.options ? JSON.stringify(f.options) : "—"}
                                                     </td>
                                                     <td className="px-3 py-2 text-center text-xs">
                                                         {f.isRequired ? (
                                                             <span className="font-semibold text-red-500">Yes</span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground">No</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-center text-xs">
+                                                        {f.isHidden ? (
+                                                            <span className="font-semibold text-amber-500">Yes</span>
                                                         ) : (
                                                             <span className="text-muted-foreground">No</span>
                                                         )}

@@ -44,8 +44,9 @@ type FormFieldData = {
     fieldType: "free_text" | "dropdown" | "image";
     label: string;
     isRequired: boolean;
-    options: string[]; // For dropdown
-    answer?: string; // Stores image link or default dropdown value
+    isHidden: boolean; // New: Conditional visibility
+    options: { value: string; label: string; triggers: string[] }[]; // New: Structured options with triggers
+    answer?: string; // Stores result
 };
 
 type TicketData = {
@@ -193,6 +194,11 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
             if (field.fieldType === "dropdown" && field.options.length === 0) {
                 newErrors[`field_${index}_options`] = "At least one option is required";
             }
+            if (field.fieldType === "dropdown") {
+                field.options.forEach((opt, optIndex) => {
+                    if (!opt.value.trim()) newErrors[`field_${index}_option_${optIndex}`] = "Option value is required";
+                });
+            }
             // Logic for image link if needed, but currently it's just a text input if type is image
         });
         setErrors(newErrors);
@@ -318,6 +324,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                     label: f.label,
                     fieldType: f.fieldType,
                     isRequired: f.isRequired,
+                    isHidden: f.isHidden,
                     options: f.fieldType === "dropdown" ? f.options : null,
                     displayOrder: i,
                     imageLink: f.fieldType === "image" ? f.answer : null,
@@ -440,7 +447,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
     const addFormField = () => {
         setFormData(prev => ({
             ...prev,
-            formFields: [...prev.formFields, { fieldName: "", label: "", fieldType: "free_text", isRequired: false, options: [], answer: "" }]
+            formFields: [...prev.formFields, { fieldName: "", label: "", fieldType: "free_text", isRequired: false, isHidden: false, options: [], answer: "" }]
         }));
     };
 
@@ -451,11 +458,27 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
         }));
     };
 
-    const updateFormFieldOptions = (index: number, optionIndex: number, value: string) => {
+    const updateFormFieldOptionValue = (index: number, optionIndex: number, value: string) => {
         setFormData(prev => {
             const newFormFields = [...prev.formFields];
             const newOptions = [...newFormFields[index].options];
-            newOptions[optionIndex] = value;
+            newOptions[optionIndex] = { ...newOptions[optionIndex], value: value, label: value }; // Sync label with value for now
+            newFormFields[index] = { ...newFormFields[index], options: newOptions };
+            return { ...prev, formFields: newFormFields };
+        });
+    };
+
+    const updateFormFieldOptionTriggers = (index: number, optionIndex: number, triggerField: string, isAdded: boolean) => {
+        setFormData(prev => {
+            const newFormFields = [...prev.formFields];
+            const newOptions = [...newFormFields[index].options];
+            let currentTriggers = newOptions[optionIndex].triggers || [];
+            if (isAdded) {
+                if (!currentTriggers.includes(triggerField)) currentTriggers = [...currentTriggers, triggerField];
+            } else {
+                currentTriggers = currentTriggers.filter(t => t !== triggerField);
+            }
+            newOptions[optionIndex] = { ...newOptions[optionIndex], triggers: currentTriggers };
             newFormFields[index] = { ...newFormFields[index], options: newOptions };
             return { ...prev, formFields: newFormFields };
         });
@@ -464,7 +487,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
     const addFormFieldOption = (index: number) => {
         setFormData(prev => {
             const newFormFields = [...prev.formFields];
-            newFormFields[index] = { ...newFormFields[index], options: [...newFormFields[index].options, ""] };
+            newFormFields[index] = { ...newFormFields[index], options: [...newFormFields[index].options, { value: "", label: "", triggers: [] }] };
             return { ...prev, formFields: newFormFields };
         });
     };
@@ -882,8 +905,8 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                             type="number"
                                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                                                             placeholder="0"
-                                                            value={coupon.discountValue}
-                                                            onChange={(e) => updateNestedField(index, "discountValue", parseFloat(e.target.value), "coupons")}
+                                                            value={isNaN(coupon.discountValue) ? "" : coupon.discountValue}
+                                                            onChange={(e) => updateNestedField(index, "discountValue", e.target.value === "" ? NaN : parseFloat(e.target.value), "coupons")}
                                                         />
                                                         {errors[`coupon_${index}_value`] && <p className="text-xs text-red-500">{errors[`coupon_${index}_value`]}</p>}
                                                     </div>
@@ -982,14 +1005,28 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                         </Select>
                                                     </div>
                                                     <div className="flex items-center gap-2 pt-6">
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`required_${index}`}
-                                                            checked={field.isRequired}
-                                                            onChange={(e) => updateNestedField(index, "isRequired", e.target.checked, "formFields")}
-                                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                                        />
-                                                        <label htmlFor={`required_${index}`} className="text-sm">Mandatory Field</label>
+                                                        <div className="flex gap-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`required_${index}`}
+                                                                    checked={field.isRequired}
+                                                                    onChange={(e) => updateNestedField(index, "isRequired", e.target.checked, "formFields")}
+                                                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                                />
+                                                                <label htmlFor={`required_${index}`} className="text-sm">Mandatory Field</label>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`hidden_${index}`}
+                                                                    checked={field.isHidden}
+                                                                    onChange={(e) => updateNestedField(index, "isHidden", e.target.checked, "formFields")}
+                                                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                                />
+                                                                <label htmlFor={`hidden_${index}`} className="text-sm text-muted-foreground">Hidden by Default</label>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -1007,32 +1044,60 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                                     <Plus className="h-3 w-3" /> Add Option
                                                                 </button>
                                                             </div>
-                                                            <div className="space-y-2">
+                                                            <div className="space-y-4">
                                                                 {field.options.map((option, optIndex) => (
-                                                                    <div key={optIndex} className="flex gap-2 items-center">
-                                                                        <span className="text-xs text-muted-foreground w-4 text-center">{optIndex + 1}.</span>
-                                                                        <input
-                                                                            type="text"
-                                                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                                                                            placeholder={`Option ${optIndex + 1}`}
-                                                                            value={option}
-                                                                            onChange={(e) => updateFormFieldOptions(index, optIndex, e.target.value)}
-                                                                        />
-                                                                        {field.options.length > 1 && (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => removeFormFieldOption(index, optIndex)}
-                                                                                className="text-muted-foreground hover:text-red-500"
-                                                                            >
-                                                                                <X className="h-4 w-4" />
-                                                                            </button>
-                                                                        )}
+                                                                    <div key={optIndex} className="p-3 bg-muted/30 rounded-md border border-border space-y-3">
+                                                                        <div className="flex gap-2 items-center">
+                                                                            <span className="text-xs text-muted-foreground w-4 text-center">{optIndex + 1}.</span>
+                                                                            <input
+                                                                                type="text"
+                                                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                                                                placeholder={`Option ${optIndex + 1}`}
+                                                                                value={option.value}
+                                                                                onChange={(e) => updateFormFieldOptionValue(index, optIndex, e.target.value)}
+                                                                            />
+                                                                            {field.options.length > 1 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => removeFormFieldOption(index, optIndex)}
+                                                                                    className="text-muted-foreground hover:text-red-500"
+                                                                                >
+                                                                                    <X className="h-4 w-4" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                        {/* Triggers Section */}
+                                                                        <div className="pl-6">
+                                                                            <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1.5">Triggers (Show fields when selected)</p>
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {formData.formFields.map((targetField, tfIndex) => {
+                                                                                    if (targetField.isHidden && targetField.fieldName !== field.fieldName && targetField.fieldName.trim() !== "") {
+                                                                                        const isTriggered = option.triggers?.includes(targetField.fieldName);
+                                                                                        return (
+                                                                                            <label key={tfIndex} className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs cursor-pointer ${isTriggered ? 'bg-primary/10 border-primary text-primary' : 'bg-background border-input text-muted-foreground'}`}>
+                                                                                                <input
+                                                                                                    type="checkbox"
+                                                                                                    checked={isTriggered || false}
+                                                                                                    onChange={(e) => updateFormFieldOptionTriggers(index, optIndex, targetField.fieldName, e.target.checked)}
+                                                                                                    className="h-3 w-3 rounded border-gray-300 text-primary focus:ring-primary"
+                                                                                                />
+                                                                                                {targetField.label || targetField.fieldName}
+                                                                                            </label>
+                                                                                        );
+                                                                                    }
+                                                                                    return null;
+                                                                                })}
+                                                                                {formData.formFields.filter(f => f.isHidden && f.fieldName !== field.fieldName && f.fieldName.trim() !== "").length === 0 && (
+                                                                                    <span className="text-xs text-muted-foreground italic">No hidden fields available to trigger.</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                             {errors[`field_${index}_options`] && <p className="text-xs text-red-500">{errors[`field_${index}_options`]}</p>}
                                                         </div>
-                                                        {field.options.filter(opt => opt.trim() !== "").length > 0 && (
+                                                        {field.options.filter(opt => opt.value.trim() !== "").length > 0 && (
                                                             <div className="space-y-1.5">
                                                                 <label className="text-xs font-medium">Default Value (Optional)</label>
                                                                 <Select
@@ -1043,8 +1108,8 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                                         <SelectValue placeholder="Select a default..." />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        {field.options.filter(opt => opt.trim() !== "").map((opt, i) => (
-                                                                            <SelectItem key={i} value={opt}>{opt}</SelectItem>
+                                                                        {field.options.filter(opt => opt.value.trim() !== "").map((opt, i) => (
+                                                                            <SelectItem key={i} value={opt.value}>{opt.label}</SelectItem>
                                                                         ))}
                                                                     </SelectContent>
                                                                 </Select>
@@ -1130,8 +1195,8 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                         placeholder="0.00"
                                                         min="0"
                                                         step="0.01"
-                                                        value={ticket.price}
-                                                        onChange={(e) => updateNestedField(index, "price", parseFloat(e.target.value), "tickets" as any)}
+                                                        value={isNaN(ticket.price) ? "" : ticket.price}
+                                                        onChange={(e) => updateNestedField(index, "price", e.target.value === "" ? NaN : parseFloat(e.target.value), "tickets" as any)}
                                                     />
                                                     {errors[`ticket_${index}_price`] && <p className="text-xs text-red-500">{errors[`ticket_${index}_price`]}</p>}
                                                 </div>
@@ -1142,8 +1207,8 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                                                         placeholder="100"
                                                         min="1"
-                                                        value={ticket.quantity}
-                                                        onChange={(e) => updateNestedField(index, "quantity", parseInt(e.target.value), "tickets" as any)}
+                                                        value={isNaN(ticket.quantity) ? "" : ticket.quantity}
+                                                        onChange={(e) => updateNestedField(index, "quantity", e.target.value === "" ? NaN : parseInt(e.target.value), "tickets" as any)}
                                                     />
                                                     {errors[`ticket_${index}_quantity`] && <p className="text-xs text-red-500">{errors[`ticket_${index}_quantity`]}</p>}
                                                 </div>

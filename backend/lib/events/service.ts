@@ -67,6 +67,7 @@ type FormFieldRow = {
   label: string;
   field_type: string;
   is_required: boolean;
+  is_hidden: boolean;
   options: JsonValue | null;
   display_order: number;
   created_at: string;
@@ -184,6 +185,7 @@ export type EventFormField = {
   label: string;
   fieldType: string;
   isRequired: boolean;
+  isHidden: boolean;
   options: JsonValue | null;
   displayOrder: number;
   answer: string | null;
@@ -284,6 +286,7 @@ export type FormFieldWriteInput = {
   label: string;
   fieldType: string;
   isRequired?: boolean;
+  isHidden?: boolean;
   options?: JsonValue | null;
   displayOrder?: number;
   answer?: string | null;
@@ -307,7 +310,7 @@ const TICKET_SELECT_FIELDS =
 const COUPON_SELECT_FIELDS =
   "id,event_id,code,discount_value,valid_from,valid_until,is_active,created_at,updated_at,deleted_at";
 const FORM_FIELD_SELECT_FIELDS =
-  "id,event_id,field_name,label,field_type,is_required,options,display_order,created_at,answer";
+  "id,event_id,field_name,label,field_type,is_required,is_hidden,options,display_order,created_at,answer";
 const BUNDLE_OFFER_SELECT_FIELDS =
   "id,event_id,name,buy_quantity,get_quantity,offer_type,applicable_ticket_ids,created_at,updated_at";
 const REGISTRATION_SELECT_FIELDS =
@@ -362,6 +365,7 @@ function mapFormField(
     label: row.label,
     fieldType: row.field_type,
     isRequired: row.is_required,
+    isHidden: row.is_hidden,
     options: row.options,
     displayOrder: row.display_order,
     createdAt: row.created_at,
@@ -452,6 +456,7 @@ function mapFormFieldWriteInput(
     label: input.label,
     field_type: input.fieldType,
     is_required: input.isRequired ?? false,
+    is_hidden: input.isHidden ?? false,
     options: input.options ?? null,
     display_order: input.displayOrder ?? 0,
     answer: input.answer ?? null,

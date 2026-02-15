@@ -320,20 +320,3 @@ created_at timestamp with time zone null default now(),
 constraint payment_logs_pkey primary key (id),
 constraint payment_logs_payment_id_fkey foreign KEY (payment_id) references payments (id) on delete CASCADE
 ) TABLESPACE pg_default;
-
-## Payment Get routes
-Everything to be done in /backend only and document in /docs.
-Make GET routes for `payments` table with `pagination` (default 20), 
-1. Get all payments
-2. Get all payments for an event 
-    (for this query `event_registrations` table with `event_id` as the one passed then fetch all `id's` aka `registrationID's` where `payment_status` column is `pending`, then hit the `backend/app/api/payments/easebuzz/transaction/route.ts`, 
-        you might need to modify the route to be able to take one or more than one `registrationIDs` and then depending upon the change here make updates to the `backend/app/api/payments/easebuzz/callback/route.ts` flow where transactions is called)
-3. Get all payments for a user
-    For this directly query `payments` table's `user_id` column.
-4. Get a payment
-    Let this be queriable with two columns - either if `registrationId` is given or if `easebuzz_txnid` aka `transactionId` is given.
-
-All of them should be protected routes, either abiding by supabase auth or admin auth or Cron Auth that we'll setup (something like authHeader !== `Bearer ${process.env.CRON_SECRET}`) or bypassed when PAYMENT_ENFORCE_AUTH=false.
-
-I want you to build this neatly, meaning have a common query folder, with different query files for different tables. Let the queries me dynamic wrapped in a function, where depending upon function attributes alter the fetches, like where, and what to fetch, etc. Except for complex queries.
-We want complete DRY as much as possible, no redundant code or unused code.
