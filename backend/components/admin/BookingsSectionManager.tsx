@@ -1,20 +1,147 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
     CalendarBlank,
-    User,
     Tag,
-    CurrencyInr,
     Clock,
     CheckCircle,
     XCircle,
     MagnifyingGlass,
-    Funnel
+    Funnel,
+    ClipboardText
 } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { listAllRegistrationsAction } from "@/app/admin/events-new-actions";
 import { type BookingDetail } from "@/lib/events/service";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+
+function toReadableLabel(value: string) {
+    return value
+        .replace(/[_-]+/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatFormValue(value: unknown): string {
+    if (value === null || value === undefined) {
+        return "N/A";
+    }
+
+    if (typeof value === "string") {
+        return value.trim() || "N/A";
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value.length === 0 ? "[]" : value.map((entry) => formatFormValue(entry)).join(", ");
+    }
+
+    if (typeof value === "object") {
+        return JSON.stringify(value, null, 2);
+    }
+
+    return String(value);
+}
+
+function isLikelyImageUrl(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (trimmed.startsWith("data:image/")) return true;
+
+    try {
+        const url = new URL(trimmed);
+        const pathname = url.pathname.toLowerCase();
+        return /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico)$/.test(pathname);
+    } catch {
+        return false;
+    }
+}
+
+function isHttpUrl(value: string): boolean {
+    try {
+        const url = new URL(value.trim());
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+function renderFormValue(value: unknown): ReactNode {
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return <span className="text-xs text-muted-foreground">N/A</span>;
+        }
+
+        if (isLikelyImageUrl(trimmed)) {
+            return (
+                <div className="space-y-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={trimmed}
+                        alt="Form response upload"
+                        className="max-h-40 w-full rounded-md border border-border/70 object-contain bg-background"
+                        loading="lazy"
+                    />
+                    <a
+                        href={trimmed}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-primary underline-offset-4 hover:underline break-all"
+                    >
+                        Open image
+                    </a>
+                </div>
+            );
+        }
+
+        if (isHttpUrl(trimmed)) {
+            return (
+                <a
+                    href={trimmed}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-primary underline-offset-4 hover:underline break-all"
+                >
+                    {trimmed}
+                </a>
+            );
+        }
+
+        return <span className="text-xs text-foreground break-words">{trimmed}</span>;
+    }
+
+    return (
+        <pre className="whitespace-pre-wrap break-words font-sans text-xs text-foreground">
+            {formatFormValue(value)}
+        </pre>
+    );
+}
+
+function getFormResponseEntries(formResponse: BookingDetail["formResponse"]) {
+    if (!formResponse || typeof formResponse !== "object" || Array.isArray(formResponse)) {
+        return [];
+    }
+
+    return Object.entries(formResponse);
+}
+
+function getTicketQuantity(booking: BookingDetail): number {
+    const ticketCounts = Object.values(booking.ticketsBought ?? {});
+    if (ticketCounts.length === 0) {
+        return booking.quantity;
+    }
+
+    return ticketCounts.reduce((total, count) => total + (Number(count) || 0), 0);
+}
 
 function statusColor(status: string) {
     switch (status.toLowerCase()) {
@@ -56,7 +183,7 @@ export function BookingsSectionManager() {
                 } else {
                     setError(result.error || "Failed to load bookings");
                 }
-            } catch (err) {
+            } catch {
                 setError("An unexpected error occurred");
             } finally {
                 setLoading(false);
@@ -133,6 +260,7 @@ export function BookingsSectionManager() {
                             <tr className="border-b border-border/60 bg-muted/30 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
                                 <th className="px-6 py-4 font-semibold">Customer</th>
                                 <th className="px-6 py-4 font-semibold">Event & Tier</th>
+                                <th className="px-6 py-4 font-semibold">Form Response</th>
                                 <th className="px-6 py-4 font-semibold">Amount</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
                                 <th className="px-6 py-4 font-semibold text-right">Date</th>
@@ -141,7 +269,7 @@ export function BookingsSectionManager() {
                         <tbody className="divide-y divide-border/40">
                             {filteredBookings.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center">
                                             <CalendarBlank size={40} weight="thin" className="text-muted-foreground/30 mb-3" />
                                             <p className="text-muted-foreground">No bookings found</p>
@@ -167,11 +295,12 @@ export function BookingsSectionManager() {
                                                 </div>
                                                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground capitalize">
                                                     <Tag size={12} />
-                                                    {booking.ticketName} (x{typeof (booking.quantity as any) === 'object' && booking.quantity !== null
-                                                        ? Object.values(booking.quantity as any).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
-                                                        : booking.quantity})
+                                                    {booking.ticketName} (x{getTicketQuantity(booking)})
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4 align-top">
+                                            <FormResponsePopover formResponse={booking.formResponse} />
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
@@ -204,5 +333,45 @@ export function BookingsSectionManager() {
                 </div>
             </div>
         </section>
+    );
+}
+
+function FormResponsePopover({ formResponse }: { formResponse: BookingDetail["formResponse"] }) {
+    const entries = getFormResponseEntries(formResponse);
+
+    if (entries.length === 0) {
+        return <span className="text-xs text-muted-foreground">No response</span>;
+    }
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-xs">
+                    <ClipboardText size={14} />
+                    View ({entries.length})
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[360px] p-0">
+                <div className="border-b border-border/60 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Form Response
+                    </p>
+                </div>
+                <ScrollArea className="h-[320px] w-full">
+                    <div className="space-y-3 p-4">
+                        {entries.map(([key, value]) => (
+                            <div key={key} className="rounded-md border border-border/70 bg-muted/20 p-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    {toReadableLabel(key)}
+                                </p>
+                                <div className="mt-1">
+                                    {renderFormValue(value)}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </PopoverContent>
+        </Popover>
     );
 }
