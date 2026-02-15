@@ -83,6 +83,7 @@ export default function RegistrationModal({
     const [error, setError] = useState<string | null>(null);
     const [registrationId, setRegistrationId] = useState<string | null>(null);
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+    const [bookingMode, setBookingMode] = useState<'payment' | 'waitlist' | null>(null);
 
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [dragOverField, setDragOverField] = useState<string | null>(null);
@@ -121,6 +122,7 @@ export default function RegistrationModal({
             setError(null);
             setRegistrationId(null);
             setPaymentUrl(null);
+            setBookingMode(null);
             setShowCloseConfirm(false);
             setOpenDropdown(null);
         }
@@ -458,6 +460,7 @@ export default function RegistrationModal({
 
             setRegistrationId(data?.booking?.id || null);
             setPaymentUrl(data?.payment?.paymentUrl || null);
+            setBookingMode(data?.bookingMode === 'waitlist' ? 'waitlist' : 'payment');
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -823,9 +826,19 @@ export default function RegistrationModal({
                                 <div className="py-8 flex flex-col items-center text-center space-y-4">
                                     <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center"><CheckCircle2 size={40} /></div>
                                     <div className="space-y-1">
-                                        <h3 className={`${instrumentSerif.className} text-3xl text-[#1a1a1a]`}>Booking Initiated!</h3>
+                                        <h3 className={`${instrumentSerif.className} text-3xl text-[#1a1a1a]`}>
+                                            {bookingMode === 'waitlist'
+                                                ? 'Waitlist Joined!'
+                                                : paymentUrl
+                                                    ? 'Booking Initiated!'
+                                                    : 'Registration Confirmed!'}
+                                        </h3>
                                         <p className="text-[#1a1a1a]/60 font-montserrat text-xs max-w-xs mx-auto">
-                                            Complete payment to confirm your seat.
+                                            {bookingMode === 'waitlist'
+                                                ? 'You are on the waitlist. We will notify you about the next update.'
+                                                : paymentUrl
+                                                    ? 'Complete payment to confirm your seat.'
+                                                    : 'Your registration has been successfully submitted.'}
                                         </p>
                                     </div>
                                     <div className="bg-gray-50 p-4 rounded-xl w-full text-left space-y-0.5">
@@ -862,7 +875,7 @@ export default function RegistrationModal({
                                 {step === 2 && <button onClick={() => setStep(1)} className="px-3 py-2 font-montserrat font-bold text-[#1a1a1a]/40 hover:text-[#1a1a1a] text-[9px] uppercase tracking-widest">Back</button>}
                                 <div className="flex-1" />
                                 <button onClick={step === 1 ? handleNext : handleSubmit} disabled={isLoading || (step === 2 && Object.keys(selectedTickets).length === 0)} className="px-6 py-2.5 rounded-full bg-[#1a1a1a] text-white font-montserrat font-bold hover:bg-black transition-all flex items-center gap-2 disabled:opacity-50 text-xs shadow-lg shadow-black/5">
-                                    {isLoading ? <Loader2 className="animate-spin" size={16} /> : (step === 1 ? 'Continue' : 'Book Now')}
+                                    {isLoading ? <Loader2 className="animate-spin" size={16} /> : (step === 1 ? 'Continue' : (eventStatus === 'waitlist' ? 'Join Waitlist' : 'Book Now'))}
                                 </button>
                             </div>
                         )}
