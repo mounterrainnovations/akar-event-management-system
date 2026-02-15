@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getLogger } from "@/lib/logger";
 
-const SESSION_COOKIE_NAME = "hw_session";
+export const SESSION_COOKIE_NAME = "hw_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const logger = getLogger("auth-session");
 
@@ -40,7 +40,7 @@ function createSessionToken(payload: SessionPayload) {
   return `${encodedPayload}.${signature}`;
 }
 
-function verifySessionToken(token: string): SessionPayload | null {
+export function verifySessionToken(token: string): SessionPayload | null {
   const [encodedPayload, signature] = token.split(".");
   if (!encodedPayload || !signature) {
     logger.warn("Session token malformed");

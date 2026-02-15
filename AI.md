@@ -28,33 +28,33 @@ bundle_offer_type: same_tier, cross_tier
 ### Events
 
 create table public.events (
-id uuid not null default gen_random_uuid (),
-name text not null,
-event_date timestamp with time zone null,
-address_line_1 text not null,
-address_line_2 text null,
-city text not null,
-state text not null,
-country text not null,
-about text null,
-terms_and_conditions text null,
-registration_start timestamp with time zone null,
-registration_end timestamp with time zone null,
-status public.event_status not null default 'draft'::event_status,
-created_at timestamp with time zone not null default now(),
-updated_at timestamp with time zone not null default now(),
-deleted_at timestamp with time zone null,
-verification_required boolean not null default false,
-base_event_banner text null,
-location_url text null,
-constraint events_pkey primary key (id),
-constraint events_check check (
-(
-(registration_end is null)
-or (registration_start is null)
-or (registration_end > registration_start)
-)
-)
+  id uuid not null default gen_random_uuid (),
+  name text not null,
+  event_date timestamp with time zone null,
+  address_line_1 text not null,
+  address_line_2 text null,
+  city text not null,
+  state text not null,
+  country text not null,
+  about text null,
+  terms_and_conditions text null,
+  registration_start timestamp with time zone null,
+  registration_end timestamp with time zone null,
+  status public.event_status not null default 'draft'::event_status,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone null,
+  verification_required boolean not null default false,
+  base_event_banner text null,
+  location_url text null,
+  constraint events_pkey primary key (id),
+  constraint events_check check (
+    (
+      (registration_end is null)
+      or (registration_start is null)
+      or (registration_end > registration_start)
+    )
+  )
 ) TABLESPACE pg_default;
 
 create index IF not exists events_date_idx on public.events using btree (event_date) TABLESPACE pg_default;
@@ -160,29 +160,29 @@ execute FUNCTION set_updated_at ();
 ### Event Registrations
 
 create table public.event_registrations (
-id uuid not null default gen_random_uuid (),
-event_id uuid not null,
-user_id uuid not null,
-coupon_id uuid null,
-total_amount numeric(10, 2) not null,
-final_amount numeric(10, 2) not null,
-payment_status public.payment_status not null default 'pending'::payment_status,
-form_response jsonb not null,
-created_at timestamp with time zone not null default now(),
-is_verified boolean null,
-updated_at timestamp with time zone not null default now(),
-deleted_at timestamp with time zone null,
-name text not null,
-transaction_id text null,
-tickets_bought jsonb null,
-constraint event_registrations_pkey primary key (id),
-constraint event_ticket_name unique (event_id, name),
-constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
-constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on update CASCADE on delete set null,
-constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
-constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
-constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric))
+  id uuid not null default gen_random_uuid (),
+  event_id uuid not null,
+  user_id uuid not null,
+  coupon_id uuid null,
+  total_amount numeric(10, 2) not null,
+  final_amount numeric(10, 2) not null,
+  payment_status public.payment_status not null default 'pending'::payment_status,
+  form_response jsonb not null,
+  created_at timestamp with time zone not null default now(),
+  is_verified boolean null,
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone null,
+  name text not null,
+  transaction_id text null,
+  tickets_bought jsonb null,
+  constraint event_registrations_pkey primary key (id),
+  constraint event_ticket_name unique (event_id, name),
+  constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
+  constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
+  constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on update CASCADE on delete set null,
+  constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
+  constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
+  constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_event_idx on public.event_registrations using btree (event_id) TABLESPACE pg_default;
@@ -283,23 +283,23 @@ execute FUNCTION set_updated_at ();
 ### Payment (Core transactions for use)
 
 create table public.payments (
-id uuid not null,
-registration_id uuid not null,
-user_id uuid not null,
-easebuzz_txnid text null,
-amount numeric(12, 2) not null,
-refund_amount numeric(12, 2) null default 0,
-status public.payment_status not null default 'pending'::payment_status,
-mode public.payment_mode null,
-gateway_response_message text null,
-initiated_at timestamp with time zone null default now(),
-completed_at timestamp with time zone null,
-refunded_at timestamp with time zone null,
-created_at timestamp with time zone null default now(),
-updated_at timestamp with time zone null default now(),
-constraint payments_pkey primary key (id),
-constraint payments_easebuzz_txnid_key unique (easebuzz_txnid),
-constraint payments_id_key unique (id)
+  id uuid not null,
+  registration_id uuid not null,
+  user_id uuid not null,
+  easebuzz_txnid text null,
+  amount numeric(12, 2) not null,
+  refund_amount numeric(12, 2) null default 0,
+  status public.payment_status not null default 'pending'::payment_status,
+  mode public.payment_mode null,
+  gateway_response_message text null,
+  initiated_at timestamp with time zone null default now(),
+  completed_at timestamp with time zone null,
+  refunded_at timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint payments_pkey primary key (id),
+  constraint payments_easebuzz_txnid_key unique (easebuzz_txnid),
+  constraint payments_id_key unique (id)
 ) TABLESPACE pg_default;
 
 create index IF not exists easebuzz_txnid_idx on public.payments using btree (easebuzz_txnid) TABLESPACE pg_default;
@@ -321,54 +321,19 @@ constraint payment_logs_pkey primary key (id),
 constraint payment_logs_payment_id_fkey foreign KEY (payment_id) references payments (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
-## Booking Flow
+## Payment Get routes
+Everything to be done in /backend only and document in /docs.
+Make GET routes for `payments` table with `pagination` (default 20), 
+1. Get all payments
+2. Get all payments for an event 
+    (for this query `event_registrations` table with `event_id` as the one passed then fetch all `id's` aka `registrationID's` where `payment_status` column is `pending`, then hit the `backend/app/api/payments/easebuzz/transaction/route.ts`, 
+        you might need to modify the route to be able to take one or more than one `registrationIDs` and then depending upon the change here make updates to the `backend/app/api/payments/easebuzz/callback/route.ts` flow where transactions is called)
+3. Get all payments for a user
+    For this directly query `payments` table's `user_id` column.
+4. Get a payment
+    Let this be queriable with two columns - either if `registrationId` is given or if `easebuzz_txnid` aka `transactionId` is given.
 
-### Phase - 1 (Logic Implementation Current Phase)
+All of them should be protected routes, either abiding by supabase auth or admin auth or Cron Auth that we'll setup (something like authHeader !== `Bearer ${process.env.CRON_SECRET}`) or bypassed when PAYMENT_ENFORCE_AUTH=false.
 
-We need booking flows:
-
-- Initiate Booking (When the book now button will be pressed on frontend we'll hit the initiate booking endpoint) - This makes an entry in the `events_registrations` table and THEN triggers the payment flow of `initiate` payment.
-- Cancel Booking (When the button is clicked then the registration entry in `event_registrations` will mark deleted_at `now`)
-
-- Get Bookings (All booking of the user, irrespective of event, pagination limit 20)
-- Get BookingByEventId (All booking of the user for an event, irrespective of event, pagination limit 20)
-- Get BookingById (A specific booking of the user, pagination limit 20)
-
-Some things to note:
-
-- Auth protected routes, use supabase auth validation to get the user_id too.
-- Keep queries centralized in a query file, use variable parametrization to fetch according to our needs based on what is passed in the function.
-
-Payment Interation -
-WE WILL GET TO THIS, For now make the entire functioning booking flow and entries to respective tables (this non-payment flow can be extended later to trigger when amount is 0)
-
-What I body do I need on initiate booking -
-I need (console.log for now) the exact body it has to receive is -
-{
-userId: fetched from supabase;
-eventId: string;
-
-    firstName: string;
-    email: string;
-    phone: string;
-    eventName: string; // product_info
-
-    amount: number;
-    tickets_bought: jsonb;
-    coupon_id?: uuid (references event_coupons table)
-
-    form_response?: jsonb;
-
-}
-
-#### PART - 2
-
-Now its time to integrate booking initiate (only inititate, company has no refund policy so no payment flow in cancel) with the existing payment flow, gracefully.
-
-### Phase - 2 (UI Integration)
-
-I want you to find the frontend Button Book Now, I want you to :
-1. Enforce that without a logged in user, we cannot make a booking because we want the bearer token.
-2. Then understand the book now flow, notice that a form is filled and at the last continue a backend url is called.
-3. I want you to first collect and prepare the correct payload that the our booking initiate endpoint expects and then hit it.
-4. Go over the complete flow, optimize the codes, use DRY, ensure no redundant code is there in the flow.
+I want you to build this neatly, meaning have a common query folder, with different query files for different tables. Let the queries me dynamic wrapped in a function, where depending upon function attributes alter the fetches, like where, and what to fetch, etc. Except for complex queries.
+We want complete DRY as much as possible, no redundant code or unused code.
