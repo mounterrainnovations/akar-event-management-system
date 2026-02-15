@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
     CalendarBlank,
     Tag,
@@ -9,7 +9,8 @@ import {
     XCircle,
     MagnifyingGlass,
     Funnel,
-    ClipboardText
+    ClipboardText,
+    DownloadSimple
 } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { listAllRegistrationsAction } from "@/app/admin/events-new-actions";
@@ -17,6 +18,14 @@ import { type BookingDetail } from "@/lib/events/service";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 function toReadableLabel(value: string) {
     return value
@@ -143,6 +152,14 @@ function getTicketQuantity(booking: BookingDetail): number {
     return ticketCounts.reduce((total, count) => total + (Number(count) || 0), 0);
 }
 
+function escapeCsvCell(value: unknown): string {
+    const stringValue = value == null ? "" : String(value);
+    if (!/[",\n]/.test(stringValue)) {
+        return stringValue;
+    }
+    return `"${stringValue.replace(/"/g, "\"\"")}"`;
+}
+
 function statusColor(status: string) {
     switch (status.toLowerCase()) {
         case "paid":
@@ -172,6 +189,11 @@ export function BookingsSectionManager() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [eventFilter, setEventFilter] = useState("all");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [tierFilter, setTierFilter] = useState("all");
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
 
     useEffect(() => {
         async function fetchBookings() {
@@ -192,12 +214,129 @@ export function BookingsSectionManager() {
         fetchBookings();
     }, []);
 
-    const filteredBookings = bookings.filter(booking =>
-        booking.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.ticketName.toLowerCase().includes(searchTerm.toLowerCase())
+    const eventOptions = useMemo(
+        () =>
+            Array.from(new Set(bookings.map((booking) => booking.eventName)))
+                .filter(Boolean)
+                .sort((a, b) => a.localeCompare(b)),
+        [bookings],
     );
+
+    const statusOptions = useMemo(
+        () =>
+            Array.from(
+                new Set(bookings.map((booking) => booking.paymentStatus.toLowerCase())),
+            ).sort((a, b) => a.localeCompare(b)),
+        [bookings],
+    );
+
+    const tierOptions = useMemo(
+        () =>
+            Array.from(new Set(bookings.map((booking) => booking.ticketName)))
+                .filter(Boolean)
+                .sort((a, b) => a.localeCompare(b)),
+        [bookings],
+    );
+
+    const filteredBookings = useMemo(() => {
+        const lowerSearch = searchTerm.trim().toLowerCase();
+        const fromDate = dateFrom ? new Date(dateFrom) : null;
+        const toDate = dateTo ? new Date(dateTo) : null;
+
+        if (fromDate) {
+            fromDate.setHours(0, 0, 0, 0);
+        }
+
+        if (toDate) {
+            toDate.setHours(23, 59, 59, 999);
+        }
+
+        return bookings.filter((booking) => {
+            if (lowerSearch) {
+                const searchMatch =
+                    booking.eventName.toLowerCase().includes(lowerSearch) ||
+                    booking.userEmail?.toLowerCase().includes(lowerSearch) ||
+                    booking.userName?.toLowerCase().includes(lowerSearch) ||
+                    booking.ticketName.toLowerCase().includes(lowerSearch);
+
+                if (!searchMatch) return false;
+            }
+
+            if (eventFilter !== "all" && booking.eventName !== eventFilter) return false;
+            if (statusFilter !== "all" && booking.paymentStatus.toLowerCase() !== statusFilter) return false;
+            if (tierFilter !== "all" && booking.ticketName !== tierFilter) return false;
+
+            if (fromDate || toDate) {
+                const bookingDate = new Date(booking.createdAt);
+                if (Number.isNaN(bookingDate.getTime())) return false;
+                if (fromDate && bookingDate < fromDate) return false;
+                if (toDate && bookingDate > toDate) return false;
+            }
+
+            return true;
+        });
+    }, [bookings, searchTerm, eventFilter, statusFilter, tierFilter, dateFrom, dateTo]);
+
+    const activeFilterCount = [
+        eventFilter !== "all",
+        statusFilter !== "all",
+        tierFilter !== "all",
+        Boolean(dateFrom),
+        Boolean(dateTo),
+    ].filter(Boolean).length;
+
+    function clearFilters() {
+        setEventFilter("all");
+        setStatusFilter("all");
+        setTierFilter("all");
+        setDateFrom("");
+        setDateTo("");
+    }
+
+    function downloadCsv(rows: BookingDetail[]) {
+        const headers = [
+            "Registration ID",
+            "Customer Name",
+            "Customer Email",
+            "Event",
+            "Tier",
+            "Quantity",
+            "Final Amount",
+            "Payment Status",
+            "Created At",
+            "Form Response",
+        ];
+
+        const lines = rows.map((booking) =>
+            [
+                booking.id,
+                booking.userName || booking.name || "",
+                booking.userEmail || "",
+                booking.eventName,
+                booking.ticketName,
+                getTicketQuantity(booking),
+                booking.finalAmount,
+                booking.paymentStatus,
+                booking.createdAt,
+                JSON.stringify(booking.formResponse ?? {}),
+            ]
+                .map(escapeCsvCell)
+                .join(","),
+        );
+
+        const csvContent = [headers.join(","), ...lines].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestamp = format(new Date(), "yyyyMMdd-HHmmss");
+
+        link.href = url;
+        link.download = `bookings-${timestamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 
     if (loading) {
         return (
@@ -246,9 +385,99 @@ export function BookingsSectionManager() {
                             className="h-9 w-[260px] rounded-lg border border-border bg-background pl-9 pr-4 text-sm outline-none transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
                         />
                     </div>
-                    <button className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                        <Funnel size={18} />
-                    </button>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                                <Funnel size={18} />
+                                <span className="sr-only">Open filters</span>
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-[340px] p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                                <p className="text-sm font-semibold text-foreground">Filters</p>
+                                {activeFilterCount > 0 && (
+                                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
+                                        Clear all
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Event</p>
+                                    <Select value={eventFilter} onValueChange={setEventFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All events" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All events</SelectItem>
+                                            {eventOptions.map((eventName) => (
+                                                <SelectItem key={eventName} value={eventName}>
+                                                    {eventName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment status</p>
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All statuses" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All statuses</SelectItem>
+                                            {statusOptions.map((status) => (
+                                                <SelectItem key={status} value={status}>
+                                                    {toReadableLabel(status)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tier</p>
+                                    <Select value={tierFilter} onValueChange={setTierFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All tiers" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All tiers</SelectItem>
+                                            {tierOptions.map((tier) => (
+                                                <SelectItem key={tier} value={tier}>
+                                                    {tier}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Date from</p>
+                                        <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Date to</p>
+                                        <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+                                    </div>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5 px-3"
+                        onClick={() => downloadCsv(filteredBookings)}
+                        disabled={filteredBookings.length === 0}
+                    >
+                        <DownloadSimple size={14} />
+                        Download CSV
+                    </Button>
                 </div>
             </div>
 
