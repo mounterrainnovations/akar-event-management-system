@@ -10,6 +10,7 @@ import RegistrationModal from '@/components/RegistrationModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { getBackendUrl } from '@/lib/backend';
+import { supabase } from '@/lib/supabase';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -65,7 +66,9 @@ export default function EventDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isRegModalOpen, setIsRegModalOpen] = useState(false);
-    const { isAuthenticated, isLoading: authLoading, openAuthModal } = useAuth();
+    const [hasJoinedWaitlist, setHasJoinedWaitlist] = useState(false);
+    const [isCheckingWaitlist, setIsCheckingWaitlist] = useState(false);
+    const { user, isAuthenticated, isLoading: authLoading, openAuthModal } = useAuth();
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -87,6 +90,51 @@ export default function EventDetailPage() {
 
         fetchEventDetail();
     }, [id]);
+
+    useEffect(() => {
+        const checkWaitlistStatus = async () => {
+            if (!id || !data?.event || data.event.status !== 'waitlist' || !isAuthenticated || !user?.id) {
+                setHasJoinedWaitlist(false);
+                return;
+            }
+
+            setIsCheckingWaitlist(true);
+            try {
+                const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError) {
+                    throw new Error(sessionError.message || 'Unable to fetch session');
+                }
+
+                const accessToken = sessionData.session?.access_token;
+                if (!accessToken) {
+                    setHasJoinedWaitlist(false);
+                    return;
+                }
+
+                const response = await fetch(`${BACKEND_URL}/api/bookings/event/${id}?page=1&limit=20`, {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    setHasJoinedWaitlist(false);
+                    return;
+                }
+
+                const payload = await response.json();
+                const items = Array.isArray(payload?.items) ? payload.items : [];
+                const activeBooking = items.find((item: { deletedAt?: string | null }) => !item?.deletedAt);
+                setHasJoinedWaitlist(Boolean(activeBooking));
+            } catch {
+                setHasJoinedWaitlist(false);
+            } finally {
+                setIsCheckingWaitlist(false);
+            }
+        };
+
+        checkWaitlistStatus();
+    }, [id, data?.event, isAuthenticated, user?.id]);
 
     const minPrice = useMemo(() => {
         if (!data?.tickets || data.tickets.length === 0) return 0;
@@ -125,6 +173,9 @@ export default function EventDetailPage() {
     const eventDate = event.eventDate ? new Date(event.eventDate) : null;
 
     const handleBookNowClick = () => {
+        if (event.status === 'waitlist' && hasJoinedWaitlist) {
+            return;
+        }
         if (!isAuthenticated) {
             openAuthModal();
             showToast('Please log in to continue with booking.', 'info');
@@ -288,16 +339,31 @@ export default function EventDetailPage() {
                             <button
                                 onClick={handleBookNowClick}
                                 className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${(event.status === 'published' || event.status === 'waitlist')
-                                    ? 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
+                                    ? (event.status === 'waitlist' && hasJoinedWaitlist)
+                                        ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
+                                        : 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
                                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                     }`}
-                                disabled={(event.status !== 'published' && event.status !== 'waitlist') || authLoading}
+                                disabled={
+                                    (event.status !== 'published' && event.status !== 'waitlist') ||
+                                    authLoading ||
+                                    isCheckingWaitlist ||
+                                    (event.status === 'waitlist' && hasJoinedWaitlist)
+                                }
                             >
-                                {event.status === 'published' ? 'Book Now' : (event.status === 'waitlist' ? 'Join Waitlist' : 'Registration Closed')}
+                                {event.status === 'published'
+                                    ? 'Book Now'
+                                    : event.status === 'waitlist'
+                                        ? (isCheckingWaitlist ? 'Checking...' : hasJoinedWaitlist ? 'Joined Waitlist' : 'Join Waitlist')
+                                        : 'Registration Closed'}
                             </button>
 
                             <p className="font-montserrat text-xs text-center text-[#1a1a1a]/40">
-                                {event.status === 'published' ? 'Limited seats available' : (event.status === 'waitlist' ? 'Join the waitlist for future updates' : 'Event is no longer accepting registrations')}
+                                {event.status === 'published'
+                                    ? 'Limited seats available'
+                                    : event.status === 'waitlist'
+                                        ? (hasJoinedWaitlist ? 'You are already on the waitlist for this event' : 'Join the waitlist for future updates')
+                                        : 'Event is no longer accepting registrations'}
                             </p>
                         </div>
                     </div>

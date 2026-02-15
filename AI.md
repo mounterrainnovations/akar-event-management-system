@@ -4,6 +4,7 @@
 2. Always write clean code with production conventions and naming practices.
 3. Once a task is complete make updates/create new md file in /docs following convention.
 4. Strictly follow DRY
+5. All queries have to be centralized at backend/lib/queries in a manner that they can take a variety of inputs and be re-used.
 
 ## Table Schemas
 

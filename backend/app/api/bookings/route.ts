@@ -101,10 +101,11 @@ export async function POST(request: NextRequest) {
       input,
     });
 
-    if (input.amount <= 0) {
+    if (result.bookingMode === "waitlist" || input.amount <= 0) {
       return NextResponse.json(
         {
           ok: true,
+          bookingMode: result.bookingMode,
           booking: result.booking,
           pricing: result.pricing,
           payment: {
@@ -151,6 +152,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: true,
+        bookingMode: result.bookingMode,
         booking: result.booking,
         pricing: result.pricing,
         payment: {
