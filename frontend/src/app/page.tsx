@@ -268,8 +268,8 @@ export default function Home() {
             <section className="min-h-screen py-[120px] pb-[144px] px-4 md:px-12 lg:px-16 flex flex-col items-center justify-center gap-12">
 
                 {/* Section Header */}
-                <div className="w-full max-w-[1400px] flex items-end justify-between px-4">
-                    <h2 className={`${instrumentSerif.className} text-3xl md:text-5xl text-[#1a1a1a] leading-tight whitespace-nowrap`}>
+                <div className="w-full max-w-[1400px] flex items-end justify-between">
+                    <h2 className={`${instrumentSerif.className} text-3xl md:text-5xl text-[#1a1a1a] leading-tight`}>
                         Current events, from intimate workshops to grand galas
                     </h2>
                     <Link href="/events" className="hidden md:flex items-center gap-2 text-[#1a1a1a] font-medium group transition-all pb-2 text-xl">

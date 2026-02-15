@@ -260,10 +260,10 @@ export default function EventDetailPage() {
                             <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl mb-6`}>
                                 Location
                             </h3>
-                            <p className="font-montserrat text-[#1a1a1a]/80 text-lg mb-4 flex items-center gap-2">
-                                <span className="font-semibold">{event.address1}</span>
+                            <p className="font-montserrat text-[#1a1a1a]/80 text-lg mb-4 flex-col items-center gap-2">
+                                <span className="">{event.address1}</span>
                                 {event.address2 && <span>— {event.address2}</span>}
-                                <span>, {event.city}, {event.state} {event.country}</span>
+                                <span>, {event.city}, {event.state}</span>
                             </p>
                             <div className="w-full h-[400px] rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative grayscale hover:grayscale-0 transition-all duration-500">
                                 <iframe
