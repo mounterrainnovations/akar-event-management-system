@@ -28,9 +28,7 @@ type ParsedInitiateInput = Omit<
   registrationId: string;
 };
 
-function parseInitiateBody(
-  body: InitiatePaymentRequest,
-): ParsedInitiateInput {
+function parseInitiateBody(body: InitiatePaymentRequest): ParsedInitiateInput {
   if (!Number.isFinite(body.amount) || body.amount <= 0) {
     throw new Error("amount must be a positive number");
   }
@@ -52,6 +50,10 @@ function parseInitiateBody(
   }
   if (!phone) {
     throw new Error("phone is required");
+  }
+  // Validate phone: exactly 10 digits
+  if (!/^\d{10}$/.test(phone)) {
+    throw new Error("phone must be exactly 10 digits");
   }
   if (!registrationId) {
     throw new Error("registrationId is required");
@@ -99,7 +101,8 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       return NextResponse.json(
         {
-          error: error instanceof Error ? error.message : "Invalid request body",
+          error:
+            error instanceof Error ? error.message : "Invalid request body",
         },
         {
           status: 400,
@@ -114,7 +117,8 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       return NextResponse.json(
         {
-          error: error instanceof Error ? error.message : "Invalid request body",
+          error:
+            error instanceof Error ? error.message : "Invalid request body",
         },
         {
           status: 400,

@@ -69,6 +69,10 @@ export default function EventDetailPage() {
     const [isRegModalOpen, setIsRegModalOpen] = useState(false);
     const [hasJoinedWaitlist, setHasJoinedWaitlist] = useState(false);
     const [isCheckingWaitlist, setIsCheckingWaitlist] = useState(false);
+    const [existingWaitlistBooking, setExistingWaitlistBooking] = useState<{
+        id: string;
+        formResponse: Record<string, unknown>;
+    } | null>(null);
     const { user, isAuthenticated, isLoading: authLoading, openAuthModal } = useAuth();
     const { showToast } = useToast();
 
@@ -94,8 +98,15 @@ export default function EventDetailPage() {
 
     useEffect(() => {
         const checkWaitlistStatus = async () => {
-            if (!id || !data?.event || data.event.status !== 'waitlist' || !isAuthenticated || !user?.id) {
+            if (!id || !data?.event || !isAuthenticated || !user?.id) {
                 setHasJoinedWaitlist(false);
+                setExistingWaitlistBooking(null);
+                return;
+            }
+
+            if (data.event.status !== 'waitlist' && data.event.status !== 'published') {
+                setHasJoinedWaitlist(false);
+                setExistingWaitlistBooking(null);
                 return;
             }
 
@@ -109,10 +120,11 @@ export default function EventDetailPage() {
                 const accessToken = sessionData.session?.access_token;
                 if (!accessToken) {
                     setHasJoinedWaitlist(false);
+                    setExistingWaitlistBooking(null);
                     return;
                 }
 
-                const response = await fetch(`${BACKEND_URL}/api/bookings/event/${id}?page=1&limit=20`, {
+                const response = await fetch(`${BACKEND_URL}/api/bookings/event/${id}?page=1&limit=50`, {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
                     },
@@ -120,25 +132,47 @@ export default function EventDetailPage() {
 
                 if (!response.ok) {
                     setHasJoinedWaitlist(false);
+                    setExistingWaitlistBooking(null);
                     return;
                 }
 
                 const payload = await response.json();
                 const items = Array.isArray(payload?.items) ? payload.items : [];
                 const activeWaitlistBooking = items.find(
-                    (item: { deletedAt?: string | null; isWaitlisted?: boolean }) =>
+                    (item: { id?: string; deletedAt?: string | null; isWaitlisted?: boolean; formResponse?: Record<string, unknown> | null }) =>
                         !item?.deletedAt && item?.isWaitlisted === true,
                 );
-                setHasJoinedWaitlist(Boolean(activeWaitlistBooking));
+
+                if (data.event.status === 'waitlist') {
+                    setHasJoinedWaitlist(Boolean(activeWaitlistBooking));
+                    setExistingWaitlistBooking(null);
+                    return;
+                }
+
+                setHasJoinedWaitlist(false);
+                if (activeWaitlistBooking?.id) {
+                    setExistingWaitlistBooking({
+                        id: activeWaitlistBooking.id,
+                        formResponse:
+                            activeWaitlistBooking.formResponse &&
+                                typeof activeWaitlistBooking.formResponse === 'object' &&
+                                !Array.isArray(activeWaitlistBooking.formResponse)
+                                ? activeWaitlistBooking.formResponse
+                                : {},
+                    });
+                    return;
+                }
+                setExistingWaitlistBooking(null);
             } catch {
                 setHasJoinedWaitlist(false);
+                setExistingWaitlistBooking(null);
             } finally {
                 setIsCheckingWaitlist(false);
             }
         };
 
         checkWaitlistStatus();
-    }, [id, data?.event, isAuthenticated, user?.id]);
+    }, [id, data?.event?.status, isAuthenticated, user?.id]);
 
     const minPrice = useMemo(() => {
         if (!data?.tickets || data.tickets.length === 0) return 0;
@@ -390,6 +424,7 @@ export default function EventDetailPage() {
                     bundleOffers={data.bundleOffers}
                     backendUrl={BACKEND_URL}
                     eventStatus={event.status}
+                    existingWaitlistBooking={existingWaitlistBooking}
                 />
             )}
         </main>
