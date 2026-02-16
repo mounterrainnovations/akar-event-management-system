@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { instrumentSerif } from '@/lib/fonts';
 import { ArrowUpRight, Instagram, Linkedin, Twitter } from 'lucide-react';
@@ -38,6 +39,15 @@ export default function Footer() {
                                         <Twitter size={20} />
                                     </a>
                                 </div>
+                            </div>
+                            <div className="hidden md:block opacity-20 hover:opacity-100 transition-opacity duration-500">
+                                <Image
+                                    src="/logo.png"
+                                    alt="Akar Women Group Logo"
+                                    width={400}
+                                    height={400}
+                                    className="object-contain w-64 h-64 grayscale hover:grayscale-0 transition-all duration-500"
+                                />
                             </div>
                         </div>
                     </div>

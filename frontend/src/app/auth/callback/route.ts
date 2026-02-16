@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const redirectTo = searchParams.get("redirectTo");
 
   if (code) {
     const supabase = createClient(
@@ -13,5 +14,7 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(origin);
+  const safeRedirect =
+    redirectTo && redirectTo.startsWith("/") ? redirectTo : "";
+  return NextResponse.redirect(`${origin}${safeRedirect}`);
 }
