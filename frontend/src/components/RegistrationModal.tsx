@@ -16,7 +16,6 @@ interface Ticket {
     status: string;
     maxQuantityPerPerson: number;
     visibilityConfig?: Record<string, string[]>;
-    visibilityConfig?: Record<string, string[]>;
 }
 
 interface FormField {
