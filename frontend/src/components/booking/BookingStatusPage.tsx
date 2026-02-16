@@ -87,7 +87,7 @@ export default function BookingStatusPage({
             {config.pill}
           </p>
 
-          <h1 className={`${instrumentSerif.className} text-5xl md:text-7xl mb-6`}>
+          <h1 className={`${instrumentSerif.className} text-5xl md:text-7xl mb-6 text-black`}>
             {config.title}
           </h1>
           <p className="text-lg md:text-xl text-[#1a1a1a]/60 leading-relaxed mb-8">

@@ -37,6 +37,19 @@ type BookingRow = {
   tickets_bought: Record<string, number> | null;
   is_verified: boolean | null;
   is_waitlisted: boolean | null;
+  events: {
+    name: string;
+    event_date: string | null;
+    base_event_banner: string | null;
+    address_line_1: string | null;
+    city: string | null;
+    state: string | null;
+    event_tickets: {
+      id: string;
+      description: JsonValue;
+      price: string;
+    }[];
+  } | null;
 };
 
 type EventRow = {
@@ -77,6 +90,19 @@ export type BookingRecord = {
   ticketsBought: Record<string, number>;
   isVerified: boolean | null;
   isWaitlisted: boolean;
+  event: {
+    name: string;
+    date: string | null;
+    bannerUrl: string | null;
+    location: string;
+  };
+  tickets: {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    type: string;
+  }[];
 };
 
 type BookingMode = "payment" | "waitlist";
@@ -140,6 +166,31 @@ function mapBooking(row: BookingRow): BookingRecord {
     ticketsBought: row.tickets_bought || {},
     isVerified: row.is_verified,
     isWaitlisted: Boolean(row.is_waitlisted),
+    event: {
+      name: row.events?.name || "Unknown Event",
+      date: row.events?.event_date || null,
+      bannerUrl: row.events?.base_event_banner || null,
+      location:
+        `${row.events?.city || ""}, ${row.events?.state || ""}`.replace(
+          /^, |, $/g,
+          "",
+        ) ||
+        row.events?.address_line_1 ||
+        "",
+    },
+    tickets: Object.entries(row.tickets_bought || {}).map(([ticketId, qty]) => {
+      const ticketDef = row.events?.event_tickets?.find(
+        (t) => t.id === ticketId,
+      );
+      const description = ticketDef?.description as Record<string, any> | null;
+      return {
+        id: ticketId,
+        name: description?.name || "Ticket",
+        price: ticketDef ? toNumber(ticketDef.price) : 0,
+        quantity: qty,
+        type: description?.type || "Standard", // generic fallback
+      };
+    }),
   };
 }
 

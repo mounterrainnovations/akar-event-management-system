@@ -34,7 +34,9 @@ export default function Header() {
     const isTermsPage = pathname === '/terms';
     const isRefundPolicyPage = pathname === '/refund-policy';
     const isSettingsPage = pathname === '/settings';
-    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage || isPrivacyPolicyPage || isLegalPage || isTermsPage || isRefundPolicyPage || isSettingsPage;
+    const isMyBookingsPage = pathname === '/my-bookings';
+    const isBookingPage = pathname?.startsWith('/booking/');
+    const isDarkTextPage = isEventPage || isWorkPage || isContactPage || isHighlightsPage || isAboutPage || isEventsPage || isPublicationsPage || isPrivacyPolicyPage || isLegalPage || isTermsPage || isRefundPolicyPage || isSettingsPage || isMyBookingsPage || isBookingPage;
 
     const [isHidden, setIsHidden] = useState(false);
     const [isPastHero, setIsPastHero] = useState(false);

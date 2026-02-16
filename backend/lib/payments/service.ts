@@ -1,6 +1,12 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
+import {
+  sendBookingFailureEmail,
+  sendBookingSuccessEmail,
+} from "@/lib/email/service";
+import { generateTicketPDF } from "@/lib/pdfs/ticket-generator";
 import { getEventRegistrationTransactionLookup } from "@/lib/queries/event-registrations";
+import { BOOKING_SELECT_FIELDS } from "@/lib/bookings/queries";
 import {
   buildEasebuzzInitiatePayload,
   initiateEasebuzzTransaction,
@@ -239,7 +245,9 @@ export async function initiatePaymentFlow(params: {
       status: 500,
       transactionId,
       error:
-        error instanceof Error ? error.message : "Unable to initiate transaction",
+        error instanceof Error
+          ? error.message
+          : "Unable to initiate transaction",
       gateway: null,
     };
   }
@@ -440,6 +448,8 @@ export async function applyCallbackBusinessStatus(
 ) {
   const supabase = createSupabaseAdminClient();
   const paymentStatus = mapFlowToPaymentStatus(input.flow);
+
+  // ... (fetchPaymentId and payment update logic)
   const paymentId = await fetchPaymentId({
     transactionId: input.transactionId,
     easebuzzTxnId: input.easebuzzTxnId,
@@ -519,15 +529,174 @@ export async function applyCallbackBusinessStatus(
     registrationUpdatePayload.transaction_id = transactionIdForRegistration;
   }
 
+  /* 
+     Update to use full BOOKING_SELECT_FIELDS so we get ticket definitions + tickets_bought 
+     This allows us to generate the detailed invoice PDF.
+  */
   const registrationUpdateQuery = supabase
     .from(EVENT_REGISTRATIONS_TABLE)
     .update(registrationUpdatePayload)
-    .eq("id", registrationId);
+    .eq("id", registrationId)
+    .select(BOOKING_SELECT_FIELDS) // Use the full selection string
+    .single();
 
-  const { error } = await registrationUpdateQuery;
+  const { data: registrationData, error } = await registrationUpdateQuery;
+
   if (error) {
     throw new Error(
       `Unable to update event registration payment status from callback: ${error.message}`,
     );
+  }
+
+  // Trigger Email Notification
+  if (
+    (input.flow === "success" || input.flow === "failure") &&
+    registrationData
+  ) {
+    try {
+      // Safely access nested properties using unknown casting then to expected shape
+      // The shape matches BookingRow mostly
+      const row = registrationData as any; // Escape hatch for complex join types
+
+      const eventData = row.events || {};
+      const formResponse = row.form_response || {};
+
+      const email =
+        typeof formResponse?.email === "string"
+          ? formResponse.email
+          : (formResponse?.Email as string);
+
+      // Try various common name fields
+      const name =
+        typeof formResponse?.full_name === "string"
+          ? formResponse.full_name
+          : typeof formResponse?.name === "string"
+            ? formResponse.name
+            : typeof formResponse?.Name === "string"
+              ? formResponse.Name
+              : "Valued Customer";
+
+      const eventName = eventData?.name || "Event";
+      const amount = String(row.final_amount || 0);
+
+      // Extract detailed ticket info for PDF
+      const ticketsBought = row.tickets_bought || {};
+      const eventTicketsDefs = eventData.event_tickets || [];
+
+      const ticketsBreakdown = Object.entries(ticketsBought).map(
+        ([ticketId, qty]) => {
+          const def = eventTicketsDefs.find((t: any) => t.id === ticketId);
+          // description is JSONB, usually has name/type
+          const desc = def?.description || {};
+          return {
+            name: desc.name || "Ticket",
+            type: desc.type || "Standard",
+            quantity: Number(qty),
+            price: Number(def?.price || 0),
+          };
+        },
+      );
+
+      // Construct Event Date / Location strings
+      const eventDateStr = eventData.event_date
+        ? new Date(eventData.event_date).toLocaleString()
+        : undefined;
+      const locationStr = [
+        eventData.address_line_1,
+        eventData.city,
+        eventData.state,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      if (email) {
+        if (input.flow === "success") {
+          let pdfBuffer: Buffer | undefined;
+
+          try {
+            // 1. Generate PDF
+            pdfBuffer = await generateTicketPDF({
+              eventName,
+              userName: name,
+              bookingId: row.id,
+              amount,
+              location: locationStr || "Check event page",
+              eventDate: eventDateStr || "TBA",
+              bookingDate: new Date().toISOString(),
+              tickets: ticketsBreakdown,
+              eventTerms: eventData.terms_and_conditions,
+            });
+
+            // 2. Upload to Supabase Storage
+            const fileName = `${row.id}.pdf`;
+            const { error: uploadError } = await supabase.storage
+              .from("tickets")
+              .upload(fileName, pdfBuffer, {
+                contentType: "application/pdf",
+                upsert: true,
+              });
+
+            if (uploadError) {
+              logger.error("Failed to upload ticket to Supabase Storage", {
+                registrationId,
+                error: uploadError,
+              });
+            } else {
+              // 3. Update registration with ticket_url
+              const { data: publicUrlData } = supabase.storage
+                .from("tickets")
+                .getPublicUrl(fileName);
+
+              await supabase
+                .from(EVENT_REGISTRATIONS_TABLE)
+                .update({ ticket_url: publicUrlData.publicUrl })
+                .eq("id", row.id);
+
+              logger.info("Uploaded ticket and updated registration row", {
+                registrationId,
+                url: publicUrlData.publicUrl,
+              });
+            }
+          } catch (pdfGenError) {
+            logger.error("PDF generation or storage upload failed", {
+              registrationId,
+              error: pdfGenError,
+            });
+          }
+
+          // 4. Send Email (passing the buffer if available, otherwise it falls back to generation)
+          await sendBookingSuccessEmail(
+            email,
+            name,
+            eventName,
+            amount,
+            row.id,
+            ticketsBreakdown,
+            new Date().toISOString(),
+            eventDateStr,
+            locationStr,
+            eventData.terms_and_conditions,
+            pdfBuffer,
+          );
+          logger.info("Sent booking success email", { registrationId, email });
+        } else {
+          await sendBookingFailureEmail(email, name, eventName, amount, row.id);
+          logger.info("Sent booking failure email", { registrationId, email });
+        }
+      } else {
+        logger.warn(
+          "Could not send email: email field missing in form_response",
+          { registrationId },
+        );
+      }
+    } catch (emailError) {
+      logger.error("Failed to send booking email", {
+        registrationId,
+        error:
+          emailError instanceof Error ? emailError.message : "Unknown error",
+        flow: input.flow,
+      });
+      // We do not throw here to avoid failing the webhook response if email fails
+    }
   }
 }
