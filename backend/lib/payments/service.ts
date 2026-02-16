@@ -6,7 +6,6 @@ import {
   sendBookingSuccessEmail,
 } from "@/lib/email/service";
 import { generateTicketPDF } from "@/lib/pdfs/ticket-generator";
-import { getEventRegistrationTransactionLookup } from "@/lib/queries/event-registrations";
 import { BOOKING_SELECT_FIELDS } from "@/lib/bookings/queries";
 import {
   buildEasebuzzInitiatePayload,
@@ -165,7 +164,9 @@ function truncate(value: string, max = 160) {
   return `${value.slice(0, max)}...`;
 }
 
-function summarizeGatewayPayload(payload: EasebuzzInitiateGatewayPayload | null) {
+function summarizeGatewayPayload(
+  payload: EasebuzzInitiateGatewayPayload | null,
+) {
   if (!payload) {
     return null;
   }
@@ -180,7 +181,9 @@ function summarizeGatewayPayload(payload: EasebuzzInitiateGatewayPayload | null)
         ? truncate(payload.message)
         : payload.message,
     error:
-      typeof payload.error === "string" ? truncate(payload.error) : payload.error,
+      typeof payload.error === "string"
+        ? truncate(payload.error)
+        : payload.error,
     error_desc:
       typeof payload.error_desc === "string"
         ? truncate(payload.error_desc)
@@ -311,7 +314,9 @@ export async function initiatePaymentFlow(params: {
 
     const gatewayResponse = await initiateEasebuzzTransaction(payload);
     const gatewayPayload = parseEasebuzzGatewayPayload(gatewayResponse.data);
-    const gatewayStatus = normalizeGatewayStatus(gatewayPayload?.status ?? null);
+    const gatewayStatus = normalizeGatewayStatus(
+      gatewayPayload?.status ?? null,
+    );
     logger.info("Payment flow step: Easebuzz initiate response received", {
       transactionId,
       httpStatus: gatewayResponse.status,
