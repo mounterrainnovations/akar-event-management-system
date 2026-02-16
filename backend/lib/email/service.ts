@@ -169,15 +169,51 @@ export async function sendBookingSuccessEmail(
     // We continue to send the email even if PDF fails, but log the error.
   }
 
+  // Calculate derived fields
+  const totalQuantity = (tickets || []).reduce((sum, t) => sum + t.quantity, 0);
+  const ticketTypes = (tickets || [])
+    .map((t) => `${t.name} (x${t.quantity})`)
+    .join(", ");
+
+  // Format Event Date and Time
+  let eventDateStr = eventDate || "TBA";
+  let eventTimeStr = "TBA";
+
+  if (eventDate && eventDate !== "TBA") {
+    const dateObj = new Date(eventDate);
+    if (!isNaN(dateObj.getTime())) {
+      eventDateStr = dateObj.toLocaleDateString("en-IN", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      eventTimeStr = dateObj.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+  }
+
   return sendEmailWithTemplate({
     to: [{ email, name }],
     templateKey: TEMPLATE_KEY,
     mergeInfo: {
-      event_name: eventName,
-      name: name,
-      amount: amount,
-      booking_id: bookingId,
-      status: "Successful",
+      Booking_ID: bookingId,
+      Website_URL: "https://akarwomengroup.com",
+      Customer_Name: name,
+      Ticket_Type: ticketTypes, // Summary of what they bought
+      Organization_Name: "Akar Women Group",
+      Amount: amount,
+      Quantity: String(totalQuantity),
+      Event_Venue: location || "Check event page",
+      Support_Email: "akarwomengroup@gmail.com",
+      Selected_Activities_List: ticketTypes, // User says "selected activities are the tiers/activities"
+      Event_Date: eventDateStr,
+      Event_Terms_And_Conditions: eventTerms || "Standard terms apply.",
+      Event_Name: eventName,
+      Event_Time: eventTimeStr,
     },
     attachments,
   });
