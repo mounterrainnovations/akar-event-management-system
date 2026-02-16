@@ -7,7 +7,8 @@ import { ArrowUpRight, Instagram, Linkedin, Twitter } from 'lucide-react';
 
 export default function Footer() {
     const pathname = usePathname();
-    const isWhitePage = pathname === '/work' || pathname === '/event' || pathname === '/contact' || pathname === '/highlights' || pathname === '/about' || pathname === '/events' || pathname === '/privacy-policy' || pathname === '/legal' || pathname === '/terms' || pathname === '/refund-policy';
+    const isBookingPage = pathname?.startsWith('/booking/');
+    const isWhitePage = pathname === '/work' || pathname === '/event' || pathname === '/contact' || pathname === '/highlights' || pathname === '/about' || pathname === '/events' || pathname === '/privacy-policy' || pathname === '/legal' || pathname === '/terms' || pathname === '/refund-policy' || isBookingPage;
 
     return (
         <footer className={`relative w-full z-10 ${isWhitePage ? 'bg-white' : ''}`}>

@@ -37,6 +37,21 @@ type BookingRow = {
   tickets_bought: Record<string, number> | null;
   is_verified: boolean | null;
   is_waitlisted: boolean | null;
+  ticket_url: string | null;
+  events: {
+    name: string;
+    event_date: string | null;
+    base_event_banner: string | null;
+    address_line_1: string | null;
+    city: string | null;
+    state: string | null;
+    terms_and_conditions: string | null;
+    event_tickets: {
+      id: string;
+      description: JsonValue;
+      price: string;
+    }[];
+  } | null;
 };
 
 type EventRow = {
@@ -77,6 +92,21 @@ export type BookingRecord = {
   ticketsBought: Record<string, number>;
   isVerified: boolean | null;
   isWaitlisted: boolean;
+  ticketUrl: string | null;
+  event: {
+    name: string;
+    date: string | null;
+    bannerUrl: string | null;
+    location: string;
+    termsAndConditions?: string | null;
+  };
+  tickets: {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    type: string;
+  }[];
 };
 
 type BookingMode = "payment" | "waitlist";
@@ -140,6 +170,33 @@ function mapBooking(row: BookingRow): BookingRecord {
     ticketsBought: row.tickets_bought || {},
     isVerified: row.is_verified,
     isWaitlisted: Boolean(row.is_waitlisted),
+    ticketUrl: row.ticket_url || null,
+    event: {
+      name: row.events?.name || "Unknown Event",
+      date: row.events?.event_date || null,
+      bannerUrl: row.events?.base_event_banner || null,
+      termsAndConditions: row.events?.terms_and_conditions || null,
+      location:
+        `${row.events?.city || ""}, ${row.events?.state || ""}`.replace(
+          /^, |, $/g,
+          "",
+        ) ||
+        row.events?.address_line_1 ||
+        "",
+    },
+    tickets: Object.entries(row.tickets_bought || {}).map(([ticketId, qty]) => {
+      const ticketDef = row.events?.event_tickets?.find(
+        (t) => t.id === ticketId,
+      );
+      const description = ticketDef?.description as Record<string, any> | null;
+      return {
+        id: ticketId,
+        name: description?.name || "Ticket",
+        price: ticketDef ? toNumber(ticketDef.price) : 0,
+        quantity: qty,
+        type: description?.type || "Standard", // generic fallback
+      };
+    }),
   };
 }
 
@@ -181,11 +238,11 @@ function normalizePhone(value: unknown) {
 }
 
 function normalizeJsonObject(value: unknown): JsonValue {
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return {};
   }
 
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (typeof value !== "object" || Array.isArray(value)) {
     throw new Error("form_response must be a JSON object");
   }
 
@@ -197,7 +254,7 @@ function normalizeTicketsBought(value: unknown) {
     return {};
   }
 
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (typeof value !== "object" || Array.isArray(value)) {
     throw new Error(
       "tickets_bought must be an object map of ticketId -> quantity",
     );
@@ -234,6 +291,7 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
 
   const payload = body as Record<string, unknown>;
   const eventId = normalizeNonEmptyString(payload.eventId, "eventId");
+
   if (!isUuid(eventId)) {
     throw new Error("eventId must be a valid UUID");
   }
@@ -255,9 +313,13 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     phone: normalizePhone(payload.phone),
     eventName: normalizeNonEmptyString(payload.eventName, "eventName"),
     amount: normalizeNonNegativeAmount(payload.amount),
-    ticketsBought: normalizeTicketsBought(payload.tickets_bought),
+    ticketsBought: normalizeTicketsBought(
+      payload.ticketsBought || payload.tickets_bought,
+    ),
     couponId,
-    formResponse: normalizeJsonObject(payload.form_response),
+    formResponse: normalizeJsonObject(
+      payload.formResponse || payload.form_response,
+    ),
   };
 }
 
@@ -335,7 +397,9 @@ type TriggerableOption = {
 };
 
 function isTriggerableOption(option: unknown): option is TriggerableOption {
-  return Boolean(option && typeof option === "object");
+  return Boolean(
+    option && typeof option === "object" && !Array.isArray(option),
+  );
 }
 
 async function validateFormResponse(eventId: string, formResponse: JsonValue) {
@@ -363,11 +427,6 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
   });
 
   // Iteratively trigger fields based on values
-  // Simple pass: Check all fields. If a field has a value that triggers others, add them.
-  // Note: strict topological sort not needed if we just check "is this value present -> trigger this".
-  // A field appearing later might be triggered by an earlier one.
-  // We just need to know what IS visible based on CURRENT selections.
-
   fields.forEach((field) => {
     const value = responseObj[field.field_name];
     if (
@@ -376,7 +435,7 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
       Array.isArray(field.options)
     ) {
       const selectedOption = field.options.find(
-        (opt) =>
+        (opt: any) =>
           (typeof opt === "string"
             ? opt
             : isTriggerableOption(opt)
@@ -389,9 +448,9 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
         isTriggerableOption(selectedOption) &&
         Array.isArray(selectedOption.triggers)
       ) {
-        selectedOption.triggers.forEach((trigger) =>
-          visibleFieldNames.add(trigger),
-        );
+        selectedOption.triggers.forEach((trigger) => {
+          visibleFieldNames.add(trigger);
+        });
       }
     }
   });
@@ -402,7 +461,11 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
       const value = responseObj[field.field_name];
       // Check for empty values. null, undefined, empty string.
       // 0 is valid. false is valid (checkbox?).
-      if (value === null || value === undefined || value === "") {
+      if (
+        value === null ||
+        value === undefined ||
+        (typeof value === "string" && value.trim() === "")
+      ) {
         throw new Error(`Field '${field.label}' is required`);
       }
     }
