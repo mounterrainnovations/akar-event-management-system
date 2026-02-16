@@ -405,9 +405,29 @@ function mapRegistration(row: RegistrationRow): EventRegistration {
   };
 }
 
+function validateEventName(name: string): string {
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    throw new Error("Event name is required");
+  }
+
+  // Allow only alphanumeric characters, spaces, and common punctuation
+  // This excludes emojis and other special characters that could cause parsing issues
+  const validNamePattern = /^[a-zA-Z0-9\s\-_.,!?&'":()]+$/;
+
+  if (!validNamePattern.test(trimmedName)) {
+    throw new Error(
+      "Event name contains invalid characters. Only letters, numbers, spaces, and common punctuation (- _ . , ! ? & ' \" : ( )) are allowed",
+    );
+  }
+
+  return trimmedName;
+}
+
 function mapEventWriteInput(input: EventWriteInput) {
   return {
-    name: input.name,
+    name: validateEventName(input.name),
     base_event_banner: input.baseEventBanner ?? null,
     event_date: input.eventDate ?? null,
     address_line_1: input.addressLine1,

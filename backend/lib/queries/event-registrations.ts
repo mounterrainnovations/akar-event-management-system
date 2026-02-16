@@ -9,6 +9,15 @@ export type EventRegistrationRow = {
   payment_status: string;
 };
 
+export type EventRegistrationReuseRow = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  deleted_at: string | null;
+  is_waitlisted: boolean | null;
+  payment_status: string;
+};
+
 export async function insertEventRegistration<T extends Record<string, unknown>>(
   payload: Record<string, unknown>,
   selectFields: string,
@@ -73,4 +82,49 @@ export async function getEventRegistrationTransactionLookup(registrationId: stri
     transactionId: data.transaction_id?.trim() || "",
     paymentStatus: data.payment_status,
   };
+}
+
+export async function getEventRegistrationForUserEvent(input: {
+  registrationId: string;
+  userId: string;
+  eventId: string;
+}) {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from(EVENT_REGISTRATIONS_TABLE)
+    .select("id,event_id,user_id,deleted_at,is_waitlisted,payment_status")
+    .eq("id", input.registrationId)
+    .eq("user_id", input.userId)
+    .eq("event_id", input.eventId)
+    .maybeSingle<EventRegistrationReuseRow>();
+
+  if (error) {
+    throw new Error(
+      `Unable to fetch event registration by id for user and event: ${error.message}`,
+    );
+  }
+
+  return data;
+}
+
+export async function updateEventRegistrationById<T extends Record<string, unknown>>(input: {
+  registrationId: string;
+  payload: Record<string, unknown>;
+  selectFields: string;
+}) {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from(EVENT_REGISTRATIONS_TABLE)
+    .update(input.payload)
+    .eq("id", input.registrationId)
+    .select(input.selectFields)
+    .maybeSingle<T>();
+
+  if (error || !data) {
+    throw new Error(
+      `Unable to update event registration: ${error?.message || "No row returned"}`,
+    );
+  }
+
+  return data;
 }
