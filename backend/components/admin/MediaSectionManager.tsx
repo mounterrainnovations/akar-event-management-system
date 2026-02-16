@@ -10,7 +10,7 @@ import { Eye, EyeSlash, Trash, UploadSimple, X, Image } from "@phosphor-icons/re
 import { type WebsiteSectionState } from "@/lib/media/website-media-service";
 import { toast } from "react-toastify";
 
-const MAX_FILE_SIZE_MB = 1.5;
+const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ALLOWED_TYPES = ["image/png", "image/jpeg"];
 
