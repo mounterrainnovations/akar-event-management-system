@@ -8,6 +8,7 @@ import {
   BOOKING_PAGE_LIMIT,
   BOOKING_SELECT_FIELDS,
 } from "@/lib/bookings/queries";
+import { sendWishlistConfirmation } from "@/lib/email/service";
 
 const logger = getLogger("bookings-service");
 
@@ -420,7 +421,10 @@ export async function createBookingForUser(params: {
   await validateFormResponse(input.eventId, input.formResponse || {});
 
   const bookingMode = resolveBookingMode(event.status);
-  if (bookingMode === "payment" && Object.keys(input.ticketsBought).length === 0) {
+  if (
+    bookingMode === "payment" &&
+    Object.keys(input.ticketsBought).length === 0
+  ) {
     throw new Error("tickets_bought cannot be empty");
   }
 
@@ -460,6 +464,20 @@ export async function createBookingForUser(params: {
       message: error instanceof Error ? error.message : "Unknown error",
     });
     throw new Error("Unable to create booking");
+  }
+
+  // Send Waitlist Confirmation Email
+  if (bookingMode === "waitlist") {
+    // Fire and forget - do not block response
+    sendWishlistConfirmation(input.email, input.firstName, event.name).catch(
+      (err) => {
+        logger.error("Failed to send waitlist confirmation email", {
+          bookingId: data.id,
+          email: input.email,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+      },
+    );
   }
 
   return {
