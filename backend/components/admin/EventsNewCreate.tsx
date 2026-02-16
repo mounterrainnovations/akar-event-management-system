@@ -55,6 +55,7 @@ type TicketData = {
     price: number;
     quantity: number;
     maxQuantityPerPerson: number;
+    visibilityConfig?: Record<string, string[]>; // FieldName -> AllowedValues[]
 };
 
 type EventFormData = {
@@ -111,7 +112,7 @@ const INITIAL_DATA: EventFormData = {
     locationUrl: "",
     coupons: [],
     formFields: [],
-    tickets: [{ name: "", brief: "", price: 0, quantity: 100, maxQuantityPerPerson: 1 }], // Default one ticket
+    tickets: [{ name: "", brief: "", price: 0, quantity: 100, maxQuantityPerPerson: 1, visibilityConfig: {} }], // Default one ticket
     bundleOffers: [],
 };
 
@@ -334,7 +335,8 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                     description: { name: t.name, brief: t.brief },
                     price: t.price,
                     quantity: t.quantity,
-                    maxQuantityPerPerson: t.maxQuantityPerPerson
+                    maxQuantityPerPerson: t.maxQuantityPerPerson,
+                    visibilityConfig: t.visibilityConfig
                 })),
                 bundleOffers: formData.bundleOffers.map(b => ({
                     name: b.name,
@@ -1223,6 +1225,77 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                                                         onChange={(e) => updateNestedField(index, "maxQuantityPerPerson", e.target.value === "" ? "" : parseInt(e.target.value), "tickets")}
                                                     />
                                                     {errors[`ticket_${index}_maxQuantityPerPerson`] && <p className="text-xs text-red-500">{errors[`ticket_${index}_maxQuantityPerPerson`]}</p>}
+                                                </div>
+                                            </div>
+
+                                            {/* Visibility Conditions */}
+                                            <div className="pt-3 border-t border-dashed border-border/60">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <p className="text-xs font-semibold text-muted-foreground">Visibility Conditions</p>
+                                                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">Show this tier only when...</span>
+                                                </div>
+
+                                                <div className="space-y-3 bg-muted/20 p-3 rounded-md">
+                                                    {formData.formFields.filter(f => f.fieldType === 'dropdown' && f.options.length > 0).map((field, fIdx) => {
+                                                        const currentConfig = (ticket.visibilityConfig as any)?.[field.fieldName] || [];
+                                                        const hasActiveRules = currentConfig.length > 0;
+
+                                                        return (
+                                                            <div key={fIdx} className="text-xs">
+                                                                <div className="flex items-center gap-2 mb-1.5">
+                                                                    <span className={`font-medium ${hasActiveRules ? 'text-primary' : 'text-foreground'}`}>
+                                                                        {field.label}
+                                                                    </span>
+                                                                    {hasActiveRules && <span className="text-[9px] text-primary bg-primary/5 px-1 rounded">Active</span>}
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {field.options.map((opt, oIdx) => {
+                                                                        const val = typeof opt === 'string' ? opt : opt.value;
+                                                                        const label = typeof opt === 'string' ? opt : opt.label;
+                                                                        const isSelected = currentConfig.includes(val);
+
+                                                                        return (
+                                                                            <button
+                                                                                type="button"
+                                                                                key={oIdx}
+                                                                                onClick={() => {
+                                                                                    const newConfig = { ...(ticket.visibilityConfig || {}) };
+                                                                                    let newValues = [...(newConfig[field.fieldName] || [])];
+
+                                                                                    if (isSelected) {
+                                                                                        newValues = newValues.filter(v => v !== val);
+                                                                                    } else {
+                                                                                        newValues.push(val);
+                                                                                    }
+
+                                                                                    if (newValues.length === 0) {
+                                                                                        delete newConfig[field.fieldName];
+                                                                                    } else {
+                                                                                        newConfig[field.fieldName] = newValues;
+                                                                                    }
+
+                                                                                    updateNestedField(index, "visibilityConfig", newConfig, "tickets");
+                                                                                }}
+                                                                                className={`px-2 py-1 rounded border text-[11px] transition-all flex items-center gap-1.5 ${isSelected
+                                                                                    ? 'bg-primary border-primary text-primary-foreground shadow-sm'
+                                                                                    : 'bg-background border-border hover:border-primary/40 text-muted-foreground'
+                                                                                    }`}
+                                                                            >
+                                                                                {isSelected && <CheckCircle size={10} weight="fill" />}
+                                                                                {label}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {formData.formFields.filter(f => f.fieldType === 'dropdown' && f.options.length > 0).length === 0 && (
+                                                        <p className="italic text-muted-foreground text-[10px] text-center py-2">
+                                                            No dropdown fields available. Add dropdown fields in "Form Fields" step to configure conditional visibility.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

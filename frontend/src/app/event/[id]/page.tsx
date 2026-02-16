@@ -37,6 +37,7 @@ interface EventDetailData {
         soldCount: number;
         status: string;
         maxQuantityPerPerson: number;
+        visibilityConfig?: Record<string, string[]>;
     }>;
     formFields: Array<{
         id: string;
