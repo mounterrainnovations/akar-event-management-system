@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { instrumentSerif } from '@/lib/fonts';
 import Image from 'next/image';
-import { getBackendUrl } from '@/lib/backend';
+import { fetchSectionMedia, type WebsiteMediaItem } from '@/lib/websiteMedia';
 
 const container = {
     hidden: {},
@@ -50,18 +50,6 @@ const masonryItems = [
     { id: 12, aspect: "aspect-[2/1]", label: "Panoramic" },
 ];
 
-type WebsiteMediaItem = {
-    id: string;
-    mediaId: string;
-    section: "highlights";
-    displayOrder: number;
-    isActive: boolean;
-    fileName: string;
-    mimeType: string;
-    fileSize: number;
-    previewUrl: string;
-};
-
 export default function HighlightsPage() {
     const [mediaItems, setMediaItems] = useState<WebsiteMediaItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -69,13 +57,8 @@ export default function HighlightsPage() {
     useEffect(() => {
         async function fetchHighlights() {
             try {
-                const baseUrl = getBackendUrl();
-                const res = await fetch(`${baseUrl}/api/website-media/highlights?active=true`);
-                if (!res.ok) throw new Error('Failed to fetch highlights');
-                const data = await res.json();
-                if (data.items) {
-                    setMediaItems(data.items);
-                }
+                const items = await fetchSectionMedia('highlights', { active: true });
+                setMediaItems(items);
             } catch (error) {
                 console.error("Error fetching highlights:", error);
             } finally {
