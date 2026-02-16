@@ -12,6 +12,10 @@ import { getLogger } from "@/lib/logger";
 
 const logger = getLogger("easebuzz-service");
 
+function shouldLogFullPaymentPayload() {
+  return process.env.PAYMENT_FLOW_LOG_FULL_PAYLOAD === "true";
+}
+
 export type InitiateEasebuzzPaymentInput = {
   amount: number;
   productInfo: string;
@@ -99,6 +103,112 @@ function sha512(value: string) {
   return createHash("sha512").update(value, "utf8").digest("hex");
 }
 
+function truncate(value: string, max = 160) {
+  if (value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, max)}...`;
+}
+
+function maskValue(value: string, keepStart = 3, keepEnd = 2, maskChar = "*") {
+  if (!value) {
+    return "";
+  }
+  if (value.length <= keepStart + keepEnd) {
+    return maskChar.repeat(value.length);
+  }
+  return `${value.slice(0, keepStart)}${maskChar.repeat(
+    value.length - keepStart - keepEnd,
+  )}${value.slice(-keepEnd)}`;
+}
+
+function getEmailDomain(email: string) {
+  const atIndex = email.indexOf("@");
+  if (atIndex === -1 || atIndex === email.length - 1) {
+    return "";
+  }
+  return email.slice(atIndex + 1).toLowerCase();
+}
+
+function buildInitiatePayloadLog(payload: Record<string, string>) {
+  return {
+    txnid: payload.txnid,
+    txnidLength: payload.txnid?.length || 0,
+    amount: payload.amount,
+    productinfoLength: payload.productinfo?.length || 0,
+    firstnameLength: payload.firstname?.length || 0,
+    emailDomain: getEmailDomain(payload.email || ""),
+    phoneLast4: (payload.phone || "").slice(-4),
+    surlHost: (() => {
+      try {
+        return new URL(payload.surl).host;
+      } catch {
+        return "";
+      }
+    })(),
+    furlHost: (() => {
+      try {
+        return new URL(payload.furl).host;
+      } catch {
+        return "";
+      }
+    })(),
+    showPaymentMode: payload.show_payment_mode || "",
+    udfLengths: {
+      udf1: payload.udf1?.length || 0,
+      udf2: payload.udf2?.length || 0,
+      udf3: payload.udf3?.length || 0,
+      udf4: payload.udf4?.length || 0,
+    },
+    keyMasked: maskValue(payload.key || "", 4, 2),
+    hashLength: payload.hash?.length || 0,
+    productinfo: payload.productinfo,
+    firstname: payload.firstname,
+    email: payload.email,
+    phone: payload.phone,
+    surl: payload.surl,
+    furl: payload.furl,
+    udf1: payload.udf1,
+    udf2: payload.udf2,
+    udf3: payload.udf3,
+    udf4: payload.udf4,
+  };
+}
+
+function summarizeInitiateResponseData(data: unknown) {
+  if (typeof data === "string") {
+    return {
+      dataType: "text",
+      dataPreview: truncate(data.replace(/\s+/g, " ").trim()),
+    };
+  }
+
+  if (!data || typeof data !== "object") {
+    return {
+      dataType: typeof data,
+      dataPreview: String(data),
+    };
+  }
+
+  const record = data as Record<string, unknown>;
+  return {
+    dataType: "json",
+    status: record.status ?? null,
+    msg: typeof record.msg === "string" ? truncate(record.msg) : null,
+    message:
+      typeof record.message === "string" ? truncate(record.message) : null,
+    error: typeof record.error === "string" ? truncate(record.error) : null,
+    error_desc:
+      typeof record.error_desc === "string"
+        ? truncate(record.error_desc)
+        : null,
+    dataField:
+      typeof record.data === "string"
+        ? truncate(record.data)
+        : (record.data ?? null),
+  };
+}
+
 function toStringRecord(value: unknown): Record<string, string> {
   if (!value || typeof value !== "object") {
     return {};
@@ -155,6 +265,10 @@ function normalizeAmount(amount: number) {
   }
 
   return amount.toFixed(2);
+}
+
+function hardcodeProductInfo(productInfo: string) {
+  return "ProductInfo";
 }
 
 function resolveCallbackBaseUrl(requestOrigin: string) {
@@ -216,7 +330,7 @@ export function buildEasebuzzInitiatePayload(args: {
     key,
     txnid: transactionId,
     amount: normalizeAmount(args.input.amount),
-    productinfo: args.input.productInfo,
+    productinfo: hardcodeProductInfo(args.input.productInfo),
     firstname: args.input.firstName,
     email: args.input.email,
     phone: args.input.phone,
@@ -391,20 +505,53 @@ export async function initiateEasebuzzTransaction(
   logger.info("Initiating Easebuzz payment", {
     endpoint,
     txnid: payload.txnid,
+    request: buildInitiatePayloadLog(payload),
+    ...(shouldLogFullPaymentPayload()
+      ? {
+          fullRequestPayload: payload,
+        }
+      : {}),
   });
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: formPayload,
-  });
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formPayload,
+    });
+  } catch (error) {
+    logger.error("Easebuzz initiate network error", {
+      endpoint,
+      txnid: payload.txnid,
+      message: error instanceof Error ? error.message : "Unknown error",
+      code:
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : undefined,
+    });
+    throw error;
+  }
 
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
+  logger.info("Easebuzz initiate response payload", {
+    endpoint,
+    txnid: payload.txnid,
+    httpStatus: response.status,
+    ok: response.ok,
+    contentType,
+    response: summarizeInitiateResponseData(data),
+    ...(shouldLogFullPaymentPayload()
+      ? {
+          fullResponsePayload: data,
+        }
+      : {}),
+  });
 
   return {
     ok: response.ok,

@@ -4,10 +4,14 @@ import { getLogger } from "@/lib/logger";
 import { listEventFormFieldsForValidation } from "@/lib/queries/event-form-fields";
 import { getEventBookingMeta } from "@/lib/queries/events";
 import { insertEventRegistration } from "@/lib/queries/event-registrations";
+import { listEventFormFieldsForValidation } from "@/lib/queries/event-form-fields";
+import { getEventBookingMeta } from "@/lib/queries/events";
+import { insertEventRegistration } from "@/lib/queries/event-registrations";
 import {
   BOOKING_PAGE_LIMIT,
   BOOKING_SELECT_FIELDS,
 } from "@/lib/bookings/queries";
+import { sendWishlistConfirmation } from "@/lib/email/service";
 import { sendWishlistConfirmation } from "@/lib/email/service";
 
 const logger = getLogger("bookings-service");
@@ -55,6 +59,7 @@ type BookingRow = {
 type EventRow = {
   id: string;
   name: string;
+  status: string;
   status: string;
   verification_required: boolean;
   deleted_at: string | null;
@@ -211,12 +216,15 @@ function normalizeEmail(value: unknown) {
 }
 
 function normalizeNonNegativeAmount(value: unknown) {
+function normalizeNonNegativeAmount(value: unknown) {
   const amount =
     typeof value === "number"
       ? value
       : typeof value === "string"
         ? Number.parseFloat(value)
         : Number.NaN;
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("amount must be a non-negative number");
   if (!Number.isFinite(amount) || amount < 0) {
     throw new Error("amount must be a non-negative number");
   }
@@ -244,6 +252,10 @@ function normalizeJsonObject(value: unknown): JsonValue {
 }
 
 function normalizeTicketsBought(value: unknown) {
+  if (value === undefined || value === null) {
+    return {};
+  }
+
   if (value === undefined || value === null) {
     return {};
   }
@@ -306,6 +318,7 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     phone: normalizePhone(payload.phone),
     eventName: normalizeNonEmptyString(payload.eventName, "eventName"),
     amount: normalizeNonNegativeAmount(payload.amount),
+    amount: normalizeNonNegativeAmount(payload.amount),
     ticketsBought: normalizeTicketsBought(payload.tickets_bought),
     couponId,
     formResponse: normalizeJsonObject(payload.form_response),
@@ -360,13 +373,43 @@ function validateEventStatusForBooking(eventStatus: string) {
   throw new Error("Bookings are not allowed for this event status");
 }
 
+function resolveBookingMode(eventStatus: string): BookingMode {
+  if (eventStatus === "waitlist") {
+    return "waitlist";
+  }
+  return "payment";
+}
+
+function validateEventStatusForBooking(eventStatus: string) {
+  if (eventStatus === "published" || eventStatus === "waitlist") {
+    return;
+  }
+
+  if (eventStatus === "draft") {
+    throw new Error("Bookings are not open for draft events");
+  }
+  if (eventStatus === "cancelled") {
+    throw new Error("Bookings are not allowed for cancelled events");
+  }
+  if (eventStatus === "completed") {
+    throw new Error("Bookings are not allowed for completed events");
+  }
+
+  throw new Error("Bookings are not allowed for this event status");
+}
+
 async function ensureEventExists(eventId: string) {
+  let data: EventRow | null = null;
+  try {
+    data = (await getEventBookingMeta(eventId)) as EventRow | null;
+  } catch (error) {
   let data: EventRow | null = null;
   try {
     data = (await getEventBookingMeta(eventId)) as EventRow | null;
   } catch (error) {
     logger.error("Failed to load event while initiating booking", {
       eventId,
+      message: error instanceof Error ? error.message : "Unknown error",
       message: error instanceof Error ? error.message : "Unknown error",
     });
     throw new Error("Unable to validate event");
@@ -377,9 +420,24 @@ async function ensureEventExists(eventId: string) {
   }
 
   validateEventStatusForBooking(data.status);
+  validateEventStatusForBooking(data.status);
   return data;
 }
 
+type TriggerableOption = {
+  value?: string;
+  triggers?: string[];
+};
+
+function isTriggerableOption(option: unknown): option is TriggerableOption {
+  return Boolean(option && typeof option === "object");
+}
+
+async function validateFormResponse(eventId: string, formResponse: JsonValue) {
+  let fields;
+  try {
+    fields = await listEventFormFieldsForValidation(eventId);
+  } catch (error) {
 type TriggerableOption = {
   value?: string;
   triggers?: string[];
@@ -402,7 +460,9 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
   }
 
   if (!fields.length) return;
+  if (!fields.length) return;
 
+  const responseObj = (formResponse || {}) as Record<string, unknown>;
   const responseObj = (formResponse || {}) as Record<string, unknown>;
 
   // 1. Calculate Visible Fields
@@ -433,13 +493,21 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
             : isTriggerableOption(opt)
               ? opt.value
               : undefined) === value,
+        (opt) =>
+          (typeof opt === "string"
+            ? opt
+            : isTriggerableOption(opt)
+              ? opt.value
+              : undefined) === value,
       );
 
       if (
         selectedOption &&
         isTriggerableOption(selectedOption) &&
+        isTriggerableOption(selectedOption) &&
         Array.isArray(selectedOption.triggers)
       ) {
+        selectedOption.triggers.forEach((trigger) =>
         selectedOption.triggers.forEach((trigger) =>
           visibleFieldNames.add(trigger),
         );
@@ -478,6 +546,15 @@ export async function createBookingForUser(params: {
   ) {
     throw new Error("tickets_bought cannot be empty");
   }
+  await validateFormResponse(input.eventId, input.formResponse || {});
+
+  const bookingMode = resolveBookingMode(event.status);
+  if (
+    bookingMode === "payment" &&
+    Object.keys(input.ticketsBought).length === 0
+  ) {
+    throw new Error("tickets_bought cannot be empty");
+  }
 
   const subtotal = input.amount;
   const finalAmount = input.amount;
@@ -496,9 +573,11 @@ export async function createBookingForUser(params: {
     updated_at: now,
     deleted_at: null,
     name: buildUniqueRegistrationName(event.name),
+    name: buildUniqueRegistrationName(event.name),
     transaction_id: null,
     tickets_bought: input.ticketsBought,
     is_verified: event.verification_required ? false : null,
+    is_waitlisted: bookingMode === "waitlist",
     is_waitlisted: bookingMode === "waitlist",
   };
 
@@ -509,9 +588,17 @@ export async function createBookingForUser(params: {
       BOOKING_SELECT_FIELDS,
     );
   } catch (error) {
+  let data: BookingRow;
+  try {
+    data = await insertEventRegistration<BookingRow>(
+      insertPayload,
+      BOOKING_SELECT_FIELDS,
+    );
+  } catch (error) {
     logger.error("Failed to create booking registration", {
       userId,
       eventId: input.eventId,
+      message: error instanceof Error ? error.message : "Unknown error",
       message: error instanceof Error ? error.message : "Unknown error",
     });
     throw new Error("Unable to create booking");
@@ -531,7 +618,22 @@ export async function createBookingForUser(params: {
     );
   }
 
+  // Send Waitlist Confirmation Email
+  if (bookingMode === "waitlist") {
+    // Fire and forget - do not block response
+    sendWishlistConfirmation(input.email, input.firstName, event.name).catch(
+      (err) => {
+        logger.error("Failed to send waitlist confirmation email", {
+          bookingId: data.id,
+          email: input.email,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+      },
+    );
+  }
+
   return {
+    bookingMode,
     bookingMode,
     booking: mapBooking(data),
     pricing: {

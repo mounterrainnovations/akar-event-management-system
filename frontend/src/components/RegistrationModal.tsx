@@ -16,6 +16,7 @@ interface Ticket {
     status: string;
     maxQuantityPerPerson: number;
     visibilityConfig?: Record<string, string[]>;
+    visibilityConfig?: Record<string, string[]>;
 }
 
 interface FormField {
@@ -91,6 +92,18 @@ export default function RegistrationModal({
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [dragOverField, setDragOverField] = useState<string | null>(null);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+    const shouldLogPaymentFlow =
+        process.env.NODE_ENV !== 'production' ||
+        process.env.NEXT_PUBLIC_PAYMENT_FLOW_DEBUG === 'true';
+
+    function logPaymentFlow(step: string, details?: Record<string, unknown>) {
+        if (!shouldLogPaymentFlow) return;
+        if (details) {
+            console.info(`[payment-flow] ${step}`, details);
+            return;
+        }
+        console.info(`[payment-flow] ${step}`);
+    }
 
     // Initializations and Scroll Locking
     useEffect(() => {
@@ -489,18 +502,45 @@ export default function RegistrationModal({
         setIsLoading(true);
         setError(null);
         try {
+            logPaymentFlow('submit started', {
+                eventId,
+                eventStatus,
+                userId: user?.id || null,
+            });
             const accessToken = await getBearerToken();
+            logPaymentFlow('auth token fetched', {
+                hasToken: Boolean(accessToken),
+            });
+            const bookingPayload = buildBookingPayload();
+            logPaymentFlow('sending booking request', {
+                url: `${backendUrl}/api/bookings`,
+                eventId: bookingPayload.eventId,
+                amount: bookingPayload.amount,
+                selectedTicketCount: Object.keys(selectedTickets).length,
+                isWaitlist: eventStatus === 'waitlist',
+            });
             const response = await fetch(`${backendUrl}/api/bookings`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${accessToken}`,
                 },
-                body: JSON.stringify(buildBookingPayload())
+                body: JSON.stringify(bookingPayload)
             });
 
             const data = await response.json();
+            logPaymentFlow('booking response received', {
+                httpStatus: response.status,
+                ok: response.ok,
+                bookingMode: data?.bookingMode || null,
+                registrationId: data?.booking?.id || null,
+                transactionId: data?.payment?.transactionId || null,
+                paymentUrl: data?.payment?.paymentUrl || null,
+                error: data?.error || null,
+                details: data?.details || null,
+            });
             if (!response.ok) {
+                console.error('[payment-flow] booking request failed', data);
                 throw new Error(data?.details || data?.error || 'Failed to initiate booking');
             }
 
@@ -508,10 +548,20 @@ export default function RegistrationModal({
             setRegistrationId(data?.booking?.id || null);
             setPaymentUrl(data?.payment?.paymentUrl || null);
             setBookingMode(mode);
+            logPaymentFlow('booking state updated', {
+                mode,
+                registrationId: data?.booking?.id || null,
+                transactionId: data?.payment?.transactionId || null,
+                hasPaymentUrl: Boolean(data?.payment?.paymentUrl),
+            });
             onBookingCreated?.(mode);
         } catch (err: any) {
+            console.error('[payment-flow] submit failed', {
+                message: err?.message || 'Unknown error',
+            });
             setError(err.message);
         } finally {
+            logPaymentFlow('submit finished');
             setIsLoading(false);
         }
     };
@@ -896,6 +946,10 @@ export default function RegistrationModal({
                                     <button
                                         onClick={() => {
                                             if (paymentUrl) {
+                                                logPaymentFlow('redirecting to payment URL', {
+                                                    paymentUrl,
+                                                    registrationId,
+                                                });
                                                 window.location.assign(paymentUrl);
                                                 return;
                                             }
