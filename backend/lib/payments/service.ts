@@ -11,6 +11,8 @@ import {
 } from "@/lib/payments/easebuzz/config";
 
 const logger = getLogger("payments-service");
+const shouldLogFullPaymentPayload =
+  process.env.PAYMENT_FLOW_LOG_FULL_PAYLOAD === "true";
 
 const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE || "payments";
 const PAYMENT_LOGS_TABLE = process.env.PAYMENT_LOGS_TABLE || "payment_logs";
@@ -62,6 +64,15 @@ type RegistrationTransactionLookup = {
   transactionId: string;
 };
 
+type EasebuzzInitiateGatewayPayload = {
+  status?: number | string | null;
+  data?: string | null;
+  msg?: string | null;
+  message?: string | null;
+  error?: string | null;
+  error_desc?: string | null;
+};
+
 export type InitiatePaymentFlowInput = {
   amount: number;
   productInfo: string;
@@ -101,6 +112,112 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
+}
+
+function parseEasebuzzGatewayPayload(
+  payload: unknown,
+): EasebuzzInitiateGatewayPayload | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  return payload as EasebuzzInitiateGatewayPayload;
+}
+
+function normalizeGatewayStatus(status: unknown): number | null {
+  if (typeof status === "number" && Number.isFinite(status)) {
+    return status;
+  }
+  if (typeof status !== "string") {
+    return null;
+  }
+
+  const numericStatus = Number(status.trim());
+  return Number.isFinite(numericStatus) ? numericStatus : null;
+}
+
+function resolveGatewayErrorMessage(
+  payload: EasebuzzInitiateGatewayPayload | null,
+): string {
+  const value =
+    payload?.error_desc ||
+    payload?.error ||
+    payload?.msg ||
+    payload?.message ||
+    payload?.data;
+  if (typeof value !== "string" || !value.trim()) {
+    return "Easebuzz initiate transaction failed";
+  }
+  return value.trim();
+}
+
+function truncate(value: string, max = 160) {
+  if (value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, max)}...`;
+}
+
+function summarizeGatewayPayload(payload: EasebuzzInitiateGatewayPayload | null) {
+  if (!payload) {
+    return null;
+  }
+
+  return {
+    status: payload.status ?? null,
+    data:
+      typeof payload.data === "string" ? truncate(payload.data) : payload.data,
+    msg: typeof payload.msg === "string" ? truncate(payload.msg) : payload.msg,
+    message:
+      typeof payload.message === "string"
+        ? truncate(payload.message)
+        : payload.message,
+    error:
+      typeof payload.error === "string" ? truncate(payload.error) : payload.error,
+    error_desc:
+      typeof payload.error_desc === "string"
+        ? truncate(payload.error_desc)
+        : payload.error_desc,
+  };
+}
+
+function classifyInitiateFailure(input: {
+  httpStatus: number;
+  gatewayStatus: number | null;
+  message: string;
+  payload: EasebuzzInitiateGatewayPayload | null;
+}) {
+  const message = input.message.toLowerCase();
+  const status = input.gatewayStatus;
+  const codeMatch =
+    input.message.match(/error\s*code\s*:\s*([a-z0-9_-]+)/i)?.[1] || null;
+
+  let category = "unknown";
+  if (input.httpStatus >= 500) {
+    category = "gateway_http_5xx";
+  } else if (input.httpStatus >= 400) {
+    category = "gateway_http_4xx";
+  } else if (status === 0) {
+    category = "gateway_business_reject";
+  }
+
+  if (message.includes("hash")) {
+    category = "possible_hash_or_credentials_issue";
+  } else if (message.includes("invalid key") || message.includes("key")) {
+    category = "possible_merchant_key_issue";
+  } else if (message.includes("amount")) {
+    category = "possible_amount_validation_issue";
+  } else if (message.includes("txnid")) {
+    category = "possible_txnid_validation_issue";
+  }
+
+  return {
+    category,
+    code: codeMatch,
+    httpStatus: input.httpStatus,
+    gatewayStatus: status,
+    gatewayPayload: summarizeGatewayPayload(input.payload),
+  };
 }
 
 export async function getRegistrationTransactionLookup(
@@ -154,6 +271,24 @@ export async function initiatePaymentFlow(params: {
       });
 
     transactionId = generatedTransactionId;
+    logger.info("Payment flow step: initiate payload built", {
+      transactionId,
+      registrationId: params.input.registrationId,
+      amount: params.input.amount,
+      input: {
+        productInfo: params.input.productInfo,
+        firstName: params.input.firstName,
+        email: params.input.email,
+        phone: params.input.phone,
+        userId: params.input.userId,
+        eventId: params.input.eventId || null,
+      },
+      ...(shouldLogFullPaymentPayload
+        ? {
+            fullGatewayPayload: payload,
+          }
+        : {}),
+    });
 
     await createPendingPayment({
       transactionId,
@@ -162,12 +297,20 @@ export async function initiatePaymentFlow(params: {
       amount: params.input.amount,
       easebuzzTxnId: transactionId,
     });
+    logger.info("Payment flow step: pending payment row created", {
+      transactionId,
+      registrationId: params.input.registrationId,
+    });
 
     const gatewayResponse = await initiateEasebuzzTransaction(payload);
-    const gatewayStatus =
-      typeof gatewayResponse.data === "object" && gatewayResponse.data !== null
-        ? gatewayResponse.data.status || ""
-        : null;
+    const gatewayPayload = parseEasebuzzGatewayPayload(gatewayResponse.data);
+    const gatewayStatus = normalizeGatewayStatus(gatewayPayload?.status ?? null);
+    logger.info("Payment flow step: Easebuzz initiate response received", {
+      transactionId,
+      httpStatus: gatewayResponse.status,
+      gatewayStatus,
+      gatewayPayload: summarizeGatewayPayload(gatewayPayload),
+    });
 
     await logInitiatePaymentRequest({
       transactionId,
@@ -181,14 +324,24 @@ export async function initiatePaymentFlow(params: {
         : "Easebuzz initiate transaction failed",
     });
 
-    if (!gatewayResponse.ok) {
+    if (!gatewayResponse.ok || gatewayStatus !== 1) {
+      const errorMessage = resolveGatewayErrorMessage(gatewayPayload);
+      const failureMeta = classifyInitiateFailure({
+        httpStatus: gatewayResponse.status,
+        gatewayStatus,
+        message: errorMessage,
+        payload: gatewayPayload,
+      });
       await markPaymentInitiateFailed({
         transactionId,
-        message: "Easebuzz initiate transaction failed",
+        message: errorMessage,
       });
 
       logger.error("Easebuzz initiate call failed", {
         status: gatewayResponse.status,
+        gatewayStatus,
+        gatewayMessage: errorMessage,
+        diagnostics: failureMeta,
         transactionId,
       });
 
@@ -196,13 +349,39 @@ export async function initiatePaymentFlow(params: {
         ok: false,
         status: 502,
         transactionId,
-        error: "Easebuzz initiate transaction failed",
+        error: errorMessage,
+        gateway: gatewayResponse.data,
+      };
+    }
+
+    const paymentToken = gatewayPayload?.data?.trim() || "";
+    if (!paymentToken) {
+      const errorMessage = "Easebuzz initiate succeeded without payment token";
+      await markPaymentInitiateFailed({
+        transactionId,
+        message: errorMessage,
+      });
+
+      logger.error("Easebuzz initiate missing payment token", {
+        transactionId,
+      });
+
+      return {
+        ok: false,
+        status: 502,
+        transactionId,
+        error: errorMessage,
         gateway: gatewayResponse.data,
       };
     }
 
     const gatewayUrl = `${getEasebuzzBaseUrl()}${getEasebuzzPaymentPath()}`;
-    const paymentUrl = `${gatewayUrl}/${gatewayResponse.data?.data}`;
+    const paymentUrl = `${gatewayUrl}/${paymentToken}`;
+    logger.info("Payment flow step: payment URL generated", {
+      transactionId,
+      paymentUrlHost: getEasebuzzBaseUrl(),
+      paymentTokenLength: paymentToken.length,
+    });
 
     return {
       ok: true,
