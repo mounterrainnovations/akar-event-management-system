@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, MapPin, Clock, AlertCircle, CheckCircle2, XCircle, Hourglass, Loader2 } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Clock, AlertCircle, CheckCircle2, XCircle, Hourglass, Loader2, Download } from 'lucide-react';
 import { instrumentSerif } from '@/lib/fonts';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -20,6 +20,7 @@ interface Booking {
     createdAt: string;
     ticketsBought: Record<string, number>;
     isWaitlisted: boolean;
+    ticketUrl: string | null;
     formResponse: Record<string, any>; // Added formResponse
     event: {
         name: string;
@@ -146,6 +147,15 @@ export default function MyBookingsPage() {
         );
     }
 
+    const handleDownloadTicket = (e: React.MouseEvent, url: string) => {
+        e.stopPropagation();
+        if (!url) {
+            alert('Your ticket is being generated. Please refresh the page in a few seconds to download it.');
+            return;
+        }
+        window.open(url, '_blank');
+    };
+
     return (
         <main className="min-h-screen bg-white pt-32 pb-20 px-8 md:px-12 lg:px-16 text-[#1a1a1a]">
             <div className="max-w-5xl mx-auto">
@@ -267,9 +277,21 @@ export default function MyBookingsPage() {
                                                 </div>
 
                                                 <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
-                                                    <div className="space-y-1">
-                                                        <p className="font-montserrat text-[10px] uppercase tracking-widest text-[#1a1a1a]/40 font-bold">Booking ID</p>
-                                                        <p className="font-mono text-xs text-[#1a1a1a]/70">{booking.id.slice(0, 8).toUpperCase()}</p>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="space-y-1">
+                                                            <p className="font-montserrat text-[10px] uppercase tracking-widest text-[#1a1a1a]/40 font-bold">Booking ID</p>
+                                                            <p className="font-mono text-xs text-[#1a1a1a]/70">{booking.id.slice(0, 8).toUpperCase()}</p>
+                                                        </div>
+
+                                                        {(booking.ticketUrl || booking.paymentStatus === 'paid') && (
+                                                            <button
+                                                                onClick={(e) => handleDownloadTicket(e, booking.ticketUrl || '')}
+                                                                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold font-montserrat hover:bg-black/80 transition-colors"
+                                                            >
+                                                                <Download size={14} />
+                                                                {booking.ticketUrl ? 'Download Ticket' : 'Preparing...'}
+                                                            </button>
+                                                        )}
                                                     </div>
 
                                                     {!booking.isWaitlisted && (

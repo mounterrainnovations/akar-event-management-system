@@ -24,7 +24,7 @@ interface AuthContextType {
     googleLogin: () => Promise<void>;
     logout: () => Promise<void>;
     isAuthModalOpen: boolean;
-    openAuthModal: () => void;
+    openAuthModal: (returnTo?: string) => void;
     closeAuthModal: () => void;
 }
 
@@ -103,6 +103,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!res.ok) {
             return { error: data.error || 'Sign up failed' };
         }
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            return { error: error.message || 'Account created, but sign in failed' };
+        }
+        closeAuthModal();
         return { error: null };
     };
 
@@ -142,10 +147,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const googleLogin = async () => {
+        let redirectSuffix = '';
+        if (typeof window !== 'undefined') {
+            const returnTo =
+                sessionStorage.getItem('auth:returnTo') ||
+                `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            if (returnTo && returnTo.startsWith('/')) {
+                redirectSuffix = `?redirectTo=${encodeURIComponent(returnTo)}`;
+            }
+        }
         await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: `${window.location.origin}/auth/callback${redirectSuffix}`,
             },
         });
     };
@@ -155,7 +169,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
     };
 
-    const openAuthModal = () => setIsAuthModalOpen(true);
+    const openAuthModal = (returnTo?: string) => {
+        setIsAuthModalOpen(true);
+        if (typeof window !== 'undefined') {
+            let target = typeof returnTo === 'string' ? returnTo : '';
+
+            if (!target) {
+                target = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            }
+
+            if (target && target.startsWith('/')) {
+                sessionStorage.setItem('auth:returnTo', target);
+            }
+        }
+    };
     const closeAuthModal = () => setIsAuthModalOpen(false);
 
     return (

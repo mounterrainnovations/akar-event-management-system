@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -15,6 +16,7 @@ interface AuthFormsProps {
 export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
     const { login, signUp, googleLogin } = useAuth();
     const { showToast } = useToast();
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -24,6 +26,17 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
+
+    const redirectToStoredPath = () => {
+        if (typeof window === 'undefined') return;
+        const returnTo = sessionStorage.getItem('auth:returnTo');
+        if (!returnTo) return;
+        sessionStorage.removeItem('auth:returnTo');
+        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (returnTo !== current) {
+            router.replace(returnTo);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,12 +49,11 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
                 if (result.error) {
                     setError(result.error);
                 } else {
-                    // Sign-up successful — show toast and switch to login
-                    showToast('Account created successfully! Please sign in.', 'success');
+                    showToast('Account created! You are now signed in.', 'success');
                     setName('');
                     setPhoneNumber('');
                     setPassword('');
-                    onToggleMode(); // Switch to login tab
+                    redirectToStoredPath();
                 }
             } else {
                 const result = await login(email, password);
@@ -49,6 +61,7 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
                     setError(result.error);
                 } else {
                     showToast('Welcome back! You are now signed in.', 'success');
+                    redirectToStoredPath();
                 }
             }
         } catch {
