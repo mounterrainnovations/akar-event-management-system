@@ -13,6 +13,8 @@ import {
 } from "@/lib/bookings/http";
 
 const logger = getLogger("api-bookings");
+const shouldLogFullPaymentPayload =
+  process.env.PAYMENT_FLOW_LOG_FULL_PAYLOAD === "true";
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,6 +98,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    logger.info("Booking request parsed", {
+      userId: auth.userId,
+      eventId: input.eventId,
+      amount: input.amount,
+      eventNameLength: input.eventName.length,
+      firstNameLength: input.firstName.length,
+      email: input.email,
+      phone: input.phone,
+      ...(shouldLogFullPaymentPayload
+        ? {
+            rawBody: body,
+            parsedInput: input,
+          }
+        : {}),
+    });
+
     const result = await createBookingForUser({
       userId: auth.userId,
       input,
@@ -134,6 +152,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (!paymentResult.ok) {
+      logger.error("Payment initiation failed for booking", {
+        bookingId: result.booking.id,
+        userId: auth.userId,
+        eventId: input.eventId,
+        amount: input.amount,
+        transactionId: paymentResult.transactionId,
+        status: paymentResult.status,
+        error: paymentResult.error,
+        gateway: paymentResult.gateway,
+      });
       return NextResponse.json(
         {
           error: "Booking created but payment initiation failed",
