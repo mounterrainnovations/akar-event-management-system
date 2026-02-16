@@ -175,7 +175,7 @@ export default function Header() {
                                 </div>
                             ) : (
                                 <button
-                                    onClick={openAuthModal}
+                                    onClick={() => openAuthModal()}
                                     className={`w-8 h-8 flex items-center justify-center rounded-full border ${(isPastHero || isDarkTextPage) ? 'border-gray-900/10 hover:bg-gray-900/5' : 'border-white/20 hover:bg-white/10'} transition-all duration-300 group`}
                                     aria-label="Login"
                                 >
