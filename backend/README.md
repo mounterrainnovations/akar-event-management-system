@@ -97,10 +97,20 @@ PAYMENT_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 # Keep false while testing; enable in final hardening step
 PAYMENT_ENFORCE_AUTH=false
 
+# Required for cron-only payment sync route
+CRON_SECRET=super-secret-value
+
 # Table names (defaults shown)
 PAYMENTS_TABLE=payments
 PAYMENT_LOGS_TABLE=payment_logs
+EVENTS_TABLE=events
 ```
+
+Cron route:
+
+- `GET /api/payments/cron/sync-pending`
+- `GET /api/events/cron/sync-completed`
+- Strict auth: `Authorization: Bearer ${CRON_SECRET}`
 
 ## Getting Started
 

@@ -10,7 +10,8 @@ import {
     MagnifyingGlass,
     Funnel,
     ClipboardText,
-    DownloadSimple
+    DownloadSimple,
+    Info,
 } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { listAllRegistrationsAction } from "@/app/admin/events-new-actions";
@@ -26,6 +27,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { BookingDetailsModal } from "./BookingDetailsModal";
 
 function toReadableLabel(value: string) {
     return value
@@ -194,6 +196,8 @@ export function BookingsSectionManager() {
     const [tierFilter, setTierFilter] = useState("all");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
+    const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
+    const [detailsOpen, setDetailsOpen] = useState(false);
 
     useEffect(() => {
         async function fetchBookings() {
@@ -493,12 +497,13 @@ export function BookingsSectionManager() {
                                 <th className="px-6 py-4 font-semibold">Amount</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
                                 <th className="px-6 py-4 font-semibold text-right">Date</th>
+                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40">
                             {filteredBookings.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                    <td colSpan={7} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center">
                                             <CalendarBlank size={40} weight="thin" className="text-muted-foreground/30 mb-3" />
                                             <p className="text-muted-foreground">No bookings found</p>
@@ -554,6 +559,20 @@ export function BookingsSectionManager() {
                                                 </div>
                                             </div>
                                         </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                onClick={() => {
+                                                    setSelectedBooking(booking);
+                                                    setDetailsOpen(true);
+                                                }}
+                                            >
+                                                <Info size={18} weight="bold" />
+                                                <span className="sr-only">View Details</span>
+                                            </Button>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -561,6 +580,12 @@ export function BookingsSectionManager() {
                     </table>
                 </div>
             </div>
+
+            <BookingDetailsModal
+                booking={selectedBooking}
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+            />
         </section>
     );
 }

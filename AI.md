@@ -4,6 +4,7 @@
 2. Always write clean code with production conventions and naming practices.
 3. Once a task is complete make updates/create new md file in /docs following convention.
 4. Strictly follow DRY
+5. All queries have to be centralized at backend/lib/queries in a manner that they can take a variety of inputs and be re-used.
 
 ## Table Schemas
 
@@ -28,33 +29,33 @@ bundle_offer_type: same_tier, cross_tier
 ### Events
 
 create table public.events (
-id uuid not null default gen_random_uuid (),
-name text not null,
-event_date timestamp with time zone null,
-address_line_1 text not null,
-address_line_2 text null,
-city text not null,
-state text not null,
-country text not null,
-about text null,
-terms_and_conditions text null,
-registration_start timestamp with time zone null,
-registration_end timestamp with time zone null,
-status public.event_status not null default 'draft'::event_status,
-created_at timestamp with time zone not null default now(),
-updated_at timestamp with time zone not null default now(),
-deleted_at timestamp with time zone null,
-verification_required boolean not null default false,
-base_event_banner text null,
-location_url text null,
-constraint events_pkey primary key (id),
-constraint events_check check (
-(
-(registration_end is null)
-or (registration_start is null)
-or (registration_end > registration_start)
-)
-)
+  id uuid not null default gen_random_uuid (),
+  name text not null,
+  event_date timestamp with time zone null,
+  address_line_1 text not null,
+  address_line_2 text null,
+  city text not null,
+  state text not null,
+  country text not null,
+  about text null,
+  terms_and_conditions text null,
+  registration_start timestamp with time zone null,
+  registration_end timestamp with time zone null,
+  status public.event_status not null default 'draft'::event_status,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone null,
+  verification_required boolean not null default false,
+  base_event_banner text null,
+  location_url text null,
+  constraint events_pkey primary key (id),
+  constraint events_check check (
+    (
+      (registration_end is null)
+      or (registration_start is null)
+      or (registration_end > registration_start)
+    )
+  )
 ) TABLESPACE pg_default;
 
 create index IF not exists events_date_idx on public.events using btree (event_date) TABLESPACE pg_default;
@@ -160,29 +161,30 @@ execute FUNCTION set_updated_at ();
 ### Event Registrations
 
 create table public.event_registrations (
-id uuid not null default gen_random_uuid (),
-event_id uuid not null,
-user_id uuid not null,
-coupon_id uuid null,
-total_amount numeric(10, 2) not null,
-final_amount numeric(10, 2) not null,
-payment_status public.payment_status not null default 'pending'::payment_status,
-form_response jsonb not null,
-created_at timestamp with time zone not null default now(),
-is_verified boolean null,
-updated_at timestamp with time zone not null default now(),
-deleted_at timestamp with time zone null,
-name text not null,
-transaction_id text null,
-tickets_bought jsonb null,
-constraint event_registrations_pkey primary key (id),
-constraint event_ticket_name unique (event_id, name),
-constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
-constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
-constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on update CASCADE on delete set null,
-constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
-constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
-constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric))
+  id uuid not null default gen_random_uuid (),
+  event_id uuid not null,
+  user_id uuid not null,
+  coupon_id uuid null,
+  total_amount numeric(10, 2) not null,
+  final_amount numeric(10, 2) not null,
+  payment_status public.payment_status not null default 'pending'::payment_status,
+  form_response jsonb not null,
+  created_at timestamp with time zone not null default now(),
+  is_verified boolean null,
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone null,
+  name text not null,
+  transaction_id text null,
+  tickets_bought jsonb null,
+  is_waitlisted boolean null,
+  constraint event_registrations_pkey primary key (id),
+  constraint event_ticket_name unique (event_id, name),
+  constraint event_registrations_coupon_id_fkey foreign KEY (coupon_id) references event_coupons (id) on delete set null,
+  constraint event_registrations_event_id_fkey foreign KEY (event_id) references events (id) on delete CASCADE,
+  constraint event_registrations_transaction_id_fkey foreign KEY (transaction_id) references payments (easebuzz_txnid) on update CASCADE on delete set null,
+  constraint event_registrations_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
+  constraint event_registrations_total_amount_check check ((total_amount >= (0)::numeric)),
+  constraint event_registrations_final_amount_check check ((final_amount >= (0)::numeric))
 ) TABLESPACE pg_default;
 
 create index IF not exists event_registrations_event_idx on public.event_registrations using btree (event_id) TABLESPACE pg_default;
@@ -283,23 +285,23 @@ execute FUNCTION set_updated_at ();
 ### Payment (Core transactions for use)
 
 create table public.payments (
-id uuid not null,
-registration_id uuid not null,
-user_id uuid not null,
-easebuzz_txnid text null,
-amount numeric(12, 2) not null,
-refund_amount numeric(12, 2) null default 0,
-status public.payment_status not null default 'pending'::payment_status,
-mode public.payment_mode null,
-gateway_response_message text null,
-initiated_at timestamp with time zone null default now(),
-completed_at timestamp with time zone null,
-refunded_at timestamp with time zone null,
-created_at timestamp with time zone null default now(),
-updated_at timestamp with time zone null default now(),
-constraint payments_pkey primary key (id),
-constraint payments_easebuzz_txnid_key unique (easebuzz_txnid),
-constraint payments_id_key unique (id)
+  id uuid not null,
+  registration_id uuid not null,
+  user_id uuid not null,
+  easebuzz_txnid text null,
+  amount numeric(12, 2) not null,
+  refund_amount numeric(12, 2) null default 0,
+  status public.payment_status not null default 'pending'::payment_status,
+  mode public.payment_mode null,
+  gateway_response_message text null,
+  initiated_at timestamp with time zone null default now(),
+  completed_at timestamp with time zone null,
+  refunded_at timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint payments_pkey primary key (id),
+  constraint payments_easebuzz_txnid_key unique (easebuzz_txnid),
+  constraint payments_id_key unique (id)
 ) TABLESPACE pg_default;
 
 create index IF not exists easebuzz_txnid_idx on public.payments using btree (easebuzz_txnid) TABLESPACE pg_default;

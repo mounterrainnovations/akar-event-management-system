@@ -47,11 +47,15 @@ export function getPaymentCallbackBaseUrl() {
 }
 
 export function getPaymentResultBaseUrl() {
-  return (
-    process.env.PAYMENT_RESULT_BASE_URL?.trim() ||
-    process.env.FRONTEND_BASE_URL?.trim() ||
-    "http://localhost:3001"
-  );
+  // Fallback
+  if (!process.env.FRONTEND_BASE_URL?.trim()) {
+    logger.error("FRONTEND_BASE_URL not present in ENV");
+    return "http://localhost:3001";
+  }
+
+  return process.env.ENV === "dev"
+    ? "http://localhost:3001"
+    : process.env.FRONTEND_BASE_URL;
 }
 
 export function getPaymentAllowedOrigins() {
