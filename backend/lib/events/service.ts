@@ -45,6 +45,7 @@ type TicketRow = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  visibility_config: JsonValue | null;
 };
 
 type CouponRow = {
@@ -166,6 +167,7 @@ export type EventTicket = {
   maxQuantityPerPerson: number;
   createdAt: string;
   deletedAt: string | null;
+  visibilityConfig: JsonValue | null;
 };
 
 export type EventCoupon = {
@@ -269,6 +271,7 @@ export type TicketWriteInput = {
   discountEnd?: string | null;
   status?: string | null;
   maxQuantityPerPerson?: number;
+  visibilityConfig?: JsonValue | null;
 };
 
 export type CouponWriteInput = {
@@ -306,7 +309,7 @@ const logger = getLogger("events-service");
 const EVENT_SELECT_FIELDS =
   "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required,location_url";
 const TICKET_SELECT_FIELDS =
-  "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person";
+  "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person,visibility_config";
 const COUPON_SELECT_FIELDS =
   "id,event_id,code,discount_value,valid_from,valid_until,is_active,created_at,updated_at,deleted_at";
 const FORM_FIELD_SELECT_FIELDS =
@@ -340,6 +343,7 @@ function mapTicket(row: TicketRow): EventTicket {
     maxQuantityPerPerson: row.max_qty_per_person || 1,
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
+    visibilityConfig: row.visibility_config,
   };
 }
 
@@ -432,6 +436,7 @@ function mapTicketWriteInput(input: TicketWriteInput, includeEventId: boolean) {
     discount_end: input.discountEnd ?? null,
     ...(input.status ? { status: input.status } : {}),
     max_qty_per_person: input.maxQuantityPerPerson ?? 1,
+    visibility_config: input.visibilityConfig ?? null,
   };
 }
 

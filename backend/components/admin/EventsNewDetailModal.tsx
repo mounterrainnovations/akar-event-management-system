@@ -39,6 +39,16 @@ function formatDate(dateStr: string | null) {
     });
 }
 
+function formatVisibilityConfig(config: any) {
+    if (!config || Object.keys(config).length === 0) return "—";
+    return Object.entries(config)
+        .map(([key, values]) => {
+            const valArray = Array.isArray(values) ? values : [values];
+            return `${key}: ${valArray.join(", ")}`;
+        })
+        .join("; ");
+}
+
 function Section({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
     return (
         <div className="space-y-3">
@@ -329,8 +339,8 @@ export async function EventsNewDetailModal({
                                 items={[
                                     { label: "Starts", value: formatDate(event.registration_start) },
                                     { label: "Ends", value: formatDate(event.registration_end) },
-                                    { label: "Verification", value: event.verification_required ? "Required" : "Optional" },
-                                    { label: "Total Registrations", value: analytics.registrations },
+                                    { label: "Starts", value: formatDate(event.registration_start) },
+                                    { label: "Ends", value: formatDate(event.registration_end) },
                                 ]}
                             />
                         </Section>
@@ -348,7 +358,7 @@ export async function EventsNewDetailModal({
                                                 <th className="px-3 py-2 text-center">Qty (Sold/Total)</th>
                                                 <th className="px-3 py-2 text-center">Max/Person</th>
                                                 <th className="px-3 py-2">Status</th>
-                                                <th className="px-3 py-2">Discount Window</th>
+                                                <th className="px-3 py-2">Condition</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/30 bg-card">
@@ -362,8 +372,8 @@ export async function EventsNewDetailModal({
                                                         {t.maxQuantityPerPerson}
                                                     </td>
                                                     <td className="px-3 py-2 capitalize text-muted-foreground">{t.status}</td>
-                                                    <td className="px-3 py-2 text-muted-foreground">
-                                                        {t.discountStart ? `${formatDate(t.discountStart)} - ${formatDate(t.discountEnd)}` : "—"}
+                                                    <td className="px-3 py-2 text-muted-foreground text-xs">
+                                                        {formatVisibilityConfig(t.visibilityConfig)}
                                                     </td>
                                                 </tr>
                                             ))}

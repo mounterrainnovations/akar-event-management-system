@@ -15,6 +15,7 @@ interface Ticket {
     soldCount: number;
     status: string;
     maxQuantityPerPerson: number;
+    visibilityConfig?: Record<string, string[]>;
 }
 
 interface FormField {
@@ -177,6 +178,44 @@ export default function RegistrationModal({
             .filter(f => visibleNames.has(f.fieldName))
             .sort((a, b) => a.displayOrder - b.displayOrder);
     }, [formFields, formValues]);
+
+    const visibleTickets = useMemo(() => {
+        return tickets.filter(ticket => {
+            // If no config, it's visible
+            if (!ticket.visibilityConfig || Object.keys(ticket.visibilityConfig).length === 0) {
+                return true;
+            }
+
+            // Check all rules
+            for (const [fieldName, allowedValues] of Object.entries(ticket.visibilityConfig)) {
+                // If the controlling field is not answered, or answer is not in allowed list -> Hidden
+                const currentAnswer = formValues[fieldName];
+                // Handle both string answers and object answers (if any future complexity) - adhering to simple string match for now
+                if (!currentAnswer || !allowedValues.includes(String(currentAnswer))) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }, [tickets, formValues]);
+
+    // Effect: Clean up selected tickets that are no longer visible
+    useEffect(() => {
+        setSelectedTickets(prev => {
+            const visibleIds = new Set(visibleTickets.map(t => t.id));
+            const next = { ...prev };
+            let hasChanges = false;
+
+            Object.keys(next).forEach(id => {
+                if (!visibleIds.has(id)) {
+                    delete next[id];
+                    hasChanges = true;
+                }
+            });
+
+            return hasChanges ? next : prev;
+        });
+    }, [visibleTickets]);
 
     // Calculations
     const totalBaseAmount = useMemo(() => {
@@ -701,7 +740,7 @@ export default function RegistrationModal({
                                             <div className="space-y-2.5">
                                                 <p className="font-montserrat text-[9px] font-bold uppercase tracking-widest text-[#1a1a1a]/40">Select Tickets / Activities</p>
                                                 <div className="grid grid-cols-1 gap-2">
-                                                    {tickets.map((ticket, idx) => {
+                                                    {visibleTickets.map((ticket, idx) => {
                                                         const qty = selectedTickets[ticket.id] || 0;
                                                         const isSelected = qty > 0;
 

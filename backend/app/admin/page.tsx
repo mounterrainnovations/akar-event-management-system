@@ -36,7 +36,6 @@ type MediaCategory = "highlights" | "hero-carousel" | "members";
 
 const navItems: Array<{ title: string; section: AdminSection; icon: typeof Image; enabled: boolean }> = [
   { title: "Media", section: "media", icon: Image, enabled: true },
-  { title: "Members", section: "media", icon: Users, enabled: true },
   { title: "Events", section: "events", icon: CalendarPlus, enabled: true },
   { title: "Bookings", section: "bookings", icon: BookOpen, enabled: true },
   { title: "Events (Legacy)", section: "media", icon: CalendarBlank, enabled: false },
