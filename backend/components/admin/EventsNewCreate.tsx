@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -27,12 +27,16 @@ import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createEventAction,
+  updateEventAction,
   uploadEventBannerAction,
 } from "@/app/admin/events-new-actions";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 
 type EventsNewCreateProps = {
   includeDeleted?: boolean;
+  mode?: "create" | "edit";
+  eventId?: string;
+  initialData?: EventFormData | null;
 };
 
 type Step =
@@ -67,7 +71,7 @@ type TicketData = {
   visibilityConfig?: Record<string, string[]>; // FieldName -> AllowedValues[]
 };
 
-type EventFormData = {
+export type EventFormData = {
   // Step 1: General
   name: string;
   baseEventBanner: string | null; // URL
@@ -134,11 +138,18 @@ const INITIAL_DATA: EventFormData = {
   bundleOffers: [],
 };
 
-export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
+export function EventsNewCreate({
+  includeDeleted,
+  mode = "create",
+  eventId,
+  initialData,
+}: EventsNewCreateProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<Step>("general");
-  const [formData, setFormData] = useState<EventFormData>(INITIAL_DATA);
+  const [formData, setFormData] = useState<EventFormData>(
+    initialData ?? INITIAL_DATA,
+  );
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -149,7 +160,16 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
   // Refs for scrolling to errors
   const formTopRef = useRef<HTMLDivElement>(null);
 
-  const backLink = `/admin?section=events${includeDeleted ? "&includeDeleted=1" : ""}`;
+  useEffect(() => {
+    setFormData(initialData ?? INITIAL_DATA);
+    setCurrentStep("general");
+    setErrors({});
+  }, [initialData]);
+
+  const backLink =
+    mode === "edit" && eventId
+      ? `/admin?section=events&eventId=${eventId}${includeDeleted ? "&includeDeleted=1" : ""}`
+      : `/admin?section=events${includeDeleted ? "&includeDeleted=1" : ""}`;
 
   const handleBack = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -281,11 +301,6 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
       }
     } else if (currentStep === "address") {
       if (validateStep2()) {
-        setCurrentStep("coupons");
-        formTopRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    } else if (currentStep === "coupons") {
-      if (validateStep3()) {
         setCurrentStep("form-fields");
         formTopRef.current?.scrollIntoView({ behavior: "smooth" });
       }
@@ -296,6 +311,11 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
       }
     } else if (currentStep === "pricings") {
       if (validateStep5()) {
+        setCurrentStep("coupons");
+        formTopRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    } else if (currentStep === "coupons") {
+      if (validateStep3()) {
         setCurrentStep("offers");
         formTopRef.current?.scrollIntoView({ behavior: "smooth" });
       }
@@ -304,10 +324,10 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
 
   const handlePrevious = () => {
     if (currentStep === "address") setCurrentStep("general");
-    else if (currentStep === "coupons") setCurrentStep("address");
-    else if (currentStep === "form-fields") setCurrentStep("coupons");
+    else if (currentStep === "form-fields") setCurrentStep("address");
     else if (currentStep === "pricings") setCurrentStep("form-fields");
-    else if (currentStep === "offers") setCurrentStep("pricings");
+    else if (currentStep === "coupons") setCurrentStep("pricings");
+    else if (currentStep === "offers") setCurrentStep("coupons");
     formTopRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -329,9 +349,9 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
     // Validate all steps before submitting
     const isStep1Valid = validateStep1();
     const isStep2Valid = validateStep2();
-    const isStep3Valid = validateStep3();
-    const isStep4Valid = validateStep4();
-    const isStep5Valid = validateStep5();
+    const isStep3Valid = validateStep4();
+    const isStep4Valid = validateStep5();
+    const isStep5Valid = validateStep3();
     const isStep6Valid = validateStep6();
 
     if (
@@ -345,9 +365,9 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
       // Find the *first* step with an error and navigate there
       if (!isStep1Valid) setCurrentStep("general");
       else if (!isStep2Valid) setCurrentStep("address");
-      else if (!isStep3Valid) setCurrentStep("coupons");
-      else if (!isStep4Valid) setCurrentStep("form-fields");
-      else if (!isStep5Valid) setCurrentStep("pricings");
+      else if (!isStep3Valid) setCurrentStep("form-fields");
+      else if (!isStep4Valid) setCurrentStep("pricings");
+      else if (!isStep5Valid) setCurrentStep("coupons");
       else if (!isStep6Valid) setCurrentStep("offers");
 
       formTopRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -357,7 +377,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
 
     setIsSubmitting(true);
     try {
-      const result = await createEventAction({
+      const payload = {
         name: formData.name,
         baseEventBanner: formData.baseEventBanner,
         eventDate: new Date(formData.eventDate).toISOString(),
@@ -406,17 +426,26 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
           applicableTicketIds:
             b.applicableTicketIds.length > 0 ? b.applicableTicketIds : null,
         })),
-      });
+      };
+
+      const result =
+        mode === "edit" && eventId
+          ? await updateEventAction(eventId, payload)
+          : await createEventAction(payload);
 
       if (result.success) {
         toast.success(
-          `Event ${status === "draft" ? "saved as draft" : "created"} successfully!`,
+          mode === "edit"
+            ? `Event ${status === "draft" ? "saved as draft" : "updated"} successfully!`
+            : `Event ${status === "draft" ? "saved as draft" : "created"} successfully!`,
         );
-        // onSuccess?.(); // This line was in the instruction but onSuccess is not defined in this component.
         queryClient.invalidateQueries({ queryKey: ["admin-events"] });
         router.push(`/admin?section=events&eventId=${result.eventId}`);
       } else {
-        toast.error(result.error || "Failed to create event");
+        toast.error(
+          result.error ||
+            (mode === "edit" ? "Failed to update event" : "Failed to create event"),
+        );
       }
     } catch (err) {
       console.error(err);
@@ -672,12 +701,12 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
         return { number: 1, label: "General" };
       case "address":
         return { number: 2, label: "Address" };
-      case "coupons":
-        return { number: 3, label: "Coupons" };
       case "form-fields":
-        return { number: 4, label: "Form Data" };
+        return { number: 3, label: "Form Data" };
       case "pricings":
-        return { number: 5, label: "Tiers / Activity" };
+        return { number: 4, label: "Tiers / Activity" };
+      case "coupons":
+        return { number: 5, label: "Coupons" };
       case "offers":
         return { number: 6, label: "Offers" };
       default:
@@ -688,9 +717,9 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
   const STEPS: Step[] = [
     "general",
     "address",
-    "coupons",
     "form-fields",
     "pricings",
+    "coupons",
     "offers",
   ];
 
@@ -709,7 +738,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
             </Link>
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                Create New Event
+                {mode === "edit" ? "Edit Event" : "Create New Event"}
               </h2>
               <p className="text-xs text-muted-foreground">
                 Step {getStepDetails(currentStep).number}:{" "}
@@ -2144,7 +2173,7 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                       disabled={isSubmitting}
                       className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
                     >
-                      Create Future Event
+                      {mode === "edit" ? "Save as Future Event" : "Create Future Event"}
                     </button>
                   </>
                 )}
@@ -2158,9 +2187,13 @@ export function EventsNewCreate({ includeDeleted }: EventsNewCreateProps) {
                   className="rounded-lg bg-emerald-600 px-8 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {isSubmitting
-                    ? "Creating..."
+                    ? mode === "edit"
+                      ? "Saving..."
+                      : "Creating..."
                     : currentStep === "offers"
-                      ? "Create Event"
+                      ? mode === "edit"
+                        ? "Update Event"
+                        : "Create Event"
                       : "Next"}
                 </button>
               </div>
