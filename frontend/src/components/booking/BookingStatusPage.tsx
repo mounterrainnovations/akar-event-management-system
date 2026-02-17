@@ -231,10 +231,11 @@ export default function BookingStatusPage({
             )}
             <Link
               href="/events"
-              className={`inline-flex items-center justify-center rounded-full px-7 py-3 text-sm font-bold transition-colors ${variant === "failure" && retryEventId
+              className={`inline-flex items-center justify-center rounded-full px-7 py-3 text-sm font-bold transition-colors ${
+                variant === "failure" && retryEventId
                   ? "border border-[#1a1a1a]/20 text-[#1a1a1a] hover:bg-black/5"
                   : "bg-[#1a1a1a] text-white hover:bg-black"
-                }`}
+              }`}
             >
               Explore Events
             </Link>
