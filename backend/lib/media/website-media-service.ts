@@ -14,6 +14,8 @@ type WebsiteMediaRow = {
   section: WebsiteSection;
   display_order: number;
   is_active: boolean;
+  title: string | null;
+  description: string | null;
   deleted_at: string | null;
   media: {
     id: string;
@@ -41,6 +43,8 @@ export type WebsiteMediaItem = {
   mimeType: string;
   fileSize: number;
   previewUrl: string;
+  title: string | null;
+  description: string | null;
 };
 
 export type WebsiteSectionState = {
@@ -156,8 +160,10 @@ export async function uploadFilesToSection(params: {
   userId: string;
   section: WebsiteSection;
   files: File[];
+  title?: string;
+  description?: string;
 }) {
-  const { userId, section, files } = params;
+  const { userId, section, files, title, description } = params;
   const rules = getSectionRules(section);
   const validFiles = files.filter((file) => file.size > 0);
 
@@ -186,6 +192,8 @@ export async function uploadFilesToSection(params: {
       section,
       display_order: nextDisplayOrder,
       is_active: true,
+      title: title || null,
+      description: description || null,
     });
 
     if (error) {
@@ -249,6 +257,8 @@ export async function listSectionMediaState(params: {
         mimeType: media.mime_type,
         fileSize: media.file_size,
         previewUrl,
+        title: row.title,
+        description: row.description,
       } satisfies WebsiteMediaItem;
     });
 
@@ -318,6 +328,8 @@ export async function listPublicSectionMedia(params: {
         mimeType: media.mime_type,
         fileSize: media.file_size,
         previewUrl: getPublicMediaUrl(media.file_path, media.bucket_name),
+        title: row.title,
+        description: row.description,
       } satisfies WebsiteMediaItem;
     });
 
@@ -367,6 +379,8 @@ export async function toggleSectionMediaVisibility(params: {
     });
     throw new Error("Unable to update media visibility");
   }
+
+  return { section: row.section };
 }
 
 export async function deleteSectionMediaItem(params: {
@@ -430,11 +444,11 @@ export async function deleteSectionMediaItem(params: {
       mediaId: row.media_id,
       message: refsError.message,
     });
-    return;
+    return { section: row.section };
   }
 
   if ((remainingRefs ?? 0) > 0) {
-    return;
+    return { section: row.section };
   }
 
   const { error: softDeleteError } = await supabase
@@ -448,7 +462,7 @@ export async function deleteSectionMediaItem(params: {
       mediaId: row.media_id,
       message: softDeleteError.message,
     });
-    return;
+    return { section: row.section };
   }
 
   logger.info("Soft deleted media and section mapping after storage delete", {
@@ -456,4 +470,6 @@ export async function deleteSectionMediaItem(params: {
     mediaId: row.media_id,
     section: row.section,
   });
+
+  return { section: row.section };
 }

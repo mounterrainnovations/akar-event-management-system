@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { instrumentSerif } from '@/lib/fonts';
 import { Mail, Phone, MapPin } from 'lucide-react';
+import { fetchSectionMedia, type WebsiteMediaItem } from '@/lib/websiteMedia';
 
 const contactInfo = [
     {
@@ -49,18 +50,74 @@ const wordAnim = {
     },
 };
 
-const people = [
-    { name: 'Mihai Toma', role: 'Partner' },
-    { name: 'Jack Smethurst', role: 'Partner' },
-    { name: 'Leon Brown', role: 'Partner' },
-    { name: 'Sarah Jenkins', role: 'Creative Director' },
-    { name: 'David Chen', role: 'Head of Strategy' },
-    { name: 'Elena Rodriguez', role: 'Experience Lead' },
-    { name: 'Alex Wong', role: 'Senior Developer' },
-];
+interface MemberCardProps {
+    member: WebsiteMediaItem;
+}
+
+const MemberCard: React.FC<MemberCardProps> = ({ member }) => {
+    const displayName = member.title || member.fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+
+    return (
+        <div className="inline-block w-[280px] md:w-[350px] flex-shrink-0 align-top whitespace-normal">
+            <div className="bg-[#f0f0f0] aspect-[3/4] rounded-[2rem] overflow-hidden mb-6 flex items-center justify-center relative group cursor-pointer">
+                {member.previewUrl ? (
+                    <Image
+                        src={member.previewUrl}
+                        alt={displayName}
+                        fill
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                ) : (
+                    <div className="absolute inset-0 bg-gray-200 transition-colors duration-500 group-hover:bg-gray-300" />
+                )}
+                {!member.previewUrl && (
+                    <span className="relative z-10 text-gray-400 font-medium tracking-widest text-xs uppercase opacity-50">Photo Placeholder</span>
+                )}
+            </div>
+            <div className="px-4 text-center lg:text-left">
+                <h3 className="text-xl md:text-2xl font-semibold text-[#1a1a1a] leading-tight">
+                    {displayName}
+                </h3>
+                {member.description && (
+                    <p className="text-[#1a1a1a]/40 text-sm md:text-base font-medium mt-1">
+                        {member.description}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export default function ContactPage() {
-    const scrollingItems = [...people, ...people];
+    const [members, setMembers] = useState<WebsiteMediaItem[]>([]);
+    const [shouldScroll, setShouldScroll] = useState(true);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        async function load() {
+            const data = await fetchSectionMedia('members');
+            setMembers(data);
+        }
+        load();
+    }, []);
+
+    useEffect(() => {
+        function checkScroll() {
+            if (containerRef.current && members.length > 0) {
+                const containerWidth = containerRef.current.offsetWidth;
+                const itemWidth = window.innerWidth >= 768 ? 350 : 280;
+                const gap = 24;
+                const totalWidth = members.length * (itemWidth + gap) - gap;
+                setShouldScroll(totalWidth > containerWidth);
+            }
+        }
+
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, [members]);
+
+    const itemsToRender = shouldScroll ? [...members, ...members] : members;
 
     return (
         <main className="min-h-screen relative bg-white">
@@ -107,44 +164,38 @@ export default function ContactPage() {
                     </div>
                 </section>
 
-                {/* Infinite Scrolling Section - Compacted spacing */}
-                <div className="relative w-full overflow-hidden py-12 mb-20">
-                    <motion.div
-                        className="flex gap-6 whitespace-nowrap"
-                        animate={{
-                            x: ["0%", "-50%"],
-                        }}
-                        transition={{
-                            x: {
-                                repeat: Infinity,
-                                repeatType: "loop",
-                                duration: 30,
-                                ease: "linear",
-                            },
-                        }}
-                        style={{ width: "fit-content" }}
-                    >
-                        {scrollingItems.map((person, index) => (
-                            <div
-                                key={`${person.name}-${index}`}
-                                className="inline-block w-[280px] md:w-[350px] flex-shrink-0"
+                {/* Team Section */}
+                {members.length > 0 && (
+                    <div className="relative w-full overflow-hidden py-12 mb-20" ref={containerRef}>
+                        {shouldScroll ? (
+                            <motion.div
+                                className="flex gap-6 whitespace-nowrap"
+                                animate={{
+                                    x: ["0%", "-50%"],
+                                }}
+                                transition={{
+                                    x: {
+                                        repeat: Infinity,
+                                        repeatType: "loop",
+                                        duration: Math.max(30, members.length * 5),
+                                        ease: "linear",
+                                    },
+                                }}
+                                style={{ width: "fit-content" }}
                             >
-                                <div className="bg-[#f0f0f0] aspect-[3/4] rounded-[2rem] overflow-hidden mb-6 flex items-center justify-center relative group cursor-pointer">
-                                    <div className="absolute inset-0 bg-gray-200 transition-colors duration-500 group-hover:bg-gray-300" />
-                                    <span className="relative z-10 text-gray-400 font-medium tracking-widest text-xs uppercase opacity-50">Photo Placeholder</span>
-                                </div>
-                                <div className="px-4 text-center lg:text-left">
-                                    <h3 className="text-xl md:text-2xl font-semibold text-[#1a1a1a] leading-tight">
-                                        {person.name}
-                                    </h3>
-                                    <p className="text-[#1a1a1a]/40 text-sm md:text-base font-medium">
-                                        {person.role}
-                                    </p>
-                                </div>
+                                {itemsToRender.map((member, index) => (
+                                    <MemberCard key={`${member.id}-${index}`} member={member} />
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <div className="flex justify-center gap-6 flex-wrap px-4">
+                                {itemsToRender.map((member, index) => (
+                                    <MemberCard key={`${member.id}-${index}`} member={member} />
+                                ))}
                             </div>
-                        ))}
-                    </motion.div>
-                </div>
+                        )}
+                    </div>
+                )}
 
 
 

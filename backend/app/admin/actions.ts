@@ -8,7 +8,10 @@ import {
   toggleSectionMediaVisibility,
   uploadFilesToSection,
 } from "@/lib/media/website-media-service";
-import { isWebsiteSection, type WebsiteSection } from "@/lib/media/website-sections";
+import {
+  isWebsiteSection,
+  type WebsiteSection,
+} from "@/lib/media/website-sections";
 
 const logger = getLogger("admin-actions");
 
@@ -29,13 +32,17 @@ export async function uploadSectionMediaAction(formData: FormData) {
   if (!section) {
     redirect("/admin?error=Invalid+section");
   }
-  const files = formData.getAll("mediaFiles").filter((entry): entry is File => entry instanceof File);
+  const files = formData
+    .getAll("mediaFiles")
+    .filter((entry): entry is File => entry instanceof File);
 
   try {
     await uploadFilesToSection({
       userId: session.sub,
       section,
       files,
+      title: formData.get("title")?.toString(),
+      description: formData.get("description")?.toString(),
     });
   } catch (error) {
     logger.error("Section media upload failed", {
@@ -43,10 +50,14 @@ export async function uploadSectionMediaAction(formData: FormData) {
       section,
       message: error instanceof Error ? error.message : "Unknown error",
     });
-    redirect(`/admin?error=${encodeURIComponent(error instanceof Error ? error.message : "Upload failed")}`);
+    redirect(
+      `/admin?error=${encodeURIComponent(error instanceof Error ? error.message : "Upload failed")}`,
+    );
   }
 
-  redirect("/admin?success=Media+uploaded+successfully");
+  redirect(
+    `/admin?section=media&mediaCategory=${section}&success=Media+uploaded+successfully`,
+  );
 }
 
 export async function toggleSectionMediaAction(formData: FormData) {
@@ -60,20 +71,28 @@ export async function toggleSectionMediaAction(formData: FormData) {
     redirect("/admin?error=Invalid+media+item");
   }
 
+  let section: WebsiteSection;
+
   try {
-    await toggleSectionMediaVisibility({
+    const result = await toggleSectionMediaVisibility({
       websiteMediaId,
     });
+    section = result.section;
   } catch (error) {
     logger.error("Section media toggle failed", {
       userId: session.sub,
       websiteMediaId,
       message: error instanceof Error ? error.message : "Unknown error",
     });
-    redirect(`/admin?error=${encodeURIComponent(error instanceof Error ? error.message : "Update failed")}`);
+    const section = formData.get("section");
+    redirect(
+      `/admin?section=media&mediaCategory=${section}&error=${encodeURIComponent(error instanceof Error ? error.message : "Update failed")}`,
+    );
   }
 
-  redirect("/admin?success=Visibility+updated");
+  redirect(
+    `/admin?section=media&mediaCategory=${section}&success=Visibility+updated`,
+  );
 }
 
 export async function deleteSectionMediaAction(formData: FormData) {
@@ -87,18 +106,26 @@ export async function deleteSectionMediaAction(formData: FormData) {
     redirect("/admin?error=Invalid+media+item");
   }
 
+  let section: WebsiteSection;
+
   try {
-    await deleteSectionMediaItem({
+    const result = await deleteSectionMediaItem({
       websiteMediaId,
     });
+    section = result.section;
   } catch (error) {
     logger.error("Section media delete failed", {
       userId: session.sub,
       websiteMediaId,
       message: error instanceof Error ? error.message : "Unknown error",
     });
-    redirect(`/admin?error=${encodeURIComponent(error instanceof Error ? error.message : "Delete failed")}`);
+    const section = formData.get("section");
+    redirect(
+      `/admin?section=media&mediaCategory=${section}&error=${encodeURIComponent(error instanceof Error ? error.message : "Delete failed")}`,
+    );
   }
 
-  redirect("/admin?success=Media+removed");
+  redirect(
+    `/admin?section=media&mediaCategory=${section}&success=Media+removed`,
+  );
 }
