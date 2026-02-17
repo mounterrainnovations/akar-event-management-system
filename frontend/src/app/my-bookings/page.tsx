@@ -279,7 +279,7 @@ export default function MyBookingsPage() {
                                                 <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
                                                     <div className="space-y-1">
                                                         <p className="font-montserrat text-[10px] uppercase tracking-widest text-[#1a1a1a]/40 font-bold">Booking ID</p>
-                                                        <p className="font-mono text-xs text-[#1a1a1a]/70">{booking.id.slice(0, 8).toUpperCase()}</p>
+                                                        <p className="font-mono text-xs text-[#1a1a1a]/70 break-all">{booking.id.toUpperCase()}</p>
                                                     </div>
 
                                                     <div className="flex items-center gap-3">

@@ -127,6 +127,7 @@ export async function sendBookingSuccessEmail(
   eventDate?: string,
   location?: string,
   eventTerms?: string,
+  discountBreakdown?: { name: string; amount: number }[],
   preGeneratedPdfBuffer?: Buffer,
 ) {
   // Configured Template ID from requirements
@@ -148,6 +149,7 @@ export async function sendBookingSuccessEmail(
         bookingDate: bookingDate,
         tickets: tickets,
         eventTerms: eventTerms,
+        discountBreakdown: discountBreakdown,
       }));
 
     attachments.push({

@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock3, XCircle } from "lucide-react";
 import { instrumentSerif } from "@/lib/fonts";
@@ -70,6 +73,18 @@ export default function BookingStatusPage({
   const transactionId = getParamValue(searchParams, "txnid");
   const gatewayStatus = getParamValue(searchParams, "status");
   const gatewayMessage = getParamValue(searchParams, "message");
+  const queryEventId =
+    getParamValue(searchParams, "eventId") ??
+    getParamValue(searchParams, "event_id");
+  const [storedEventId, setStoredEventId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const eventId = sessionStorage.getItem("booking:lastEventId");
+    if (eventId) setStoredEventId(eventId);
+  }, []);
+
+  const retryEventId = queryEventId ?? storedEventId;
 
   return (
     <main className="min-h-screen bg-white pt-32 pb-20 px-8 md:px-12 lg:px-16 text-[#1a1a1a]">
@@ -140,9 +155,21 @@ export default function BookingStatusPage({
           )}
 
           <div className="flex flex-col sm:flex-row gap-3">
+            {variant === "failure" && retryEventId && (
+              <Link
+                href={`/event/${retryEventId}`}
+                className="inline-flex items-center justify-center rounded-full bg-[#1a1a1a] px-7 py-3 text-sm font-bold text-white hover:bg-black transition-colors"
+              >
+                Retry Booking
+              </Link>
+            )}
             <Link
               href="/events"
-              className="inline-flex items-center justify-center rounded-full bg-[#1a1a1a] px-7 py-3 text-sm font-bold text-white hover:bg-black transition-colors"
+              className={`inline-flex items-center justify-center rounded-full px-7 py-3 text-sm font-bold transition-colors ${
+                variant === "failure" && retryEventId
+                  ? "border border-[#1a1a1a]/20 text-[#1a1a1a] hover:bg-black/5"
+                  : "bg-[#1a1a1a] text-white hover:bg-black"
+              }`}
             >
               Explore Events
             </Link>

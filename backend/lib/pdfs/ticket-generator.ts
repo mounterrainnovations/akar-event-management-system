@@ -38,6 +38,10 @@ export interface TicketDetails {
   bookingDate?: string;
   tickets?: TicketItem[];
   eventTerms?: string;
+  discountBreakdown?: {
+    name: string;
+    amount: number;
+  }[];
 }
 
 export async function generateTicketPDF(
@@ -70,7 +74,6 @@ export async function generateTicketPDF(
           .lineWidth(1)
           .stroke();
       };
-
       // --- 1. Header ---
       // Logo (Top Left - BIGGER as requested)
       try {
@@ -270,41 +273,55 @@ export async function generateTicketPDF(
 
       // Divider Line
       drawLine(tableY + 10);
-
       // Calculate totals
       const subTotal = (details.tickets || []).reduce(
         (sum, t) => sum + t.price * t.quantity,
         0,
       );
       const totalPaid = Number(details.amount.replace(/[^0-9.-]+/g, ""));
-      const discount = subTotal - totalPaid;
+      const totalDiscount = subTotal - totalPaid;
 
       let currentY = tableY + 20;
 
-      // Only show breakdown if there is a meaningful discount
-      if (discount > 0.01) {
-        // Subtotal
-        doc
-          .fontSize(10)
-          .font("Helvetica")
-          .text("Subtotal", 350, currentY, { width: 130, align: "right" });
-        doc.text(subTotal.toFixed(2), 490, currentY, {
-          width: 50,
-          align: "right",
+      // Subtotal
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text("Subtotal", 350, currentY, { width: 130, align: "right" });
+      doc.text(subTotal.toFixed(2), 490, currentY, {
+        width: 50,
+        align: "right",
+      });
+
+      currentY += 15;
+
+      // Discount Breakdown
+      if (details.discountBreakdown && details.discountBreakdown.length > 0) {
+        details.discountBreakdown.forEach((d) => {
+          if (d.amount > 0) {
+            doc.fillColor("#555555");
+            doc.text(d.name, 250, currentY, { width: 230, align: "right" }); // Wider label area
+            doc
+              .fillColor("#D32F2F")
+              .text(`-${d.amount.toFixed(2)}`, 490, currentY, {
+                width: 50,
+                align: "right",
+              });
+            currentY += 15;
+          }
         });
-
-        currentY += 15;
-
-        // Discount
+        doc.fillColor("#000000"); // Reset
+        currentY += 5; // Extra spacing after breakdown
+      } else if (totalDiscount > 0.01) {
+        // Fallback to total discount if no breakdown provided
         doc.text("Discount", 350, currentY, { width: 130, align: "right" });
         doc
-          .fillColor("#D32F2F") // Red color for discount
-          .text(`-${discount.toFixed(2)}`, 490, currentY, {
+          .fillColor("#D32F2F")
+          .text(`-${totalDiscount.toFixed(2)}`, 490, currentY, {
             width: 50,
             align: "right",
           });
-
-        doc.fillColor("#000000"); // Reset color
+        doc.fillColor("#000000"); // Reset
         currentY += 20;
       } else {
         currentY += 10;

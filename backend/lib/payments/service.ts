@@ -798,6 +798,93 @@ export async function applyCallbackBusinessStatus(
         if (input.flow === "success") {
           let pdfBuffer: Buffer | undefined;
 
+          // --- Calculate Discount Breakdown ---
+          const subTotal = ticketsBreakdown.reduce(
+            (sum, t) => sum + t.price * t.quantity,
+            0,
+          );
+          const finalAmt = Number(row.final_amount || 0);
+          const totalDiscount = Math.max(0, subTotal - finalAmt);
+
+          const discountBreakdown: { name: string; amount: number }[] = [];
+
+          const coupon = row.event_coupons; // Can be object or array depending on PG driver, usually object for single relation
+          // Handle array if returned as array
+          const couponObj = Array.isArray(coupon) ? coupon[0] : coupon;
+
+          if (totalDiscount > 0.01) {
+            let bundleDiscount = 0;
+            let couponDiscount = 0;
+
+            if (couponObj && couponObj.code) {
+              // If coupon exists, try to split
+              if (couponObj.discount_type === "percentage") {
+                // Logic: TotalDiscount = Bundle + (SubTotal - Bundle) * (Rate/100)
+                // TotalDiscount = Bundle + SubTotal*Rate - Bundle*Rate
+                // TotalDiscount - SubTotal*Rate = Bundle * (1 - Rate)
+                // Bundle = (TotalDiscount - SubTotal*Rate) / (1 - Rate)
+
+                const rate = Number(couponObj.discount_value) / 100;
+                if (rate >= 1) {
+                  // 100% off
+                  couponDiscount = totalDiscount; // All attributed to coupon if 100%
+                } else {
+                  const estimatedBundle =
+                    (totalDiscount - subTotal * rate) / (1 - rate);
+                  bundleDiscount = Math.max(0, estimatedBundle);
+                  couponDiscount = totalDiscount - bundleDiscount;
+                }
+              } else {
+                // Fixed
+                const fixedVal = Number(couponObj.discount_value);
+                // Assuming fixed coupon is applied AFTER bundle
+                // TotalDiscount = Bundle + Fixed
+                bundleDiscount = Math.max(0, totalDiscount - fixedVal);
+                couponDiscount = totalDiscount - bundleDiscount;
+              }
+
+              if (bundleDiscount > 1) {
+                discountBreakdown.push({
+                  name: "Bundle Offer Applied",
+                  amount: bundleDiscount,
+                });
+              }
+              if (couponDiscount > 0.01) {
+                discountBreakdown.push({
+                  name: `Coupon (${couponObj.code})`,
+                  amount: couponDiscount,
+                });
+              }
+            } else {
+              // No coupon, all bundle.
+              let bundleName = "Bundle Offer Applied";
+
+              const bundleOffer = row.event_bundle_offers; // From joined query
+              if (bundleOffer && bundleOffer.name) {
+                bundleName = `${bundleOffer.name} Applied`;
+              } else {
+                // Fallback to form_response
+                const appliedBundles = row.form_response?._applied_bundles;
+                if (
+                  Array.isArray(appliedBundles) &&
+                  appliedBundles.length > 0
+                ) {
+                  const names = appliedBundles
+                    .map((b: any) => b.name)
+                    .filter(Boolean);
+                  if (names.length > 0) {
+                    bundleName = names.join(" + ");
+                  }
+                }
+              }
+
+              discountBreakdown.push({
+                name: bundleName,
+                amount: totalDiscount,
+              });
+            }
+          }
+
           try {
             // 1. Generate PDF
             pdfBuffer = await generateTicketPDF({
@@ -810,6 +897,7 @@ export async function applyCallbackBusinessStatus(
               bookingDate: new Date().toISOString(),
               tickets: ticketsBreakdown,
               eventTerms: eventData.terms_and_conditions,
+              discountBreakdown,
             });
 
             // 2. Upload to Supabase Storage
@@ -861,6 +949,7 @@ export async function applyCallbackBusinessStatus(
             eventDateStr,
             locationStr,
             eventData.terms_and_conditions,
+            discountBreakdown,
             pdfBuffer,
           );
           logger.info("Sent booking success email", { registrationId, email });
