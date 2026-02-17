@@ -56,6 +56,10 @@ interface RegistrationModalProps {
     bundleOffers: BundleOffer[];
     backendUrl: string;
     eventStatus?: string;
+    existingWaitlistBooking?: {
+        id: string;
+        formResponse: Record<string, unknown>;
+    } | null;
 }
 
 export default function RegistrationModal({
@@ -68,7 +72,8 @@ export default function RegistrationModal({
     formFields,
     bundleOffers,
     backendUrl,
-    eventStatus
+    eventStatus,
+    existingWaitlistBooking
 }: RegistrationModalProps) {
     const { user, isAuthenticated, openAuthModal } = useAuth();
     const [step, setStep] = useState(1);
@@ -95,6 +100,22 @@ export default function RegistrationModal({
         process.env.NODE_ENV !== 'production' ||
         process.env.NEXT_PUBLIC_PAYMENT_FLOW_DEBUG === 'true';
 
+    const prefilledFormValues = useMemo(() => {
+        if (eventStatus !== 'published' || !existingWaitlistBooking?.id) {
+            return null;
+        }
+
+        const source = existingWaitlistBooking.formResponse || {};
+        const prefilled: Record<string, any> = {
+            ...source,
+            name: typeof source.name === 'string' ? source.name : '',
+            email: typeof source.email === 'string' ? source.email : '',
+            phone: typeof source.phone === 'string' ? source.phone : '',
+        };
+
+        return prefilled;
+    }, [eventStatus, existingWaitlistBooking]);
+
     function logPaymentFlow(step: string, details?: Record<string, unknown>) {
         if (!shouldLogPaymentFlow) return;
         if (details) {
@@ -120,10 +141,17 @@ export default function RegistrationModal({
                 document.body.style.paddingRight = `${scrollbarWidth}px`;
             }
 
+            setFormValues(prefilledFormValues || { name: '', phone: '', email: '' });
             // Auto-select first ticket by default if nothing is selected
             if (eventStatus !== 'waitlist' && Object.keys(selectedTickets).length === 0 && tickets.length > 0) {
                 setSelectedTickets({ [tickets[0].id]: 1 });
             }
+
+            return () => {
+                document.body.style.overflow = originalBodyOverflow;
+                document.body.style.paddingRight = originalBodyPadding;
+                document.documentElement.style.overflow = originalHtmlOverflow;
+            };
 
             return () => {
                 document.body.style.overflow = originalBodyOverflow;
@@ -143,7 +171,11 @@ export default function RegistrationModal({
             setShowCloseConfirm(false);
             setOpenDropdown(null);
         }
-    }, [isOpen]);
+
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, tickets, eventStatus, prefilledFormValues]);
 
     const hasChanges = useMemo(() => {
         const hasFormValues = Object.values(formValues).some(v => Array.isArray(v) ? v.length > 0 : !!v);
@@ -473,6 +505,8 @@ export default function RegistrationModal({
 
     function buildBookingPayload() {
         const isWaitlist = eventStatus === 'waitlist';
+        const existingRegistrationId =
+            eventStatus === 'published' ? existingWaitlistBooking?.id : undefined;
         return {
             user_id: user?.id,
             eventId,
@@ -484,6 +518,7 @@ export default function RegistrationModal({
             tickets_bought: isWaitlist ? {} : selectedTickets,
             coupon_id: appliedCoupon?.id,
             form_response: formValues,
+            registrationId: existingRegistrationId,
         };
     }
 
@@ -515,6 +550,7 @@ export default function RegistrationModal({
                 amount: bookingPayload.amount,
                 selectedTicketCount: Object.keys(selectedTickets).length,
                 isWaitlist: eventStatus === 'waitlist',
+                existingRegistrationId: bookingPayload.registrationId || null,
             });
             const response = await fetch(`${backendUrl}/api/bookings`, {
                 method: 'POST',

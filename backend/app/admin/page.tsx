@@ -24,12 +24,10 @@ import { CalendarBlank, CalendarPlus, Image, SignOut, CaretRight, Slideshow, Use
 import { listSectionMediaState } from "@/lib/media/website-media-service";
 import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
 import { listWebsiteSectionRules } from "@/lib/media/website-sections";
-import { EventsSectionManager } from "@/components/admin/EventsSectionManager";
 import { EventsNewSectionManager } from "@/components/admin/EventsNewSectionManager";
 import { LeadsSectionManager } from "@/components/admin/LeadsSectionManager";
 import { BookingsSectionManager } from "@/components/admin/BookingsSectionManager";
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
-import { isPaymentStatus, type PaymentStatus } from "@/lib/events/enums";
 
 type AdminSection = "media" | "events" | "leads" | "bookings";
 type MediaCategory = "highlights" | "hero-carousel" | "members";
@@ -53,7 +51,7 @@ const mediaCategories: Array<{
   enabled: boolean;
 }> = [
     { id: "highlights", label: "Highlights", description: "Showcase images on the homepage", icon: Star, enabled: true },
-    { id: "hero-carousel", label: "Hero Carousel", description: "Background images for the hero section", icon: Slideshow, enabled: false },
+    { id: "hero-carousel", label: "Hero Carousel", description: "Background images for the hero section", icon: Slideshow, enabled: true },
     { id: "members", label: "Members", description: "Team and member photos", icon: Users, enabled: true },
   ];
 
@@ -81,10 +79,6 @@ export default async function AdminPage({
   const mediaCategory = parseMediaCategory(typeof params.mediaCategory === "string" ? params.mediaCategory : undefined);
   const selectedEventId = typeof params.eventId === "string" ? params.eventId : undefined;
   const includeDeleted = params.includeDeleted === "1";
-  const paymentStatus: PaymentStatus | undefined =
-    typeof params.paymentStatus === "string" && isPaymentStatus(params.paymentStatus)
-      ? params.paymentStatus
-      : undefined;
   const view = typeof params.view === "string" ? params.view : undefined;
 
   const session = await getAuthSession();
@@ -96,7 +90,7 @@ export default async function AdminPage({
     rule: ReturnType<typeof listWebsiteSectionRules>[number];
     state: Awaited<ReturnType<typeof listSectionMediaState>>;
   }> = [];
-  if (activeSection === "media" && (mediaCategory === "highlights" || mediaCategory === "members")) {
+  if (activeSection === "media" && mediaCategory) {
     const sectionRules = listWebsiteSectionRules().filter(r => r.section === mediaCategory);
     sectionStates = await Promise.all(
       sectionRules.map(async (rule) => ({
@@ -221,7 +215,7 @@ export default async function AdminPage({
           <section className="p-6">
             <BookingsSectionManager />
           </section>
-        ) : mediaCategory === "highlights" ? (
+        ) : mediaCategory ? (
           <section className="p-6">
             <div className="space-y-8">
               {sectionStates.map(({ rule, state }) => (

@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { instrumentSerif } from '@/lib/fonts';
 import JourneySection from '@/components/JourneySection';
 import { supabase } from '@/lib/supabase';
+import { fetchSectionMedia } from '@/lib/websiteMedia';
 
-const heroImages = [
+const fallbackHeroImages = [
     '/1.jpg',
     '/2.jpg',
     '/3.jpg',
@@ -64,6 +65,7 @@ export default function Home() {
     const [events, setEvents] = useState<Event[]>([]);
     const [activeEvent, setActiveEvent] = useState(0);
     const [heroIndex, setHeroIndex] = useState(0);
+    const [heroImages, setHeroImages] = useState<string[]>(fallbackHeroImages);
     const mobileScrollRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -117,11 +119,37 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
+        const fetchHeroCarousel = async () => {
+            try {
+                const items = await fetchSectionMedia('hero-carousel', { active: true, limit: 12 });
+                const urls = items
+                    .map((item) => item.previewUrl)
+                    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+
+                if (urls.length > 0) {
+                    setHeroImages(urls);
+                    return;
+                }
+            } catch (err) {
+                console.error('Error fetching hero carousel media:', err);
+            }
+
+            setHeroImages(fallbackHeroImages);
+        };
+
+        fetchHeroCarousel();
+    }, []);
+
+    useEffect(() => {
         const interval = setInterval(() => {
-            setHeroIndex((prev) => (prev + 1) % heroImages.length);
+            setHeroIndex((prev) => (prev + 1) % Math.max(heroImages.length, 1));
         }, 5000); // Change slide every 5 seconds
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        setHeroIndex(0);
+    }, [heroImages]);
 
     const scroll = (direction: 'left' | 'right') => {
         if (mobileScrollRef.current) {
@@ -152,7 +180,7 @@ export default function Home() {
                             className="absolute inset-0 w-full h-full"
                         >
                             <Image
-                                src={heroImages[heroIndex]}
+                                src={heroImages[heroIndex] || fallbackHeroImages[0]}
                                 alt="Hero Image"
                                 fill
                                 className="object-cover"

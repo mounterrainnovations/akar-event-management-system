@@ -3,7 +3,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
 import { listEventFormFieldsForValidation } from "@/lib/queries/event-form-fields";
 import { getEventBookingMeta } from "@/lib/queries/events";
-import { insertEventRegistration } from "@/lib/queries/event-registrations";
+import {
+  getEventRegistrationForUserEvent,
+  insertEventRegistration,
+  updateEventRegistrationById,
+} from "@/lib/queries/event-registrations";
 import {
   BOOKING_PAGE_LIMIT,
   BOOKING_SELECT_FIELDS,
@@ -70,6 +74,7 @@ export type InitiateBookingInput = {
   eventName: string;
   amount: number;
   ticketsBought: Record<string, number>;
+  registrationId?: string | null;
   couponId?: string | null;
   formResponse?: JsonValue;
 };
@@ -188,13 +193,20 @@ function mapBooking(row: BookingRow): BookingRecord {
       const ticketDef = row.events?.event_tickets?.find(
         (t) => t.id === ticketId,
       );
-      const description = ticketDef?.description as Record<string, any> | null;
+      const description = ticketDef?.description as Record<
+        string,
+        unknown
+      > | null;
       return {
         id: ticketId,
-        name: description?.name || "Ticket",
+        name:
+          (typeof description?.name === "string" ? description.name : null) ||
+          "Ticket",
         price: ticketDef ? toNumber(ticketDef.price) : 0,
         quantity: qty,
-        type: description?.type || "Standard", // generic fallback
+        type:
+          (typeof description?.type === "string" ? description.type : null) ||
+          "Standard",
       };
     }),
   };
@@ -231,8 +243,9 @@ function normalizeNonNegativeAmount(value: unknown) {
 
 function normalizePhone(value: unknown) {
   const phone = normalizeNonEmptyString(value, "phone");
-  if (!/^[0-9+()\-\s]{7,20}$/.test(phone)) {
-    throw new Error("phone must be valid");
+  // Strict validation: exactly 10 digits, no symbols or spaces
+  if (!/^\d{10}$/.test(phone)) {
+    throw new Error("phone must be exactly 10 digits");
   }
   return phone;
 }
@@ -297,13 +310,22 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
   }
 
   const couponIdRaw = payload.couponId || payload.coupon_id;
+  const registrationIdRaw = payload.registrationId || payload.registration_id;
   let couponId: string | null = null;
+  let registrationId: string | null = null;
   if (couponIdRaw) {
     const cid = normalizeNonEmptyString(couponIdRaw, "couponId");
     if (!isUuid(cid)) {
       throw new Error("couponId must be a valid UUID");
     }
     couponId = cid;
+  }
+  if (registrationIdRaw) {
+    const rid = normalizeNonEmptyString(registrationIdRaw, "registrationId");
+    if (!isUuid(rid)) {
+      throw new Error("registrationId must be a valid UUID");
+    }
+    registrationId = rid;
   }
 
   return {
@@ -316,6 +338,7 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     ticketsBought: normalizeTicketsBought(
       payload.ticketsBought || payload.tickets_bought,
     ),
+    registrationId,
     couponId,
     formResponse: normalizeJsonObject(
       payload.formResponse || payload.form_response,
@@ -434,14 +457,15 @@ async function validateFormResponse(eventId: string, formResponse: JsonValue) {
       (field.field_type === "dropdown" || field.field_type === "select") &&
       Array.isArray(field.options)
     ) {
-      const selectedOption = field.options.find(
-        (opt: any) =>
-          (typeof opt === "string"
-            ? opt
-            : isTriggerableOption(opt)
-              ? opt.value
-              : undefined) === value,
-      );
+      const selectedOption = field.options.find((opt: unknown) => {
+        if (typeof opt === "string") {
+          return opt === value;
+        }
+        if (isTriggerableOption(opt)) {
+          return opt.value === value;
+        }
+        return false;
+      });
 
       if (
         selectedOption &&
@@ -496,37 +520,86 @@ export async function createBookingForUser(params: {
 
   const now = new Date().toISOString();
 
-  const insertPayload = {
-    event_id: input.eventId,
-    user_id: userId,
-    coupon_id: input.couponId ?? null,
-    total_amount: normalizeAmount(subtotal),
-    final_amount: normalizeAmount(finalAmount),
-    payment_status: "pending",
-    form_response: input.formResponse ?? {},
-    created_at: now,
-    updated_at: now,
-    deleted_at: null,
-    name: buildUniqueRegistrationName(event.name),
-    transaction_id: null,
-    tickets_bought: input.ticketsBought,
-    is_verified: event.verification_required ? false : null,
-    is_waitlisted: bookingMode === "waitlist",
-  };
-
   let data: BookingRow;
-  try {
-    data = await insertEventRegistration<BookingRow>(
-      insertPayload,
-      BOOKING_SELECT_FIELDS,
-    );
-  } catch (error) {
-    logger.error("Failed to create booking registration", {
+  if (bookingMode === "payment" && input.registrationId) {
+    const existing = await getEventRegistrationForUserEvent({
+      registrationId: input.registrationId,
       userId,
       eventId: input.eventId,
-      message: error instanceof Error ? error.message : "Unknown error",
     });
-    throw new Error("Unable to create booking");
+
+    if (!existing) {
+      throw new Error(
+        "Existing registration not found for this user and event",
+      );
+    }
+    if (existing.deleted_at) {
+      throw new Error("Existing registration is cancelled");
+    }
+    if (!existing.is_waitlisted) {
+      throw new Error(
+        "Existing registration is not eligible for waitlist conversion",
+      );
+    }
+
+    try {
+      data = await updateEventRegistrationById<BookingRow>({
+        registrationId: input.registrationId,
+        payload: {
+          coupon_id: input.couponId ?? null,
+          total_amount: normalizeAmount(subtotal),
+          final_amount: normalizeAmount(finalAmount),
+          payment_status: "pending",
+          form_response: input.formResponse ?? {},
+          updated_at: now,
+          transaction_id: null,
+          tickets_bought: input.ticketsBought,
+          is_verified: event.verification_required ? false : null,
+          is_waitlisted: false,
+        },
+        selectFields: BOOKING_SELECT_FIELDS,
+      });
+    } catch (error) {
+      logger.error("Failed to update existing waitlist booking registration", {
+        registrationId: input.registrationId,
+        userId,
+        eventId: input.eventId,
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+      throw new Error("Unable to update booking");
+    }
+  } else {
+    const insertPayload = {
+      event_id: input.eventId,
+      user_id: userId,
+      coupon_id: input.couponId ?? null,
+      total_amount: normalizeAmount(subtotal),
+      final_amount: normalizeAmount(finalAmount),
+      payment_status: "pending",
+      form_response: input.formResponse ?? {},
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      name: buildUniqueRegistrationName(event.name),
+      transaction_id: null,
+      tickets_bought: input.ticketsBought,
+      is_verified: event.verification_required ? false : null,
+      is_waitlisted: bookingMode === "waitlist",
+    };
+
+    try {
+      data = await insertEventRegistration<BookingRow>(
+        insertPayload,
+        BOOKING_SELECT_FIELDS,
+      );
+    } catch (error) {
+      logger.error("Failed to create booking registration", {
+        userId,
+        eventId: input.eventId,
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+      throw new Error("Unable to create booking");
+    }
   }
 
   // Send Waitlist Confirmation Email
