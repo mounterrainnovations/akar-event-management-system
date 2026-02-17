@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock3, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, XCircle, Download, Loader2 } from "lucide-react";
 import { instrumentSerif } from "@/lib/fonts";
+import { getBackendUrl } from "@/lib/backend";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -77,12 +78,53 @@ export default function BookingStatusPage({
     getParamValue(searchParams, "eventId") ??
     getParamValue(searchParams, "event_id");
   const [storedEventId, setStoredEventId] = useState<string | null>(null);
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const eventId = sessionStorage.getItem("booking:lastEventId");
     if (eventId) setStoredEventId(eventId);
   }, []);
+
+  useEffect(() => {
+    if (variant !== "success" || !registrationId) return;
+
+    let pollInterval: NodeJS.Timeout;
+    let attempts = 0;
+    const maxAttempts = 15;
+
+    const fetchBooking = async () => {
+      try {
+        const response = await fetch(`${getBackendUrl()}/api/bookings/${registrationId}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.booking?.ticketUrl) {
+          setTicketUrl(data.booking.ticketUrl);
+          setIsPolling(false);
+          clearInterval(pollInterval);
+        } else {
+          setIsPolling(true);
+        }
+      } catch (err) {
+        console.error("Error fetching ticket status:", err);
+      }
+    };
+
+    fetchBooking();
+    pollInterval = setInterval(() => {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
+        setIsPolling(false);
+        return;
+      }
+      fetchBooking();
+    }, 4000);
+
+    return () => clearInterval(pollInterval);
+  }, [variant, registrationId]);
 
   const retryEventId = queryEventId ?? storedEventId;
 
@@ -155,6 +197,30 @@ export default function BookingStatusPage({
           )}
 
           <div className="flex flex-col sm:flex-row gap-3">
+            {variant === "success" && (
+              <button
+                onClick={() => ticketUrl && window.open(ticketUrl, "_blank")}
+                disabled={!ticketUrl && !isPolling}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed group"
+              >
+                {ticketUrl ? (
+                  <>
+                    <Download size={18} className="transition-transform group-hover:scale-110" />
+                    Download Ticket (PDF)
+                  </>
+                ) : isPolling ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Generating Ticket...
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    Download Ticket
+                  </>
+                )}
+              </button>
+            )}
             {variant === "failure" && retryEventId && (
               <Link
                 href={`/event/${retryEventId}`}
@@ -165,11 +231,10 @@ export default function BookingStatusPage({
             )}
             <Link
               href="/events"
-              className={`inline-flex items-center justify-center rounded-full px-7 py-3 text-sm font-bold transition-colors ${
-                variant === "failure" && retryEventId
+              className={`inline-flex items-center justify-center rounded-full px-7 py-3 text-sm font-bold transition-colors ${variant === "failure" && retryEventId
                   ? "border border-[#1a1a1a]/20 text-[#1a1a1a] hover:bg-black/5"
                   : "bg-[#1a1a1a] text-white hover:bg-black"
-              }`}
+                }`}
             >
               Explore Events
             </Link>

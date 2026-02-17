@@ -18,6 +18,7 @@ import {
     Hash,
     IdentificationCard,
     Clock,
+    DownloadSimple,
 } from "@phosphor-icons/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -297,7 +298,23 @@ export function BookingDetailsModal({
                                         className="sm:col-span-2"
                                     />
                                 )}
-
+                                {booking.ticketUrl && (
+                                    <DetailItem
+                                        label="Ticket Document"
+                                        value={
+                                            <a
+                                                href={booking.ticketUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+                                            >
+                                                <DownloadSimple size={16} weight="bold" />
+                                                Download Ticket PDF
+                                            </a>
+                                        }
+                                        className="sm:col-span-2 pt-2"
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

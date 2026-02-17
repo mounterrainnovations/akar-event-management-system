@@ -228,9 +228,9 @@ export async function sendBookingFailureEmail(
   amount: string,
   bookingId: string,
 ) {
-  // Using the same template ID as requested for failure
+  // Using the new template ID provided for failure
   const TEMPLATE_KEY =
-    "2518b.623682b2828bdc79.k1.22cf3a90-0b0e-11f1-84b6-cabf48e1bf81.19c657adcb9";
+    "2518b.623682b2828bdc79.k1.a022f810-0b0e-11f1-a33c-d2cf08f4ca8c.19c657e1211";
 
   return sendEmailWithTemplate({
     to: [{ email, name }],

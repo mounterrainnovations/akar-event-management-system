@@ -153,6 +153,7 @@ export type BookingDetail = {
   transactionId: string | null;
   ticketsBought: Record<string, number>;
   isVerified: boolean | null;
+  ticketUrl: string | null;
 };
 
 export type EventTicket = {
@@ -1309,6 +1310,7 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     transaction_id: string | null;
     tickets_bought: Record<string, number> | null;
     is_verified: boolean | null;
+    ticket_url: string | null;
     events: { name: string } | null;
     users: {
       email: string | null;
@@ -1339,6 +1341,7 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
       name,
       transaction_id,
       is_verified,
+      ticket_url,
       events (
         name
       ),
@@ -1413,6 +1416,7 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
       transactionId: reg.transaction_id,
       ticketsBought: reg.tickets_bought,
       isVerified: reg.is_verified,
+      ticketUrl: reg.ticket_url || null,
     };
   });
 }
