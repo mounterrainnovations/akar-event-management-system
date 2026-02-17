@@ -1240,13 +1240,6 @@ export function EventsNewCreate({
                     <h3 className="text-base font-semibold">Form Data</h3>
                     <p className="text-xs text-muted-foreground"></p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addFormField}
-                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
-                  >
-                    <Plus weight="bold" /> Add Field
-                  </button>
                 </div>
 
                 <div className="space-y-4">
@@ -1580,6 +1573,16 @@ export function EventsNewCreate({
                       </div>
                     ))
                   )}
+                </div>
+
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={addFormField}
+                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
+                  >
+                    <Plus weight="bold" /> Add Field
+                  </button>
                 </div>
               </div>
             )}
