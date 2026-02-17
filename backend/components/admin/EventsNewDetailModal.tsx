@@ -14,6 +14,7 @@ import {
     XCircle,
     CheckCircle,
     ArrowLeft,
+    PencilSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { getEventAdminDetail, type EventDetail } from "@/lib/events/service";
 import { EventStatusButton } from "./EventStatusButton";
@@ -120,6 +121,7 @@ export async function EventsNewDetailModal({
     }
 
     const { event, tickets, coupons, formFields, bundleOffers, analytics } = data;
+    const includeDeletedQuery = includeDeleted ? "&includeDeleted=1" : "";
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-8">
@@ -158,6 +160,14 @@ export async function EventsNewDetailModal({
                         {/* Actions */}
                         {!event.deleted_at && (
                             <div className="mt-2 flex items-center gap-3">
+                                <Link
+                                    href={`/admin?section=events&view=edit&eventId=${event.id}${includeDeletedQuery}`}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-400 transition-colors hover:bg-blue-500/20 hover:text-blue-300"
+                                    title="Edit event"
+                                >
+                                    <PencilSimple className="size-3.5" weight="bold" />
+                                    Edit
+                                </Link>
                                 {event.status === "draft" && (
                                     <EventStatusButton
                                         eventId={event.id}

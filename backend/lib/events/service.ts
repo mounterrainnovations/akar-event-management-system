@@ -319,6 +319,7 @@ const BUNDLE_OFFER_SELECT_FIELDS =
   "id,event_id,name,buy_quantity,get_quantity,offer_type,applicable_ticket_ids,created_at,updated_at";
 const REGISTRATION_SELECT_FIELDS =
   "id,event_id,user_id,coupon_id,tickets_bought,total_amount,final_amount,payment_status,form_response,created_at,updated_at,deleted_at,name,transaction_id,is_verified";
+type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
 
 function toNumber(value: string | number | null | undefined) {
   if (typeof value === "number") {
@@ -858,6 +859,16 @@ export async function createEvent(input: EventWriteInput) {
   }
 
   const eventId = data.id;
+  await insertEventRelations({ supabase, eventId, input });
+  return eventId;
+}
+
+async function insertEventRelations(params: {
+  supabase: SupabaseAdminClient;
+  eventId: string;
+  input: EventWriteInput;
+}) {
+  const { supabase, eventId, input } = params;
 
   // Insert Coupons
   if (input.coupons && input.coupons.length > 0) {
@@ -964,7 +975,40 @@ export async function createEvent(input: EventWriteInput) {
     }
   }
 
-  return eventId;
+}
+
+async function replaceEventRelations(params: {
+  supabase: SupabaseAdminClient;
+  eventId: string;
+  input: EventWriteInput;
+}) {
+  const { supabase, eventId, input } = params;
+
+  const [bundleDeleteResult, formFieldDeleteResult, couponDeleteResult, ticketDeleteResult] =
+    await Promise.all([
+      supabase.from("event_bundle_offers").delete().eq("event_id", eventId),
+      supabase.from("event_form_fields").delete().eq("event_id", eventId),
+      supabase.from("event_coupons").delete().eq("event_id", eventId),
+      supabase.from("event_tickets").delete().eq("event_id", eventId),
+    ]);
+
+  if (
+    bundleDeleteResult.error ||
+    formFieldDeleteResult.error ||
+    couponDeleteResult.error ||
+    ticketDeleteResult.error
+  ) {
+    logger.error("Failed to clear event relations before update", {
+      eventId,
+      bundleOfferError: bundleDeleteResult.error?.message,
+      formFieldError: formFieldDeleteResult.error?.message,
+      couponError: couponDeleteResult.error?.message,
+      ticketError: ticketDeleteResult.error?.message,
+    });
+    throw new Error("Unable to update event relations");
+  }
+
+  await insertEventRelations({ supabase, eventId, input });
 }
 
 export async function updateEvent(params: {
@@ -994,6 +1038,16 @@ export async function updateEvent(params: {
     eventId,
     verificationRequired: payload.verification_required,
   });
+
+  const shouldReplaceRelations =
+    Object.prototype.hasOwnProperty.call(input, "coupons") ||
+    Object.prototype.hasOwnProperty.call(input, "formFields") ||
+    Object.prototype.hasOwnProperty.call(input, "tickets") ||
+    Object.prototype.hasOwnProperty.call(input, "bundleOffers");
+
+  if (shouldReplaceRelations) {
+    await replaceEventRelations({ supabase, eventId, input });
+  }
 }
 
 export async function updateEventStatus(params: {

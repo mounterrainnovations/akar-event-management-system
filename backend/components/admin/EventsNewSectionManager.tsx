@@ -8,10 +8,11 @@ import {
     Archive,
     ShieldCheck,
     CaretRight,
+    PencilSimple,
 } from "@phosphor-icons/react/dist/ssr";
-import { listEventAdminSummaries, type EventSummary } from "@/lib/events/service";
+import { getEventAdminDetail, listEventAdminSummaries, type EventDetail, type EventSummary } from "@/lib/events/service";
 import { EventsNewDetailModal } from "./EventsNewDetailModal";
-import { EventsNewCreate } from "./EventsNewCreate";
+import { EventsNewCreate, type EventFormData } from "./EventsNewCreate";
 
 type EventsNewSectionManagerProps = {
     includeDeleted?: boolean;
@@ -53,6 +54,105 @@ function formatCurrency(value: number) {
 }
 
 import { EventBannerViewer } from "./EventBannerViewer";
+
+function mapEventDetailToFormData(detail: EventDetail): EventFormData {
+    const { event, tickets, coupons, formFields, bundleOffers } = detail;
+
+    const mappedTickets = tickets.map((ticket) => {
+        const description =
+            ticket.description && typeof ticket.description === "object"
+                ? (ticket.description as Record<string, unknown>)
+                : null;
+        return {
+            name: typeof description?.name === "string" ? description.name : "",
+            brief:
+                typeof description?.brief === "string"
+                    ? description.brief
+                    : typeof description?.description === "string"
+                        ? description.description
+                        : "",
+            price: ticket.price,
+            quantity: ticket.quantity ?? 1,
+            maxQuantityPerPerson: ticket.maxQuantityPerPerson ?? 1,
+            visibilityConfig:
+                ticket.visibilityConfig && typeof ticket.visibilityConfig === "object"
+                    ? (ticket.visibilityConfig as Record<string, string[]>)
+                    : {},
+        };
+    });
+
+    const ticketNameById = new Map<string, string>();
+    tickets.forEach((ticket, index) => {
+        const description =
+            ticket.description && typeof ticket.description === "object"
+                ? (ticket.description as Record<string, unknown>)
+                : null;
+        const ticketName =
+            typeof description?.name === "string" && description.name.trim()
+                ? description.name
+                : `Tier ${index + 1}`;
+        ticketNameById.set(ticket.id, ticketName);
+    });
+
+    const terms = (event.terms_and_conditions || "")
+        .split("\n")
+        .map((term) => term.trim())
+        .filter(Boolean);
+
+    while (terms.length < 3) {
+        terms.push("");
+    }
+
+    return {
+        name: event.name || "",
+        baseEventBanner: event.base_event_banner ?? null,
+        eventDate: event.event_date ?? "",
+        registrationStart: event.registration_start ?? "",
+        registrationEnd: event.registration_end ?? "",
+        about: event.about ?? "",
+        termsAndConditions: terms,
+        addressLine1: event.address_line_1 ?? "",
+        addressLine2: event.address_line_2 ?? "",
+        city: event.city ?? "",
+        state: event.state ?? "",
+        country: event.country ?? "",
+        locationUrl: event.location_url ?? "",
+        coupons: coupons.map((coupon) => ({
+            code: coupon.code,
+            discountValue: coupon.discountValue,
+        })),
+        formFields: formFields.map((field) => ({
+            fieldName: field.fieldName,
+            fieldType: field.fieldType as "free_text" | "dropdown" | "image",
+            label: field.label,
+            isRequired: field.isRequired,
+            isHidden: field.isHidden,
+            options: Array.isArray(field.options)
+                ? (field.options as { value: string; label: string; triggers: string[] }[])
+                : [],
+            answer: field.answer ?? "",
+        })),
+        tickets: mappedTickets.length > 0 ? mappedTickets : [
+            {
+                name: "",
+                brief: "",
+                price: 0,
+                quantity: 100,
+                maxQuantityPerPerson: 1,
+                visibilityConfig: {},
+            },
+        ],
+        bundleOffers: bundleOffers.map((offer) => ({
+            name: offer.name,
+            buyQuantity: offer.buyQuantity,
+            getQuantity: offer.getQuantity,
+            offerType: offer.offerType,
+            applicableTicketIds: (offer.applicableTicketIds || []).map(
+                (ticketId) => ticketNameById.get(ticketId) || ticketId,
+            ),
+        })),
+    };
+}
 
 // ... inside EventRow ...
 
@@ -123,7 +223,13 @@ function EventRow({ event, includeDeleted }: { event: EventSummary; includeDelet
             </div>
 
             {/* Spacer for Action column alignment */}
-            <span className="w-[72px] shrink-0" />
+            <Link
+                href={`/admin?section=events&view=edit&eventId=${event.id}${includeDeletedQuery}`}
+                className="inline-flex w-[72px] shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+                <PencilSimple className="size-3.5" weight="bold" />
+                Edit
+            </Link>
 
             {/* Arrow */}
             <Link
@@ -143,6 +249,32 @@ export async function EventsNewSectionManager({
 }: EventsNewSectionManagerProps) {
     if (view === "create") {
         return <EventsNewCreate includeDeleted={includeDeleted} />;
+    }
+
+    if (view === "edit" && selectedEventId) {
+        const detail = await getEventAdminDetail({
+            eventId: selectedEventId,
+            includeDeletedEvent: includeDeleted,
+        });
+
+        if (!detail) {
+            return (
+                <section className="p-6">
+                    <div className="rounded-xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
+                        Event not found. Please return to events list.
+                    </div>
+                </section>
+            );
+        }
+
+        return (
+            <EventsNewCreate
+                includeDeleted={includeDeleted}
+                mode="edit"
+                eventId={selectedEventId}
+                initialData={mapEventDetailToFormData(detail)}
+            />
+        );
     }
 
     const events = await listEventAdminSummaries({ includeDeleted });

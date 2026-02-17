@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   createEvent,
+  updateEvent,
   updateEventStatus,
   type EventWriteInput,
 } from "@/lib/events/service";
@@ -63,6 +64,20 @@ export async function createEventAction(input: EventWriteInput) {
   } catch (error) {
     logger.error("Failed to create event action", { error });
     return { error: "Failed to create event. Please try again." };
+  }
+}
+
+export async function updateEventAction(eventId: string, input: EventWriteInput) {
+  try {
+    await updateEvent({
+      eventId,
+      input,
+    });
+    revalidatePath("/admin?section=events");
+    return { success: true, eventId };
+  } catch (error) {
+    logger.error("Failed to update event action", { eventId, error });
+    return { error: "Failed to update event. Please try again." };
   }
 }
 
