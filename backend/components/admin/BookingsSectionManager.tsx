@@ -560,18 +560,38 @@ export function BookingsSectionManager() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                onClick={() => {
-                                                    setSelectedBooking(booking);
-                                                    setDetailsOpen(true);
-                                                }}
-                                            >
-                                                <Info size={18} weight="bold" />
-                                                <span className="sr-only">View Details</span>
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {(booking.ticketUrl || booking.paymentStatus === 'paid') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                        title={booking.ticketUrl ? "Download Ticket" : "Ticket Preparing..."}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (booking.ticketUrl) {
+                                                                window.open(booking.ticketUrl, '_blank');
+                                                            } else {
+                                                                alert('Ticket is being generated. Please refresh in a moment.');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <DownloadSimple size={18} weight="bold" />
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                    onClick={() => {
+                                                        setSelectedBooking(booking);
+                                                        setDetailsOpen(true);
+                                                    }}
+                                                >
+                                                    <Info size={18} weight="bold" />
+                                                    <span className="sr-only">View Details</span>
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

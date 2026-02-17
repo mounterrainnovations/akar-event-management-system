@@ -12,6 +12,8 @@ export type WebsiteMediaItem = {
   mimeType: string;
   fileSize: number;
   previewUrl: string;
+  title: string | null;
+  description: string | null;
 };
 
 type WebsiteMediaResponse = {

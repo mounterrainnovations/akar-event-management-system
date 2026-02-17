@@ -19,6 +19,8 @@ interface AuthContextType {
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ error: string | null }>;
     signUp: (email: string, password: string, name: string, phoneNumber: string) => Promise<{ error: string | null }>;
+    sendPasswordResetOtp: (email: string) => Promise<{ error: string | null }>;
+    verifyPasswordResetOtp: (email: string, token: string) => Promise<{ error: string | null }>;
     updateProfile: (data: { name?: string; phoneNumber?: string }) => Promise<{ error: string | null }>;
     updatePassword: (password: string) => Promise<{ error: string | null }>;
     googleLogin: () => Promise<void>;
@@ -111,6 +113,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: null };
     };
 
+    const sendPasswordResetOtp = async (email: string): Promise<{ error: string | null }> => {
+        const emailRedirectTo =
+            typeof window !== 'undefined'
+                ? `${window.location.origin}/auth/callback`
+                : undefined;
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                shouldCreateUser: false,
+                ...(emailRedirectTo ? { emailRedirectTo } : {}),
+            },
+        });
+        if (error) {
+            return { error: error.message };
+        }
+        return { error: null };
+    };
+
+    const verifyPasswordResetOtp = async (
+        email: string,
+        token: string
+    ): Promise<{ error: string | null }> => {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'email',
+        });
+
+        if (verifyError) {
+            return { error: verifyError.message };
+        }
+
+        return { error: null };
+    };
+
     const updateProfile = async (data: { name?: string; phoneNumber?: string }): Promise<{ error: string | null }> => {
         try {
             const updates: any = {};
@@ -193,6 +230,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isLoading,
                 login,
                 signUp,
+                sendPasswordResetOtp,
+                verifyPasswordResetOtp,
                 updateProfile,
                 updatePassword,
                 googleLogin,

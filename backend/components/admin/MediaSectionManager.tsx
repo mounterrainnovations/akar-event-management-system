@@ -170,6 +170,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                 <div className="flex gap-2">
                   <form action={toggleSectionMediaAction}>
                     <input type="hidden" name="websiteMediaId" value={item.id} />
+                    <input type="hidden" name="section" value={section.section} />
                     <button
                       type="submit"
                       className="flex size-10 items-center justify-center rounded-full bg-white text-foreground shadow-lg hover:bg-neutral-200"
@@ -184,6 +185,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                   </form>
                   <form action={deleteSectionMediaAction}>
                     <input type="hidden" name="websiteMediaId" value={item.id} />
+                    <input type="hidden" name="section" value={section.section} />
                     <button
                       type="submit"
                       className="flex size-10 items-center justify-center rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600"
@@ -252,10 +254,10 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                 >
                   <UploadSimple className={`size-8 ${isDragging ? "text-primary" : "text-muted-foreground/50"}`} />
                   <p className="mt-2 text-sm font-medium text-foreground">
-                    {isDragging ? "Drop your images here" : "Click or drag & drop images"}
+                    {isDragging ? "Drop your images here" : "Click or drag & drop image"}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    PNG, JPG only — up to {MAX_FILE_SIZE_MB} MB each
+                    PNG, JPG only — up to {MAX_FILE_SIZE_MB} MB
                   </p>
                 </label>
               </div>
@@ -265,11 +267,43 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                 name="mediaFiles"
                 type="file"
                 accept=".png,.jpg,.jpeg"
-                multiple
+                multiple={section.section !== "members"}
                 required
                 onChange={handleFileChange}
                 className="sr-only"
               />
+
+              {/* Special inputs for Members section */}
+              {section.section === "members" && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label htmlFor="member-name" className="text-sm font-medium text-foreground">
+                      Name
+                    </label>
+                    <input
+                      id="member-name"
+                      name="title"
+                      type="text"
+                      placeholder="e.g. Jane Doe"
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="member-designation" className="text-sm font-medium text-foreground">
+                      Designation
+                    </label>
+                    <input
+                      id="member-designation"
+                      name="description"
+                      type="text"
+                      placeholder="e.g. Creative Director"
+                      required
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              )}
 
               {selectedFiles.length > 0 && (
                 <div className="space-y-1">
