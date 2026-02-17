@@ -287,6 +287,35 @@ export default function BookingDetailsModal({ isOpen, onClose, booking }: Bookin
                                         </div>
                                     )}
 
+                                    {!booking.isWaitlisted && (
+                                        <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                                            {(() => {
+                                                const subTotal = booking.tickets.reduce((acc, t) => acc + (t.price * t.quantity), 0);
+                                                const discount = subTotal - booking.finalAmount;
+
+                                                if (discount > 0.01) {
+                                                    return (
+                                                        <>
+                                                            <div className="flex justify-between items-center text-xs">
+                                                                <span className="text-black/50 font-medium">Subtotal</span>
+                                                                <span className="text-black font-medium">Rs. {subTotal.toFixed(2)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-xs">
+                                                                <span className="text-black/50 font-medium">Discount</span>
+                                                                <span className="text-red-500 font-medium">- Rs. {discount.toFixed(2)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-100">
+                                                                <span className="font-bold text-black">Total Paid</span>
+                                                                <span className="font-bold text-black">Rs. {booking.finalAmount}</span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
+                                    )}
+
                                     {booking.formResponse && Object.keys(booking.formResponse).length > 0 && (
                                         <div className="space-y-4">
                                             <h3 className="font-montserrat text-xs uppercase tracking-[0.3em] font-bold text-black/70">Registration Data</h3>
