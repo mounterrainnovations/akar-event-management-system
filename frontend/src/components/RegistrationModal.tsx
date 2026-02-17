@@ -613,19 +613,17 @@ export default function RegistrationModal({
                             className="absolute inset-0 bg-black/70 backdrop-blur-md cursor-pointer"
                         />
 
-                        {/* Scrollable Container - Professional Windows-compatible Scrolling Architecture */}
+                        {/* Centered Card Container */}
                         <div
-                            className="relative w-full h-full overflow-y-auto flex flex-col items-center py-8 md:py-20 px-4 overscroll-contain"
-                            onClick={handleCloseAttempt}
+                            className="relative w-full h-full flex flex-col items-center justify-center p-4 pointer-events-none"
                         >
                             <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 30 }}
-                                transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.5)] overflow-hidden cursor-default shrink-0 flex flex-col mb-8"
-
+                                className="relative w-full max-w-lg bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] pointer-events-auto min-h-0"
                             >
                                 {/* Confirmation Overlay */}
                                 <AnimatePresence>
@@ -652,7 +650,7 @@ export default function RegistrationModal({
                                 </AnimatePresence>
 
                                 {/* Header */}
-                                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0 z-10">
                                     <div>
                                         <h2 className={`${instrumentSerif.className} text-xl text-[#1a1a1a]`}>{registrationId ? 'Success' : eventName}</h2>
                                         {!registrationId && (
@@ -663,7 +661,10 @@ export default function RegistrationModal({
                                 </div>
 
                                 {/* Body */}
-                                <div className="p-5">
+                                <div
+                                    className="p-6 overflow-y-auto custom-scrollbar flex-1 min-h-0 overscroll-contain"
+                                    data-lenis-prevent
+                                >
                                     {!registrationId ? (
                                         <>
                                             {step === 1 && (
@@ -1015,9 +1016,8 @@ export default function RegistrationModal({
                                 </div>
 
                                 {/* Footer */}
-                                {/* Footer */}
                                 {!registrationId && (
-                                    <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-4 sticky bottom-0 z-10">
+                                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-4 shrink-0 z-10">
                                         {step === 2 && <button onClick={() => setStep(1)} className="px-3 py-2 font-montserrat font-bold text-[#1a1a1a]/40 hover:text-[#1a1a1a] text-[9px] uppercase tracking-widest">Back</button>}
                                         <div className="flex-1" />
                                         <button onClick={step === 1 ? handleNext : handleSubmit} disabled={isLoading || (step === 2 && Object.keys(selectedTickets).length === 0)} className="px-6 py-2.5 rounded-full bg-[#1a1a1a] text-white font-montserrat font-bold hover:bg-black transition-all flex items-center gap-2 disabled:opacity-50 text-xs shadow-lg shadow-black/5">
@@ -1031,6 +1031,7 @@ export default function RegistrationModal({
                 )}
             </AnimatePresence>
             <style jsx>{`
+            .custom-scrollbar { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
             .custom-scrollbar::-webkit-scrollbar { width: 5px; }
             .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
             .custom-scrollbar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 10px; }
