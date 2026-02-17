@@ -72,7 +72,6 @@ export default function BookingStatusPage({
 
   const registrationId = getParamValue(searchParams, "registrationId");
   const transactionId = getParamValue(searchParams, "txnid");
-  const gatewayStatus = getParamValue(searchParams, "status");
   const gatewayMessage = getParamValue(searchParams, "message");
   const queryEventId =
     getParamValue(searchParams, "eventId") ??
@@ -151,7 +150,7 @@ export default function BookingStatusPage({
             {config.description}
           </p>
 
-          {(registrationId || transactionId || gatewayStatus || gatewayMessage) && (
+          {(registrationId || transactionId || gatewayMessage) && (
             <div className="rounded-2xl bg-black/[0.03] border border-black/10 p-5 space-y-3 mb-8">
               {registrationId && (
                 <div>
@@ -170,16 +169,6 @@ export default function BookingStatusPage({
                   </p>
                   <p className="text-sm md:text-base break-all font-medium">
                     {transactionId}
-                  </p>
-                </div>
-              )}
-              {gatewayStatus && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1a1a]/40">
-                    Gateway Status
-                  </p>
-                  <p className="text-sm md:text-base break-all font-medium capitalize">
-                    {gatewayStatus}
                   </p>
                 </div>
               )}

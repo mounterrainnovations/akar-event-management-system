@@ -583,19 +583,29 @@ export default function RegistrationModal({
             }
 
             const mode = data?.bookingMode === 'waitlist' ? 'waitlist' : 'payment';
-            setRegistrationId(data?.booking?.id || null);
-            setPaymentUrl(data?.payment?.paymentUrl || null);
-            if (data?.payment?.paymentUrl && typeof window !== 'undefined') {
+            const registrationId = data?.booking?.id || null;
+            const paymentUrl = data?.payment?.paymentUrl || null;
+            if (paymentUrl && typeof window !== 'undefined') {
                 sessionStorage.setItem('booking:lastEventId', eventId);
             }
-            setBookingMode(mode);
             logPaymentFlow('booking state updated', {
                 mode,
-                registrationId: data?.booking?.id || null,
+                registrationId,
                 transactionId: data?.payment?.transactionId || null,
-                hasPaymentUrl: Boolean(data?.payment?.paymentUrl),
+                hasPaymentUrl: Boolean(paymentUrl),
             });
             onBookingCreated?.(mode);
+
+            if (mode === 'payment' && paymentUrl && typeof window !== 'undefined') {
+                logPaymentFlow('redirecting to payment URL', {
+                    paymentUrl,
+                    registrationId,
+                });
+                window.location.assign(paymentUrl);
+                return;
+            }
+
+            onClose();
         } catch (err: any) {
             console.error('[payment-flow] submit failed', {
                 message: err?.message || 'Unknown error',
