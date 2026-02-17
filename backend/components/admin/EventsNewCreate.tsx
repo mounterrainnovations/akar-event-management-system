@@ -1254,6 +1254,15 @@ export function EventsNewCreate({
                         key={index}
                         className="rounded-lg border border-border p-4 space-y-3 relative group bg-card/50"
                       >
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex min-w-7 items-center justify-center rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                            {index + 1}
+                          </span>
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Form Field {index + 1}
+                          </span>
+                        </div>
+
                         <button
                           onClick={() => removeFormField(index)}
                           className="absolute top-2 right-2 p-1.5 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
