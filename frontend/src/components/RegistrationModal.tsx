@@ -152,6 +152,12 @@ export default function RegistrationModal({
                 document.body.style.paddingRight = originalBodyPadding;
                 document.documentElement.style.overflow = originalHtmlOverflow;
             };
+
+            return () => {
+                document.body.style.overflow = originalBodyOverflow;
+                document.body.style.paddingRight = originalBodyPadding;
+                document.documentElement.style.overflow = originalHtmlOverflow;
+            };
         } else {
             setStep(1);
             setFormValues({ name: '', phone: '', email: '' });
