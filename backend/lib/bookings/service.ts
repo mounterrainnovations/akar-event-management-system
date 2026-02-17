@@ -29,6 +29,7 @@ type BookingRow = {
   event_id: string;
   user_id: string;
   coupon_id: string | null;
+  bundle_id: string | null;
   total_amount: string;
   final_amount: string;
   payment_status: string;
@@ -76,6 +77,7 @@ export type InitiateBookingInput = {
   ticketsBought: Record<string, number>;
   registrationId?: string | null;
   couponId?: string | null;
+  bundleId?: string | null;
   formResponse?: JsonValue;
 };
 
@@ -310,8 +312,10 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
   }
 
   const couponIdRaw = payload.couponId || payload.coupon_id;
+  const bundleIdRaw = payload.bundleId || payload.bundle_id;
   const registrationIdRaw = payload.registrationId || payload.registration_id;
   let couponId: string | null = null;
+  let bundleId: string | null = null;
   let registrationId: string | null = null;
   if (couponIdRaw) {
     const cid = normalizeNonEmptyString(couponIdRaw, "couponId");
@@ -319,6 +323,13 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
       throw new Error("couponId must be a valid UUID");
     }
     couponId = cid;
+  }
+  if (bundleIdRaw) {
+    const bid = normalizeNonEmptyString(bundleIdRaw, "bundleId");
+    if (!isUuid(bid)) {
+      throw new Error("bundleId must be a valid UUID");
+    }
+    bundleId = bid;
   }
   if (registrationIdRaw) {
     const rid = normalizeNonEmptyString(registrationIdRaw, "registrationId");
@@ -340,6 +351,7 @@ export function parseInitiateBookingInput(body: unknown): InitiateBookingInput {
     ),
     registrationId,
     couponId,
+    bundleId,
     formResponse: normalizeJsonObject(
       payload.formResponse || payload.form_response,
     ),
@@ -547,6 +559,7 @@ export async function createBookingForUser(params: {
         registrationId: input.registrationId,
         payload: {
           coupon_id: input.couponId ?? null,
+          bundle_id: input.bundleId ?? null,
           total_amount: normalizeAmount(subtotal),
           final_amount: normalizeAmount(finalAmount),
           payment_status: "pending",
@@ -573,6 +586,7 @@ export async function createBookingForUser(params: {
       event_id: input.eventId,
       user_id: userId,
       coupon_id: input.couponId ?? null,
+      bundle_id: input.bundleId ?? null,
       total_amount: normalizeAmount(subtotal),
       final_amount: normalizeAmount(finalAmount),
       payment_status: "pending",

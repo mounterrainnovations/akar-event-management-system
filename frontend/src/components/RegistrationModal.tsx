@@ -305,7 +305,7 @@ export default function RegistrationModal({
         if (!bundleOffers.length || Object.keys(selectedTickets).length === 0) return { totalDiscount: 0, applied: [], discountPerTicket: {} };
 
         let totalDiscount = 0;
-        const applied: { name: string, freeTickets: number, savings: number }[] = [];
+        const applied: { id: string; name: string; freeTickets: number; savings: number }[] = [];
         const discountPerTicket: Record<string, number> = {};
 
         const ticketPool: { id: string, price: number }[] = [];
@@ -345,6 +345,7 @@ export default function RegistrationModal({
                 if (savings > 0) {
                     totalDiscount += savings;
                     applied.push({
+                        id: bundle.id,
                         name: bundle.name || `Bundle: Buy ${bundle.buyQuantity} Get ${bundle.getQuantity}`,
                         freeTickets: freeCount,
                         savings
@@ -517,7 +518,11 @@ export default function RegistrationModal({
             amount: isWaitlist ? 0 : Number(finalAmount.toFixed(2)),
             tickets_bought: isWaitlist ? {} : selectedTickets,
             coupon_id: appliedCoupon?.id,
-            form_response: formValues,
+            bundle_id: bundleInfo?.applied?.[0]?.id || null,
+            form_response: {
+                ...formValues,
+                _applied_bundles: bundleInfo?.applied || [],
+            },
             registrationId: existingRegistrationId,
         };
     }
@@ -580,6 +585,9 @@ export default function RegistrationModal({
             const mode = data?.bookingMode === 'waitlist' ? 'waitlist' : 'payment';
             setRegistrationId(data?.booking?.id || null);
             setPaymentUrl(data?.payment?.paymentUrl || null);
+            if (data?.payment?.paymentUrl && typeof window !== 'undefined') {
+                sessionStorage.setItem('booking:lastEventId', eventId);
+            }
             setBookingMode(mode);
             logPaymentFlow('booking state updated', {
                 mode,

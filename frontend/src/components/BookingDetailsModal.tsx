@@ -237,7 +237,7 @@ export default function BookingDetailsModal({ isOpen, onClose, booking }: Bookin
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
                                             <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Booking ID</p>
-                                            <p className="font-mono text-xs font-bold text-black/80">{booking.id.slice(0, 8).toUpperCase()}</p>
+                                            <p className="font-mono text-xs font-bold text-black/80 break-all">{booking.id.toUpperCase()}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
                                             <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Payment</p>

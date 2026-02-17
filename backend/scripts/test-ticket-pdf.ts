@@ -27,19 +27,25 @@ async function run() {
       },
     ],
     eventTerms: "Tickets are non-refundable. Present ID at entrance.",
+    discountBreakdown: [
+      { name: "Bundle Offer Applied", amount: 50 },
+      { name: "Coupon (WINTER10)", amount: 50 },
+    ],
   };
 
   try {
     // Expected behavior:
     // Subtotal: 600.00
-    // Discount: -100.00
+    // Discount: -100.00 (split into bundle and coupon)
     // Total Paid: 500.00
 
     const pdfBuffer = await generateTicketPDF(mockDetails);
 
     // Save to the root of the backend folder or desktop for easy access
-    // Let's save to backend root for now
-    const outputPath = path.resolve(__dirname, "../test-ticket-discount.pdf");
+    const outputPath = path.resolve(
+      __dirname,
+      "../../test-ticket-discount-breakdown.pdf",
+    );
     fs.writeFileSync(outputPath, pdfBuffer);
     console.log(`PDF generated successfully at: ${outputPath}`);
   } catch (error) {

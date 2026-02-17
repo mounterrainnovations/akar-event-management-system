@@ -326,14 +326,25 @@ export function buildEasebuzzInitiatePayload(args: {
     requestOrigin: args.requestOrigin,
   });
 
+  /* 
+     Easebuzz validation: 
+     - Firstname: Alphabets and spaces only (strict).
+     - Phone: 10 digits.
+     - Email: Standard format.
+  */
+  const sanitizedFirstName = args.input.firstName
+    .replace(/[^a-zA-Z0-9\s]/g, "")
+    .trim()
+    .slice(0, 60);
+
   const payload: Record<string, string> = {
     key,
     txnid: transactionId,
     amount: normalizeAmount(args.input.amount),
     productinfo: hardcodeProductInfo(args.input.productInfo),
-    firstname: args.input.firstName,
-    email: args.input.email,
-    phone: args.input.phone,
+    firstname: sanitizedFirstName || "Customer", // Fallback if empty after sanitization
+    email: args.input.email.trim(),
+    phone: args.input.phone.trim(),
     surl: callbackUrls.callback,
     furl: callbackUrls.callback,
     udf1: args.input.registrationId || "",
