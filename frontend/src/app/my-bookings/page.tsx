@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, MapPin, Clock, AlertCircle, CheckCircle2, XCircle, Hourglass, Loader2, Download } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Clock, AlertCircle, CheckCircle2, XCircle, Hourglass, Loader2, Download, FileText } from 'lucide-react';
 import { instrumentSerif } from '@/lib/fonts';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -277,11 +277,23 @@ export default function MyBookingsPage() {
                                                 </div>
 
                                                 <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="space-y-1">
-                                                            <p className="font-montserrat text-[10px] uppercase tracking-widest text-[#1a1a1a]/40 font-bold">Booking ID</p>
-                                                            <p className="font-mono text-xs text-[#1a1a1a]/70">{booking.id.slice(0, 8).toUpperCase()}</p>
-                                                        </div>
+                                                    <div className="space-y-1">
+                                                        <p className="font-montserrat text-[10px] uppercase tracking-widest text-[#1a1a1a]/40 font-bold">Booking ID</p>
+                                                        <p className="font-mono text-xs text-[#1a1a1a]/70">{booking.id.slice(0, 8).toUpperCase()}</p>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedBooking(booking);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-[#1a1a1a] rounded-xl text-xs font-bold font-montserrat hover:bg-gray-200 transition-colors"
+                                                        >
+                                                            <FileText size={14} />
+                                                            View Details
+                                                        </button>
 
                                                         {(booking.ticketUrl || booking.paymentStatus === 'paid') && (
                                                             <button
@@ -293,19 +305,6 @@ export default function MyBookingsPage() {
                                                             </button>
                                                         )}
                                                     </div>
-
-                                                    {!booking.isWaitlisted && (
-                                                        <div className="flex flex-wrap gap-3">
-                                                            {booking.tickets.map((ticket) => (
-                                                                <div key={ticket.id} className="px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-2">
-                                                                    <span className="text-xs font-bold font-montserrat text-[#1a1a1a]">{ticket.quantity}x {ticket.name}</span>
-                                                                    {ticket.price > 0 && (
-                                                                        <span className="text-xs text-[#1a1a1a]/60 font-medium border-l border-gray-200 pl-2">₹{ticket.price}</span>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>

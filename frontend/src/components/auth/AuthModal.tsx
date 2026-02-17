@@ -34,7 +34,7 @@ export default function AuthModal() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             transition={{ duration: 0.2 }}
-                            className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden pointer-events-auto max-h-[90vh] flex flex-col"
+                            className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden pointer-events-auto max-h-[90vh] flex flex-col min-h-0"
                         >
                             {/* Close Button */}
                             <div className="absolute top-4 right-4 z-10">
@@ -47,7 +47,7 @@ export default function AuthModal() {
                             </div>
 
                             {/* Content */}
-                            <div className="p-8 overflow-y-auto">
+                            <div className="p-8 overflow-y-auto overscroll-contain min-h-0" data-lenis-prevent>
                                 <AuthForms mode={mode} onToggleMode={toggleMode} />
                             </div>
                         </motion.div>
