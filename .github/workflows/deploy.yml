@@ -28,15 +28,27 @@ jobs:
           cd backend
           npm run build
       
-      - name: Deploy to EC2
+      - name: Archive Backend
+        run: |
+          tar -czf backend.tar.gz backend
+
+      - name: Upload to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SECRET_KEY }}
+          source: "backend.tar.gz"
+          target: "~/"
+
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SECRET_KEY }}
           script: |
-            cd ~/akar-event-management-system/backend
-            git pull origin main
-            npm install
-            npm run build
+            rm -rf ~/akar-event-management-system/backend
+            tar -xzf ~/backend.tar.gz -C ~/akar-event-management-system
+            rm ~/backend.tar.gz
             pm2 reload nextjs-app
