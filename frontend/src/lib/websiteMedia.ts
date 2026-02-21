@@ -1,6 +1,10 @@
 import { getBackendUrl } from "@/lib/backend";
 
-export type WebsiteSection = "highlights" | "hero-carousel" | "members";
+export type WebsiteSection =
+  | "highlights"
+  | "hero-carousel"
+  | "members"
+  | "publications";
 
 export type WebsiteMediaItem = {
   id: string;
@@ -12,6 +16,7 @@ export type WebsiteMediaItem = {
   mimeType: string;
   fileSize: number;
   previewUrl: string;
+  thumbnailUrl: string | null;
   title: string | null;
   description: string | null;
 };

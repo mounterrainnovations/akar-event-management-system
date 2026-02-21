@@ -36,11 +36,16 @@ export async function uploadSectionMediaAction(formData: FormData) {
     .getAll("mediaFiles")
     .filter((entry): entry is File => entry instanceof File);
 
+  const thumbnailFileEntry = formData.get("thumbnailFile");
+  const thumbnailFile =
+    thumbnailFileEntry instanceof File ? thumbnailFileEntry : undefined;
+
   try {
     await uploadFilesToSection({
       userId: session.sub,
       section,
       files,
+      thumbnailFile,
       title: formData.get("title")?.toString(),
       description: formData.get("description")?.toString(),
     });

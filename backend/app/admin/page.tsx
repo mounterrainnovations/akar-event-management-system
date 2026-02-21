@@ -27,18 +27,20 @@ import { listWebsiteSectionRules } from "@/lib/media/website-sections";
 import { EventsNewSectionManager } from "@/components/admin/EventsNewSectionManager";
 import { LeadsSectionManager } from "@/components/admin/LeadsSectionManager";
 import { BookingsSectionManager } from "@/components/admin/BookingsSectionManager";
+import { WorkSectionManager } from "@/components/admin/WorkSectionManager";
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
+import { listWorks } from "@/lib/works/service";
 
-type AdminSection = "media" | "events" | "leads" | "bookings";
-type MediaCategory = "highlights" | "hero-carousel" | "members";
+type AdminSection = "media" | "events" | "leads" | "bookings" | "work";
+type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications";
 
-const navItems: Array<{ title: string; section: AdminSection; icon: typeof Image; enabled: boolean }> = [
+const navItems: Array<{ title: string; section: AdminSection; category?: MediaCategory; icon: typeof Image; enabled: boolean }> = [
   { title: "Media", section: "media", icon: Image, enabled: true },
   { title: "Events", section: "events", icon: CalendarPlus, enabled: true },
   { title: "Bookings", section: "bookings", icon: BookOpen, enabled: true },
   { title: "Events (Legacy)", section: "media", icon: CalendarBlank, enabled: false },
-  { title: "Work", section: "media", icon: Briefcase, enabled: false },
-  { title: "Publications", section: "media", icon: BookOpen, enabled: false },
+  { title: "Work", section: "work", icon: Briefcase, enabled: true },
+  { title: "Publications", section: "media", category: "publications", icon: BookOpen, enabled: true },
   { title: "Leads", section: "leads", icon: ChartLineUp, enabled: true },
   { title: "Settings", section: "media", icon: GearSix, enabled: false },
 ];
@@ -53,17 +55,19 @@ const mediaCategories: Array<{
     { id: "highlights", label: "Highlights", description: "Showcase images on the homepage", icon: Star, enabled: true },
     { id: "hero-carousel", label: "Hero Carousel", description: "Background images for the hero section", icon: Slideshow, enabled: true },
     { id: "members", label: "Members", description: "Team and member photos", icon: Users, enabled: true },
+    { id: "publications", label: "Publications", description: "PDF publications and documents", icon: BookOpen, enabled: true },
   ];
 
 function parseSection(value?: string): AdminSection {
   if (value === "events") return "events";
   if (value === "leads") return "leads";
   if (value === "bookings") return "bookings";
+  if (value === "work") return "work";
   return "media";
 }
 
 function parseMediaCategory(value?: string): MediaCategory | null {
-  if (value === "highlights" || value === "hero-carousel" || value === "members") {
+  if (value === "highlights" || value === "hero-carousel" || value === "members" || value === "publications") {
     return value;
   }
   return null;
@@ -105,6 +109,11 @@ export default async function AdminPage({
     leadUsers = await listAllUsers();
   }
 
+  let allWorks: Awaited<ReturnType<typeof listWorks>> = [];
+  if (activeSection === "work") {
+    allWorks = await listWorks({ includeDrafts: true });
+  }
+
   return (
     <SidebarProvider>
       <QueryToasts scope="admin" keys={["success", "info", "error"]} />
@@ -136,10 +145,10 @@ export default async function AdminPage({
                     {item.enabled ? (
                       <SidebarMenuButton
                         asChild
-                        isActive={activeSection === item.section}
+                        isActive={activeSection === item.section && (item.category ? mediaCategory === item.category : !item.category && (!mediaCategory || mediaCategory !== 'publications'))}
                         tooltip={item.title}
                       >
-                        <Link href={`/admin?section=${item.section}`}>
+                        <Link href={item.category ? `/admin?section=${item.section}&mediaCategory=${item.category}` : `/admin?section=${item.section}`}>
                           <item.icon />
                           <span>{item.title}</span>
                         </Link>
@@ -187,6 +196,8 @@ export default async function AdminPage({
               <h1 className="font-semibold">Leads</h1>
             ) : activeSection === "bookings" ? (
               <h1 className="font-semibold">Bookings</h1>
+            ) : activeSection === "work" ? (
+              <h1 className="font-semibold">Work</h1>
             ) : mediaCategory ? (
               <>
                 <Link href="/admin?section=media" className="text-muted-foreground hover:text-foreground">
@@ -214,6 +225,10 @@ export default async function AdminPage({
         ) : activeSection === "bookings" ? (
           <section className="p-6">
             <BookingsSectionManager />
+          </section>
+        ) : activeSection === "work" ? (
+          <section className="p-6">
+            <WorkSectionManager works={allWorks} />
           </section>
         ) : mediaCategory ? (
           <section className="p-6">

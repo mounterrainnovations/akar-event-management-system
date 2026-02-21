@@ -8,34 +8,34 @@ import { instrumentSerif } from '@/lib/fonts';
 const journeyData = [
     {
         year: '2022',
-        title: 'The Beginning',
-        description: 'Founded with a vision to create a supportive ecosystem for women, starting with small community gatherings focused on connection and shared growth.',
+        title: 'Where Courage Found Its Space',
+        description: 'AKAR began with a simple truth: empowered women create empowered communities. It started as a safe space where women could speak freely, rebuild confidence, and support one another. There were no headlines, only heartfelt conversations. In those quiet moments, the foundation of change was laid.',
         // Using a sophisticated abstract/minimalist image as placeholder
-        image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?q=80&w=2072&auto=format&fit=crop'
+        image: '/2022.jpeg'
     },
     {
         year: '2023',
-        title: 'Community Growth',
-        description: 'Expanded our reach to three major cities, launching our first mentorship program that connected over 200 aspiring leaders.',
-        image: 'https://images.unsplash.com/photo-1531206715517-5c0ba140b2b8?q=80&w=2070&auto=format&fit=crop'
+        title: 'Empowerment in Action',
+        description: 'By 2023, the circle had grown stronger. Women from different backgrounds came together, sharing experiences and lifting each other higher. Conversations turned into collaboration and mentorship. Confidence became action. Empowerment was no longer a concept—it was visible in every woman who stepped forward.',
+        image: '/2023.jpeg'
     },
     {
         year: '2024',
-        title: 'Digital Innovation',
-        description: 'Launched our digital platform, making resources and workshops accessible to women in remote areas, bridging the gap.',
-        image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop'
+        title: 'Stories That Changed Narratives',
+        description: 'In 2024, AKAR amplified powerful stories of resilience through its magazine and community platforms. Women who once faced doubt began leading with courage and clarity. Their journeys inspired others to believe in themselves. Empowerment expanded beyond celebration—it began shaping the next generation.',
+        image: '/2024.jpg'
     },
     {
         year: '2025',
-        title: 'Strategic Partnerships',
-        description: 'Formed key alliances with improved global organizations to provide funding and international exposure for our members.',
-        image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2032&auto=format&fit=crop'
+        title: 'Recognition That Inspired Many',
+        description: 'The “Manzile Aur Hum – Women Achievers Award 2025” honored women who created real impact. It was a moment of pride, recognition, and collective strength. Each award celebrated perseverance and leadership. Empowerment stepped onto a larger stage.',
+        image: '/2025.jpg'
     },
     {
         year: '2026',
-        title: 'Global Summit',
-        description: 'Hosting our first international summit, bringing together thought leaders from around the world to shape the future of women empowerment.',
-        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop'
+        title: 'A Movement Creating Lasting Change',
+        description: 'By 2026, AKAR evolved into a movement driving meaningful change. It stands as a platform for leadership, mentorship, and opportunity. What began as a belief is now shaping confident women and stronger communities. The journey continues with purpose and power.',
+        image: '/2026.png'
     },
 ];
 

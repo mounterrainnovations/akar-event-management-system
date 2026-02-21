@@ -72,11 +72,14 @@ export default function Home() {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const now = new Date().toISOString();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
                 const { data, error } = await supabase
                     .from('events')
                     .select('*')
-                    .gt('event_date', now)
+                    .gte('event_date', today.toISOString())
+                    .in('status', ['published', 'waitlist'])
+                    .is('deleted_at', null)
                     .order('event_date', { ascending: true })
                     .limit(3);
 
