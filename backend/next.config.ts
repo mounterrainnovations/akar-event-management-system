@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   devIndicators: false,
   experimental: {
     serverActions: {
@@ -15,10 +16,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-};
-
-module.exports = {
-  output: "standalone",
 };
 
 export default nextConfig;

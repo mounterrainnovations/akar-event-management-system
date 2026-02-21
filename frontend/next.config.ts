@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "hflfauratacalmqlwdjd.supabase.co",
+        port: "",
+        pathname: "/**",
       },
       {
         protocol: "http",

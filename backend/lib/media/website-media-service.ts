@@ -17,7 +17,18 @@ type WebsiteMediaRow = {
   title: string | null;
   description: string | null;
   deleted_at: string | null;
+  thumbnail_id: string | null;
   media: {
+    id: string;
+    user_id: string;
+    bucket_name: string;
+    file_path: string;
+    file_name: string;
+    mime_type: string;
+    file_size: number;
+    deleted_at: string | null;
+  } | null;
+  thumbnail: {
     id: string;
     user_id: string;
     bucket_name: string;
@@ -43,6 +54,7 @@ export type WebsiteMediaItem = {
   mimeType: string;
   fileSize: number;
   previewUrl: string;
+  thumbnailUrl: string | null;
   title: string | null;
   description: string | null;
 };
@@ -130,7 +142,7 @@ async function getWebsiteMediaRowForMutation(
   const { data, error } = await supabase
     .from("website_media")
     .select(
-      "id,media_id,section,display_order,is_active,deleted_at,media:media_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at)",
+      "id,media_id,section,display_order,is_active,deleted_at,title,description,thumbnail_id,media:media_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at),thumbnail:thumbnail_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at)",
     )
     .eq("id", websiteMediaId)
     .is("deleted_at", null)
@@ -160,10 +172,11 @@ export async function uploadFilesToSection(params: {
   userId: string;
   section: WebsiteSection;
   files: File[];
+  thumbnailFile?: File;
   title?: string;
   description?: string;
 }) {
-  const { userId, section, files, title, description } = params;
+  const { userId, section, files, thumbnailFile, title, description } = params;
   const rules = getSectionRules(section);
   const validFiles = files.filter((file) => file.size > 0);
 
@@ -185,10 +198,22 @@ export async function uploadFilesToSection(params: {
 
   const bucketName = section === "members" ? "members" : undefined;
 
+  let storedThumbnailId: string | undefined = undefined;
+  if (thumbnailFile && thumbnailFile.size > 0) {
+    ensureImageFile(thumbnailFile);
+    const thumbMedia = await uploadMediaFile({
+      userId,
+      file: thumbnailFile,
+      bucketName,
+    });
+    storedThumbnailId = thumbMedia.id;
+  }
+
   for (const file of validFiles) {
     const media = await uploadMediaFile({ userId, file, bucketName });
     const { error } = await supabase.from("website_media").insert({
       media_id: media.id,
+      thumbnail_id: storedThumbnailId || null,
       section,
       display_order: nextDisplayOrder,
       is_active: true,
@@ -225,7 +250,7 @@ export async function listSectionMediaState(params: {
   const { data, error } = await supabase
     .from("website_media")
     .select(
-      "id,media_id,section,display_order,is_active,deleted_at,media:media_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at)",
+      "id,media_id,section,display_order,is_active,deleted_at,title,description,thumbnail_id,media:media_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at),thumbnail:thumbnail_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at)",
     )
     .eq("section", section)
     .is("deleted_at", null)
@@ -257,6 +282,12 @@ export async function listSectionMediaState(params: {
         mimeType: media.mime_type,
         fileSize: media.file_size,
         previewUrl,
+        thumbnailUrl: row.thumbnail
+          ? getPublicMediaUrl(
+              row.thumbnail.file_path,
+              row.thumbnail.bucket_name,
+            )
+          : null,
         title: row.title,
         description: row.description,
       } satisfies WebsiteMediaItem;
@@ -291,7 +322,7 @@ export async function listPublicSectionMedia(params: {
   let query = supabase
     .from("website_media")
     .select(
-      "id,media_id,section,display_order,is_active,deleted_at,media:media_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at)",
+      "id,media_id,section,display_order,is_active,deleted_at,title,description,thumbnail_id,media:media_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at),thumbnail:thumbnail_id(id,user_id,bucket_name,file_path,file_name,mime_type,file_size,deleted_at)",
     )
     .eq("section", section)
     .is("deleted_at", null)
@@ -328,6 +359,12 @@ export async function listPublicSectionMedia(params: {
         mimeType: media.mime_type,
         fileSize: media.file_size,
         previewUrl: getPublicMediaUrl(media.file_path, media.bucket_name),
+        thumbnailUrl: row.thumbnail
+          ? getPublicMediaUrl(
+              row.thumbnail.file_path,
+              row.thumbnail.bucket_name,
+            )
+          : null,
         title: row.title,
         description: row.description,
       } satisfies WebsiteMediaItem;

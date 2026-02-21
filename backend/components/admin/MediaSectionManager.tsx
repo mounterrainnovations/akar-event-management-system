@@ -12,7 +12,7 @@ import { toast } from "react-toastify";
 
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ALLOWED_TYPES = ["image/png", "image/jpeg"];
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "application/pdf"];
 
 type MediaSectionManagerProps = {
   title: string;
@@ -33,7 +33,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
     const invalidFormat = files.filter((f) => !ALLOWED_TYPES.includes(f.type));
     if (invalidFormat.length > 0) {
       toast.error(
-        `Only PNG and JPG files are allowed. Rejected: ${invalidFormat.map((f) => f.name).join(", ")}`,
+        `Invalid file type. Rejected: ${invalidFormat.map((f) => f.name).join(", ")}`,
       );
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
@@ -114,7 +114,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
           className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <UploadSimple className="size-4" weight="bold" />
-          Upload Image
+          {section.section === "publications" ? "Upload PDF" : "Upload Image"}
         </button>
       </div>
 
@@ -140,7 +140,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
       {section.items.length === 0 ? (
         <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/60 p-8 text-center">
           <Image className="size-12 text-muted-foreground/40" />
-          <p className="mt-3 text-sm text-muted-foreground">No images uploaded yet.</p>
+          <p className="mt-3 text-sm text-muted-foreground">No files uploaded yet.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -149,11 +149,29 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
               key={item.id}
               className="group relative aspect-square overflow-hidden rounded-xl bg-muted"
             >
-              <img
-                src={item.previewUrl}
-                alt={item.fileName}
-                className={`h-full w-full object-cover ${!item.isActive ? "opacity-50 grayscale" : ""}`}
-              />
+              {item.mimeType === "application/pdf" ? (
+                <div className={`flex h-full w-full items-center justify-center bg-muted-foreground/10 ${!item.isActive ? "opacity-50 grayscale" : ""}`}>
+                  {item.thumbnailUrl ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.title || item.fileName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <span className="text-4xl text-red-500">PDF</span>
+                      <span className="mt-2 px-2 truncate w-full text-center text-xs font-semibold">{item.title || item.fileName}</span>
+                      {item.description && <span className="px-2 truncate w-full text-center text-[10px] text-muted-foreground">{item.description}</span>}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <img
+                  src={item.previewUrl}
+                  alt={item.fileName}
+                  className={`h-full w-full object-cover ${!item.isActive ? "opacity-50 grayscale" : ""}`}
+                />
+              )}
 
               {/* Hidden badge */}
               {!item.isActive && (
@@ -254,10 +272,10 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                 >
                   <UploadSimple className={`size-8 ${isDragging ? "text-primary" : "text-muted-foreground/50"}`} />
                   <p className="mt-2 text-sm font-medium text-foreground">
-                    {isDragging ? "Drop your images here" : "Click or drag & drop image"}
+                    {isDragging ? "Drop your files here" : (section.section === "publications" ? "Click or drag & drop PDF" : "Click or drag & drop image")}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    PNG, JPG only — up to {MAX_FILE_SIZE_MB} MB
+                    {section.section === "publications" ? "PDF only" : "PNG, JPG only"} — up to {MAX_FILE_SIZE_MB} MB
                   </p>
                 </label>
               </div>
@@ -266,15 +284,15 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                 id={`upload-${section.section}`}
                 name="mediaFiles"
                 type="file"
-                accept=".png,.jpg,.jpeg"
-                multiple={section.section !== "members"}
+                accept={section.section === "publications" ? ".pdf" : ".png,.jpg,.jpeg"}
+                multiple={section.section !== "members" && section.section !== "publications"}
                 required
                 onChange={handleFileChange}
                 className="sr-only"
               />
 
               {/* Special inputs for Members section */}
-              {section.section === "members" && (
+              {(section.section === "members" || section.section === "publications") && (
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <label htmlFor="member-name" className="text-sm font-medium text-foreground">
@@ -284,24 +302,38 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
                       id="member-name"
                       name="title"
                       type="text"
-                      placeholder="e.g. Jane Doe"
+                      placeholder={section.section === "publications" ? "e.g. The Future of AI" : "e.g. Jane Doe"}
                       required
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                   <div className="space-y-1">
                     <label htmlFor="member-designation" className="text-sm font-medium text-foreground">
-                      Designation
+                      {section.section === "publications" ? "Author" : "Designation"}
                     </label>
                     <input
                       id="member-designation"
                       name="description"
                       type="text"
-                      placeholder="e.g. Creative Director"
+                      placeholder={section.section === "publications" ? "e.g. John Smith" : "e.g. Creative Director"}
                       required
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
+                  {section.section === "publications" && (
+                    <div className="space-y-1">
+                      <label htmlFor="publication-thumbnail" className="text-sm font-medium text-foreground">
+                        Thumbnail Image (Optional)
+                      </label>
+                      <input
+                        id="publication-thumbnail"
+                        name="thumbnailFile"
+                        type="file"
+                        accept=".png,.jpg,.jpeg"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

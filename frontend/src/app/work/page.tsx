@@ -1,120 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
-import { instrumentSerif } from '@/lib/fonts';
-
-const categories = ['All', 'Strategy', 'Design', 'Development', 'Experience'];
-
-const workItems = [
-    {
-        id: 1,
-        title: 'Sylvera',
-        subtitle: 'Data Driven Climate',
-        category: 'Design',
-        image: 'https://images.unsplash.com/photo-1464047736614-af63643285bf?q=80&w=1974&auto=format&fit=crop',
-    },
-    {
-        id: 2,
-        title: 'Knotel',
-        subtitle: 'World Wide Workscapes',
-        category: 'Strategy',
-        image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop',
-    },
-    {
-        id: 3,
-        title: 'Follio',
-        subtitle: 'Digital Brand System',
-        category: 'Development',
-        image: 'https://images.unsplash.com/photo-1542744094-3a31f272c490?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 4,
-        title: 'Akar Wellness',
-        subtitle: 'Community Living',
-        category: 'Experience',
-        image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 5,
-        title: 'Tech Summit',
-        subtitle: 'Identity & Experience',
-        category: 'Design',
-        image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=2012&auto=format&fit=crop',
-    },
-    {
-        id: 6,
-        title: 'Global Ventures',
-        subtitle: 'Venture Capital Brand',
-        category: 'Strategy',
-        image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 7,
-        title: 'Oceanic',
-        subtitle: 'Sustainability Report',
-        category: 'Design',
-        image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=2072&auto=format&fit=crop',
-    },
-    {
-        id: 8,
-        title: 'Vertex',
-        subtitle: 'AI Research Lab',
-        category: 'Development',
-        image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 9,
-        title: 'Elysium',
-        subtitle: 'Luxury Living',
-        category: 'Experience',
-        image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 10,
-        title: 'Nexus',
-        subtitle: 'Digital Transformation',
-        category: 'Strategy',
-        image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 11,
-        title: 'Prism',
-        subtitle: 'Creative Studio',
-        category: 'Design',
-        image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=2000&auto=format&fit=crop',
-    },
-    {
-        id: 12,
-        title: 'Blueprint',
-        subtitle: 'Strategic Growth',
-        category: 'Strategy',
-        image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop',
-    },
-    {
-        id: 13,
-        title: 'CodeBase',
-        subtitle: 'SaaS Architecture',
-        category: 'Development',
-        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        id: 14,
-        title: 'Sync',
-        subtitle: 'Cloud Solutions',
-        category: 'Development',
-        image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop',
-    },
-    {
-        id: 15,
-        title: 'Zenith',
-        subtitle: 'Boutique Hotel',
-        category: 'Experience',
-        image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop',
-    }
-];
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { instrumentSerif } from "@/lib/fonts";
+import { fetchWorks, type WorkItem, type WorkCategory } from "@/lib/works";
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { format } from "date-fns";
 
 const container = {
     hidden: {},
@@ -126,59 +18,68 @@ const container = {
 };
 
 const wordAnim = {
-    hidden: { opacity: 0, y: 20, filter: 'blur(8px)' },
+    hidden: { opacity: 0, y: 20, filter: "blur(8px)" },
     visible: {
         opacity: 1,
         y: 0,
-        filter: 'blur(0px)',
+        filter: "blur(0px)",
         transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] as const },
     },
 };
 
-export default function WorkPage() {
-    const [activeCategory, setActiveCategory] = useState('All');
+const FILTERS = [
+    { label: "All Works", value: "all" },
+    { label: "Upcoming", value: "upcoming" },
+    { label: "Past", value: "past" },
+    { label: "Articles", value: "article" },
+];
 
-    const filteredItems = activeCategory === 'All'
-        ? workItems
-        : workItems.filter(item => item.category === activeCategory);
+export default function WorkPage() {
+    const [works, setWorks] = useState<WorkItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [activeFilter, setActiveFilter] = useState("all");
+
+    useEffect(() => {
+        async function loadWorks() {
+            setLoading(true);
+            try {
+                const results = await fetchWorks(activeFilter !== "all" ? (activeFilter as WorkCategory) : undefined);
+                setWorks(results);
+            } catch (error) {
+                console.error("Failed to load works", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadWorks();
+    }, [activeFilter]);
 
     return (
-        <main className="min-h-screen relative overflow-hidden bg-white">
-            {/* Background Image */}
-            <div
-                className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-40"
-                style={{ backgroundImage: 'url("/event_bg.png")' }}
-            />
+        <main className="min-h-screen relative bg-white overflow-hidden pb-32">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-[0.15]" style={{ backgroundImage: 'url("/event_bg.png")' }} />
 
-            <div className="relative z-10 pt-[120px] pb-24 px-4 md:px-12 lg:px-16">
-                {/* Hero Section */}
-                <section className="mb-24">
-                    <div className="max-w-4xl">
+            <div className="relative z-10 pt-[120px]">
+                {/* Header Section */}
+                <section className="px-4 md:px-12 lg:px-16 text-center lg:text-left mb-16">
+                    <div className="max-w-5xl mx-auto lg:mx-0">
                         <motion.h1
-                            className={`${instrumentSerif.className} text-[#1a1a1a] text-[12vw] md:text-[7.5vw] lg:text-[7vw] xl:text-[5.5vw] leading-[1] md:leading-[0.95] tracking-[-0.02em]`}
+                            className={`${instrumentSerif.className} text-[#1a1a1a] text-[12vw] md:text-[7.5vw] lg:text-[7vw] xl:text-[6vw] leading-[1] md:leading-[0.95] tracking-[-0.02em]`}
                             variants={container}
                             initial="hidden"
                             whileInView="visible"
                             viewport={{ once: false, amount: 0.3 }}
                         >
                             <div className="block">
-                                {['Our', 'work'].map((word, i) => (
-                                    <motion.span
-                                        key={`title-${i}`}
-                                        variants={wordAnim}
-                                        className="inline-block mr-[0.3em]"
-                                    >
+                                {["Our", "Selected"].map((word, i) => (
+                                    <motion.span key={`title-${i}`} variants={wordAnim} className="inline-block mr-[0.3em]">
                                         {word}
                                     </motion.span>
                                 ))}
                             </div>
                             <div className="block text-[#1a1a1a]/40">
-                                {['From', 'idea', 'to', 'exit'].map((word, i) => (
-                                    <motion.span
-                                        key={`subtitle-${i}`}
-                                        variants={wordAnim}
-                                        className="inline-block mr-[0.3em]"
-                                    >
+                                {["Works,", "Stories", "&", "More."].map((word, i) => (
+                                    <motion.span key={`subtitle-${i}`} variants={wordAnim} className="inline-block mr-[0.3em]">
                                         {word}
                                     </motion.span>
                                 ))}
@@ -188,71 +89,87 @@ export default function WorkPage() {
                 </section>
 
                 {/* Filter Navigation */}
-                <div className="mb-16 border-b border-black/5 pb-6">
-                    <div className="flex flex-wrap gap-x-12 gap-y-6 items-center">
-                        {categories.map((category, index) => (
-                            <React.Fragment key={category}>
-                                <button
-                                    onClick={() => setActiveCategory(category)}
-                                    className={`text-xl md:text-3xl font-medium transition-all duration-300 ${activeCategory === category
-                                        ? 'text-[#1a1a1a]'
-                                        : 'text-[#1a1a1a]/30 hover:text-[#1a1a1a]/50'
-                                        }`}
-                                >
-                                    {category}
-                                </button>
-                                {category === 'All' && (
-                                    <span className="text-[#1a1a1a]/10 text-3xl">—</span>
-                                )}
-                            </React.Fragment>
+                <section className="px-4 md:px-12 lg:px-16 mb-12">
+                    <div className="flex flex-wrap items-center gap-3">
+                        {FILTERS.map((filter) => (
+                            <button
+                                key={filter.value}
+                                onClick={() => setActiveFilter(filter.value)}
+                                className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${activeFilter === filter.value
+                                        ? "bg-[#1a1a1a] text-white shadow-lg shadow-black/10 scale-105"
+                                        : "bg-[#1a1a1a]/5 text-[#1a1a1a]/60 hover:bg-[#1a1a1a]/10 hover:text-[#1a1a1a]"
+                                    }`}
+                            >
+                                {filter.label}
+                            </button>
                         ))}
                     </div>
-                </div>
+                </section>
 
-                {/* Work Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16 min-h-[800px]">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                        {filteredItems.map((item) => (
-                            <motion.div
-                                key={item.id}
-                                layout
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                transition={{
-                                    layout: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
-                                    opacity: { duration: 0.4 },
-                                    scale: { duration: 0.4 }
-                                }}
-                                className="group cursor-pointer"
-                            >
-                                <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-gray-100 mb-6">
-                                    <Image
-                                        src={item.image}
-                                        alt={item.title}
-                                        fill
-                                        className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                                    />
-                                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                {/* Works Grid */}
+                <section className="px-4 md:px-12 lg:px-16">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 gap-y-16">
+                        <AnimatePresence mode="popLayout">
+                            {loading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <motion.div key={`skeleton-${i}`} className="animate-pulse flex flex-col pt-4">
+                                        <div className="w-full aspect-[4/3] bg-black/5 rounded-2xl mb-6" />
+                                        <div className="h-4 bg-black/5 rounded-md w-24 mb-4" />
+                                        <div className="h-8 bg-black/5 rounded-md w-3/4 mb-3" />
+                                    </motion.div>
+                                ))
+                            ) : works.length === 0 ? (
+                                <div className="col-span-full py-20 text-center">
+                                    <h3 className={`${instrumentSerif.className} text-3xl text-[#1a1a1a] mb-2`}>No matching results</h3>
+                                    <p className="text-[#1a1a1a]/50">Check back soon for new content and updates.</p>
                                 </div>
+                            ) : (
+                                works.map((work) => (
+                                    <Link key={work.id} href={`/Work/${work.id}`} className="group relative outline-none block">
+                                        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#f1f1f1] mb-6 shadow-sm border border-[#1a1a1a]/5">
+                                            {work.coverImageUrl ? (
+                                                <img
+                                                    src={work.coverImageUrl}
+                                                    alt={work.title}
+                                                    className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-black/5 text-black/20 font-medium">
+                                                    No Preview
+                                                </div>
+                                            )}
 
-                                <div className="space-y-1 transform transition-all duration-500 ease-out group-hover:-translate-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-[#1a1a1a] text-2xl font-semibold tracking-tight">
-                                            {item.title}
-                                        </h3>
-                                        <ArrowUpRight
-                                            className="w-6 h-6 text-[#1a1a1a] opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-2 group-hover:translate-x-0"
-                                        />
-                                    </div>
-                                    <p className="text-[#1a1a1a]/40 text-lg font-medium">
-                                        {item.subtitle}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
+                                            {/* Hover Overlay */}
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 ease-out flex items-center justify-center">
+                                                <div className="bg-white text-black p-4 rounded-full opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ease-out shadow-xl transform translate-y-4 group-hover:translate-y-0">
+                                                    <ArrowUpRight strokeWidth={2.5} size={24} />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-3 px-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-[#1a1a1a]/60 bg-[#1a1a1a]/5 px-3 py-1 rounded-full">
+                                                    {work.category}
+                                                </span>
+                                                <span className="text-sm font-medium text-[#1a1a1a]/40">
+                                                    {format(new Date(work.createdAt), "MMM d, yyyy")}
+                                                </span>
+                                            </div>
+
+                                            <h2 className={`${instrumentSerif.className} text-3xl md:text-4xl text-[#1a1a1a] leading-[1.1] transition-colors group-hover:text-[#db2929]`}>
+                                                {work.title}
+                                            </h2>
+                                            <p className="text-sm font-semibold text-[#1a1a1a]/70">
+                                                By {work.author}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                ))
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </section>
             </div>
         </main>
     );
