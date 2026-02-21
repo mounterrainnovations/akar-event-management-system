@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
     CalendarBlank,
     Tag,
@@ -14,8 +14,10 @@ import {
     Info,
 } from "@phosphor-icons/react";
 import { format } from "date-fns";
+import { toast } from "react-toastify";
 import { listAllRegistrationsAction } from "@/app/admin/events-new-actions";
 import { type BookingDetail } from "@/lib/events/service";
+import { syncSingleRegistrationTransactionStatus } from "@/lib/payments/transaction-status-client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -198,25 +200,66 @@ export function BookingsSectionManager() {
     const [dateTo, setDateTo] = useState("");
     const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [syncingBookingIds, setSyncingBookingIds] = useState<Record<string, boolean>>({});
+    const [actionError, setActionError] = useState<string | null>(null);
 
-    useEffect(() => {
-        async function fetchBookings() {
+    const fetchBookings = useCallback(async (showLoader: boolean = true) => {
+        if (showLoader) {
             setLoading(true);
-            try {
-                const result = await listAllRegistrationsAction();
-                if (result.success && result.bookings) {
-                    setBookings(result.bookings);
-                } else {
-                    setError(result.error || "Failed to load bookings");
-                }
-            } catch {
-                setError("An unexpected error occurred");
-            } finally {
+        }
+        try {
+            const result = await listAllRegistrationsAction();
+            if (result.success && result.bookings) {
+                setBookings(result.bookings);
+                setError(null);
+                return true;
+            }
+            setError(result.error || "Failed to load bookings");
+            return false;
+        } catch {
+            setError("An unexpected error occurred");
+            return false;
+        } finally {
+            if (showLoader) {
                 setLoading(false);
             }
         }
-        fetchBookings();
     }, []);
+
+    useEffect(() => {
+        void fetchBookings();
+    }, [fetchBookings]);
+
+    async function handleCheckTransactionStatus(registrationId: string) {
+        setActionError(null);
+        setSyncingBookingIds((current) => ({ ...current, [registrationId]: true }));
+
+        try {
+            const result = await syncSingleRegistrationTransactionStatus(registrationId);
+            if (!result.item?.ok) {
+                throw new Error(result.item?.error || "Unable to sync transaction status");
+            }
+
+            toast.success(
+                `Transaction status checked (${toReadableLabel(result.item.flow)}${result.item.status ? `: ${result.item.status}` : ""}).`,
+            );
+
+            const refreshed = await fetchBookings(false);
+            if (!refreshed) {
+                toast.info("Status synced, but latest bookings could not be reloaded.");
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unable to sync transaction status";
+            setActionError(message);
+            toast.error(message);
+        } finally {
+            setSyncingBookingIds((current) => {
+                const next = { ...current };
+                delete next[registrationId];
+                return next;
+            });
+        }
+    }
 
     const eventOptions = useMemo(
         () =>
@@ -376,6 +419,9 @@ export function BookingsSectionManager() {
                     <p className="mt-0.5 text-sm text-muted-foreground">
                         {filteredBookings.length} registration{filteredBookings.length !== 1 ? "s" : ""} recorded
                     </p>
+                    {actionError && (
+                        <p className="mt-1 text-xs text-red-500">{actionError}</p>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -579,6 +625,17 @@ export function BookingsSectionManager() {
                                                         <DownloadSimple size={18} weight="bold" />
                                                     </Button>
                                                 )}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 px-2 text-[11px]"
+                                                    disabled={Boolean(syncingBookingIds[booking.id])}
+                                                    onClick={() => {
+                                                        void handleCheckTransactionStatus(booking.id);
+                                                    }}
+                                                >
+                                                    {syncingBookingIds[booking.id] ? "Checking..." : "Check Status"}
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
