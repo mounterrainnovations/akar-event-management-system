@@ -32,6 +32,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { BookingDetailsModal } from "./BookingDetailsModal";
 
+const OFFLINE_BOOKING_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+function getOfflineAttendeeInfo(booking: BookingDetail): { name: string | null; email: string | null } | null {
+    if (booking.userId !== OFFLINE_BOOKING_USER_ID) return null;
+    const fr = booking.formResponse;
+    if (!fr || typeof fr !== "object" || Array.isArray(fr)) return null;
+    const f = fr as Record<string, unknown>;
+    return {
+        name: typeof f._offline_name === "string" ? f._offline_name : null,
+        email: typeof f._offline_email === "string" ? f._offline_email : null,
+    };
+}
+
+
 function toReadableLabel(value: string) {
     return value
         .replace(/[_-]+/g, " ")
@@ -585,8 +599,17 @@ export function BookingsSectionManager() {
                                     <tr key={booking.id} className="group hover:bg-muted/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-semibold text-foreground">{booking.userName || "Guest User"}</span>
-                                                <span className="text-[11px] text-muted-foreground">{booking.userEmail || "no email provided"}</span>
+                                                {(() => {
+                                                    const offline = getOfflineAttendeeInfo(booking);
+                                                    const name = offline?.name || booking.userName || "Guest User";
+                                                    const email = offline?.email || booking.userEmail || "no email provided";
+                                                    return (
+                                                        <>
+                                                            <span className="font-semibold text-foreground">{name}</span>
+                                                            <span className="text-[11px] text-muted-foreground">{email}</span>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -604,7 +627,7 @@ export function BookingsSectionManager() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 align-top">
-                                            <FormResponsePopover formResponse={booking.formResponse} />
+                                            <FormResponsePopover formResponse={booking.formResponse} isOffline={booking.userId === OFFLINE_BOOKING_USER_ID} />
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
@@ -697,8 +720,17 @@ export function BookingsSectionManager() {
     );
 }
 
-function FormResponsePopover({ formResponse }: { formResponse: BookingDetail["formResponse"] }) {
-    const entries = getFormResponseEntries(formResponse);
+function FormResponsePopover({ formResponse, isOffline }: { formResponse: BookingDetail["formResponse"]; isOffline?: boolean }) {
+    // For offline bookings, filter out internal _offline_* fields and show a badge
+    const entries = getFormResponseEntries(formResponse).filter(([key]) => !key.startsWith("_offline_") && key !== "_source");
+
+    if (isOffline && entries.length === 0) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                Offline
+            </span>
+        );
+    }
 
     if (entries.length === 0) {
         return <span className="text-xs text-muted-foreground">No response</span>;

@@ -20,7 +20,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { CalendarBlank, CalendarPlus, Image, SignOut, CaretRight, Slideshow, Users, Star, Briefcase, BookOpen, ChartLineUp, GearSix } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, CalendarPlus, Image, SignOut, CaretRight, Slideshow, Users, Star, Briefcase, BookOpen, ChartLineUp, GearSix, Ticket } from "@phosphor-icons/react/dist/ssr";
 import { listSectionMediaState } from "@/lib/media/website-media-service";
 import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
 import { listWebsiteSectionRules } from "@/lib/media/website-sections";
@@ -28,16 +28,18 @@ import { EventsNewSectionManager } from "@/components/admin/EventsNewSectionMana
 import { LeadsSectionManager } from "@/components/admin/LeadsSectionManager";
 import { BookingsSectionManager } from "@/components/admin/BookingsSectionManager";
 import { WorkSectionManager } from "@/components/admin/WorkSectionManager";
+import { CounterBookingSectionManager } from "@/components/admin/CounterBookingSectionManager";
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
 import { listWorks } from "@/lib/works/service";
 
-type AdminSection = "media" | "events" | "leads" | "bookings" | "work";
+type AdminSection = "media" | "events" | "leads" | "bookings" | "work" | "counter-booking";
 type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications";
 
 const navItems: Array<{ title: string; section: AdminSection; category?: MediaCategory; icon: typeof Image; enabled: boolean }> = [
   { title: "Media", section: "media", icon: Image, enabled: true },
   { title: "Events", section: "events", icon: CalendarPlus, enabled: true },
   { title: "Bookings", section: "bookings", icon: BookOpen, enabled: true },
+  { title: "Counter Booking", section: "counter-booking", icon: Ticket, enabled: true },
   { title: "Events (Legacy)", section: "media", icon: CalendarBlank, enabled: false },
   { title: "Work", section: "work", icon: Briefcase, enabled: true },
   { title: "Publications", section: "media", category: "publications", icon: BookOpen, enabled: true },
@@ -63,6 +65,7 @@ function parseSection(value?: string): AdminSection {
   if (value === "leads") return "leads";
   if (value === "bookings") return "bookings";
   if (value === "work") return "work";
+  if (value === "counter-booking") return "counter-booking";
   return "media";
 }
 
@@ -196,6 +199,8 @@ export default async function AdminPage({
               <h1 className="font-semibold">Leads</h1>
             ) : activeSection === "bookings" ? (
               <h1 className="font-semibold">Bookings</h1>
+            ) : activeSection === "counter-booking" ? (
+              <h1 className="font-semibold">Counter Booking</h1>
             ) : activeSection === "work" ? (
               <h1 className="font-semibold">Work</h1>
             ) : mediaCategory ? (
@@ -225,6 +230,10 @@ export default async function AdminPage({
         ) : activeSection === "bookings" ? (
           <section className="p-6">
             <BookingsSectionManager />
+          </section>
+        ) : activeSection === "counter-booking" ? (
+          <section className="p-6">
+            <CounterBookingSectionManager />
           </section>
         ) : activeSection === "work" ? (
           <section className="p-6">
