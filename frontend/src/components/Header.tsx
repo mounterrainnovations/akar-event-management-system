@@ -7,6 +7,7 @@ import { Menu, X, User, Ticket, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { instrumentSerif } from '@/lib/fonts';
 
 const primaryNavItems = [
     { name: 'Work', href: '/work' },
@@ -68,8 +69,8 @@ export default function Header() {
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, [lastScrollY]);
-    const textColor = isDarkTextPage ? 'text-[#1a1a1a]' : (!isPastHero ? 'text-white' : 'text-[#1a1a1a]');
-    const separatorBg = isDarkTextPage ? 'bg-[#1a1a1a]' : (!isPastHero ? 'bg-white' : 'bg-[#1a1a1a]');
+    const textColor = isMobileMenuOpen ? 'text-white' : (isDarkTextPage ? 'text-[#1a1a1a]' : (!isPastHero ? 'text-white' : 'text-[#1a1a1a]'));
+    const separatorBg = isMobileMenuOpen ? 'bg-white' : (isDarkTextPage ? 'bg-[#1a1a1a]' : (!isPastHero ? 'bg-white' : 'bg-[#1a1a1a]'));
 
     return (
         <>
@@ -84,8 +85,8 @@ export default function Header() {
 
             {/* Header content — hides on scroll down */}
             <header
-                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isHidden ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
-                    }`}
+                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${(isHidden && !isMobileMenuOpen) ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+                    } ${isMobileMenuOpen ? 'bg-[#1a1a1a]/95 backdrop-blur-md' : ''}`}
             >
                 <div className="w-full px-8 md:px-12 lg:px-16 flex items-center justify-between h-[80px]">
                     {/* Logo */}
@@ -128,15 +129,11 @@ export default function Header() {
                         <div className="ml-4 pl-4 border-l border-gray-200/20">
                             {isAuthenticated && user ? (
                                 <div className="relative group">
-                                    <button className="flex items-center gap-2 focus:outline-none">
-                                        <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name}`}
-                                                alt={user.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
+                                    <button
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-[#1a1a1a] hover:bg-black transition-all duration-300 focus:outline-none"
+                                        aria-label="Account"
+                                    >
+                                        <User className="w-4 h-4 text-white" />
                                     </button>
 
                                     {/* Dropdown */}
@@ -205,7 +202,7 @@ export default function Header() {
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
-                            className="md:hidden bg-[#1a1a1a]/95 backdrop-blur-md border-t border-white/5"
+                            className="md:hidden border-t border-white/5"
                         >
                             <nav className="flex flex-col px-8 py-6 gap-1">
                                 {primaryNavItems.map((item) => (
@@ -229,6 +226,57 @@ export default function Header() {
                                         {item.name}
                                     </Link>
                                 ))}
+                                <div className="w-8 h-[1px] bg-white/15 my-3" />
+                                {isAuthenticated && user ? (
+                                    <>
+                                        <div className="py-2.5 flex items-center gap-3 text-white/70 mb-2">
+                                            <div className="w-8 h-8 rounded-full bg-[#1a1a1a] shrink-0 flex items-center justify-center">
+                                                <User className="w-4 h-4 text-white" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-black uppercase tracking-widest text-white/40">Signed in as</span>
+                                                <span className="text-sm font-bold text-white truncate max-w-[200px]">{user.name}</span>
+                                            </div>
+                                        </div>
+                                        <Link
+                                            href="/my-bookings"
+                                            className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            <Ticket className="w-4 h-4" />
+                                            My Bookings
+                                        </Link>
+                                        <Link
+                                            href="/settings"
+                                            className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            Settings
+                                        </Link>
+                                        <button
+                                            onClick={() => {
+                                                handleLogout();
+                                                setIsMobileMenuOpen(false);
+                                            }}
+                                            className="flex items-center gap-3 text-[#ff5a5a] text-[14px] font-normal py-2.5 hover:text-red-400 transition-colors text-left"
+                                        >
+                                            <X className="w-4 h-4" />
+                                            Sign out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            openAuthModal();
+                                            setIsMobileMenuOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors text-left"
+                                    >
+                                        <User className="w-4 h-4" />
+                                        Sign In
+                                    </button>
+                                )}
                             </nav>
                         </motion.div>
                     )}

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { instrumentSerif } from '@/lib/fonts';
 import { ArrowUpRight, Instagram, Linkedin, Twitter } from 'lucide-react';
@@ -19,35 +18,26 @@ export default function Footer() {
 
                     {/* 1. Large CTA Section with Socials */}
                     <div className="border-b border-white/10 pb-16 mb-16">
-                        <h2 className={`${instrumentSerif.className} text-[10vw] md:text-[8vw] leading-[0.8] tracking-[-0.02em] text-white mb-8`}>
-                            Akar Women Group                        </h2>
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-                            <div className="space-y-8">
-                                <p className="font-montserrat text-white/60 text-lg md:text-xl max-w-md font-light">
-                                    Join our movement to empower women and nurture the next generation. Together, let&apos;s build a brighter future.
-                                </p>
+                        <h2 className={`${instrumentSerif.className} text-[10vw] md:text-[8vw] leading-[0.8] tracking-[-0.02em] text-white mb-6`}>
+                            Akar Women Group
+                        </h2>
 
-                                {/* Social Icons integrated here */}
-                                <div className="flex gap-4">
-                                    <a href="https://www.instagram.com/akar_womengroup" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
-                                        <Instagram size={20} />
-                                    </a>
-                                    {/* <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
-                                        <Linkedin size={20} />
-                                    </a> */}
-                                    <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
-                                        <Twitter size={20} />
-                                    </a>
-                                </div>
-                            </div>
-                            <div className="hidden md:block opacity-20 hover:opacity-100 transition-opacity duration-500">
-                                <Image
-                                    src="/logo.png"
-                                    alt="Akar Women Group Logo"
-                                    width={400}
-                                    height={400}
-                                    className="object-contain w-64 h-64 grayscale hover:grayscale-0 transition-all duration-500"
-                                />
+                        <div className="space-y-8">
+                            <p className="font-montserrat text-white/60 text-lg md:text-xl max-w-md font-light">
+                                Join our movement to empower women and nurture the next generation. Together, let&apos;s build a brighter future.
+                            </p>
+
+                            {/* Social Icons integrated here */}
+                            <div className="flex gap-4">
+                                <a href="https://www.instagram.com/akar_womengroup" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
+                                    <Instagram size={20} />
+                                </a>
+                                {/* <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
+                                    <Linkedin size={20} />
+                                </a> */}
+                                <a href="#" className="text-white hover:text-white/70 transition-colors p-2 border border-white/10 hover:border-white rounded-full">
+                                    <Twitter size={20} />
+                                </a>
                             </div>
                         </div>
                     </div>

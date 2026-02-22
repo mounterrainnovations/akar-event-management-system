@@ -9,6 +9,11 @@ import {
   type EventWriteInput,
 } from "@/lib/events/service";
 import { getLogger } from "@/lib/logger";
+import {
+  sendBookingSuccessEmail,
+  sendBookingFailureEmail,
+  sendWishlistConfirmation,
+} from "@/lib/email/service";
 
 const logger = getLogger("events-new-actions");
 
@@ -67,7 +72,10 @@ export async function createEventAction(input: EventWriteInput) {
   }
 }
 
-export async function updateEventAction(eventId: string, input: EventWriteInput) {
+export async function updateEventAction(
+  eventId: string,
+  input: EventWriteInput,
+) {
   try {
     await updateEvent({
       eventId,
@@ -131,5 +139,97 @@ export async function listAllRegistrationsAction() {
   } catch (error) {
     logger.error("Failed to list all registrations action", { error });
     return { error: "Failed to load bookings. Please try again." };
+  }
+}
+
+export async function resendBookingEmailAction(booking: any) {
+  try {
+    const {
+      paymentStatus,
+      userEmail,
+      userName,
+      name,
+      eventName,
+      finalAmount,
+      id,
+      eventId,
+    } = booking;
+    const finalEmail = userEmail || "";
+    const finalName = userName || name || "Guest User";
+
+    // Fetch event details to pass correct parameters for Success email
+    let eventDetails = null;
+    try {
+      const { getPublicEventDetail } = await import("@/lib/events/service");
+      eventDetails = await getPublicEventDetail(eventId);
+    } catch (e) {
+      logger.warn("Could not fetch event details for resending email", {
+        eventId,
+      });
+    }
+
+    const payStatus = (paymentStatus || "").toLowerCase();
+
+    if (payStatus === "paid" || payStatus === "success") {
+      const tickets: {
+        name: string;
+        quantity: number;
+        price: number;
+        type: string;
+      }[] = [];
+      if (booking.ticketsBought && eventDetails) {
+        Object.entries(booking.ticketsBought).forEach(([ticketId, qty]) => {
+          const matchedTicket = eventDetails.tickets.find(
+            (t: any) => t.id === ticketId,
+          );
+          const tDesc = matchedTicket?.description as { name?: string } | null;
+          const ticketName =
+            tDesc?.name || booking.ticketName || "General Ticket";
+          tickets.push({
+            name: ticketName,
+            quantity: Number(qty) || 0,
+            price: matchedTicket ? matchedTicket.price : 0,
+            type: "General",
+          });
+        });
+      }
+
+      await sendBookingSuccessEmail(
+        finalEmail,
+        finalName,
+        eventName,
+        String(finalAmount),
+        id,
+        tickets,
+        new Date(booking.createdAt).toISOString(),
+        eventDetails?.event.eventDate || "TBA",
+        eventDetails?.event.address1 || "TBA",
+        eventDetails?.event.termsAndConditions || "Standard terms apply.",
+        undefined,
+        undefined,
+      );
+    } else if (payStatus === "failed") {
+      await sendBookingFailureEmail(
+        finalEmail,
+        finalName,
+        eventName,
+        String(finalAmount),
+        id,
+      );
+    } else if (
+      payStatus === "wishlist" ||
+      payStatus === "waitlist" ||
+      payStatus === "pending"
+    ) {
+      // User requested: "For wishlist: Its wishlist email"
+      await sendWishlistConfirmation(finalEmail, finalName, eventName);
+    } else {
+      return { error: `No email template for status: ${paymentStatus}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Failed to resend email", { error });
+    return { error: "Failed to resend email. Please try again." };
   }
 }

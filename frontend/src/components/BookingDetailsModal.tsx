@@ -205,138 +205,137 @@ export default function BookingDetailsModal({ isOpen, onClose, booking }: Bookin
                                 </div>
                             </div>
 
-                            {/* Body */}
-                            <div className="grid md:grid-cols-[1.15fr_1fr]">
-                                {/* Media */}
-                                <div className="relative min-h-[220px] md:min-h-full bg-gray-100 overflow-hidden">
-                                    {booking.event.bannerUrl ? (
-                                        <Image
-                                            src={booking.event.bannerUrl}
-                                            alt={booking.event.name}
-                                            fill
-                                            className="object-cover"
-                                            priority
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-200">
-                                            <Calendar size={64} />
+                            {/* Banner – full width on top */}
+                            {booking.event.bannerUrl ? (
+                                <div className="relative w-full h-52 md:h-64 bg-gray-100 overflow-hidden">
+                                    <Image
+                                        src={booking.event.bannerUrl}
+                                        alt={booking.event.name}
+                                        fill
+                                        className="object-cover"
+                                        priority
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+                                    {eventDate && (
+                                        <div className="absolute bottom-4 left-4">
+                                            <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-black/40 backdrop-blur text-white">
+                                                {eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </div>
                                         </div>
                                     )}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
-                                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
-                                        <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-black/40 backdrop-blur">
-                                            {eventDate
-                                                ? eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                                : 'Date TBA'}
-                                        </div>
+                                </div>
+                            ) : null}
+
+                            {/* Details */}
+                            <div className="p-6 md:p-8 space-y-8">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                                        <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Booking ID</p>
+                                        <p className="font-mono text-xs font-bold text-black/80 break-all">{booking.id.toUpperCase()}</p>
+                                    </div>
+                                    <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                                        <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Payment</p>
+                                        <p className="text-sm font-bold text-black">Rs. {booking.finalAmount}</p>
+                                    </div>
+                                    <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                                        <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Status</p>
+                                        <p className={`text-sm font-bold ${status.text}`}>{status.label}</p>
+                                    </div>
+                                    <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                                        <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Booked On</p>
+                                        <p className="text-sm font-bold text-black">{bookingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                                     </div>
                                 </div>
 
-                                {/* Details */}
-                                <div className="p-6 md:p-8 space-y-8">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                                            <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Booking ID</p>
-                                            <p className="font-mono text-xs font-bold text-black/80 break-all">{booking.id.toUpperCase()}</p>
-                                        </div>
-                                        <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                                            <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Payment</p>
-                                            <p className="text-sm font-bold text-black">Rs. {booking.finalAmount}</p>
-                                        </div>
-                                        <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                                            <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Status</p>
-                                            <p className={`text-sm font-bold ${status.text}`}>{status.label}</p>
-                                        </div>
-                                        <div className="p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                                            <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">Booked On</p>
-                                            <p className="text-sm font-bold text-black">{bookingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                                        </div>
-                                    </div>
-
-                                    {!booking.isWaitlisted && (
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="font-montserrat text-xs uppercase tracking-[0.3em] font-bold text-black/70">Tickets</h3>
-                                                <div className="text-[10px] font-montserrat uppercase tracking-widest text-black/40 font-bold">
-                                                    {booking.tickets.length} items
-                                                </div>
+                                {!booking.isWaitlisted && (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-montserrat text-xs uppercase tracking-[0.3em] font-bold text-black/70">Tickets</h3>
+                                            <div className="text-[10px] font-montserrat uppercase tracking-widest text-black/40 font-bold">
+                                                {booking.tickets.length} items
                                             </div>
-                                            <div className="space-y-3">
-                                                {booking.tickets.map((ticket) => (
-                                                    <div key={ticket.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50/60">
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="h-10 w-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center">
-                                                                <Ticket className="text-black/40" size={18} />
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-bold text-black truncate">{ticket.name}</p>
-                                                                <p className="text-[10px] text-black/40 font-bold uppercase tracking-widest">Qty {ticket.quantity}</p>
-                                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {booking.tickets.map((ticket) => (
+                                                <div key={ticket.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50/60">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="h-10 w-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center">
+                                                            <Ticket className="text-black/40" size={18} />
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-sm font-bold text-black">
-                                                                {ticket.price > 0 ? `Rs. ${ticket.price * ticket.quantity}` : 'Free'}
-                                                            </p>
-                                                            {ticket.price > 0 && (
-                                                                <p className="text-[10px] text-black/35 font-bold uppercase tracking-widest">Rs. {ticket.price} each</p>
-                                                            )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-black truncate">{ticket.name}</p>
+                                                            <p className="text-[10px] text-black/40 font-bold uppercase tracking-widest">Qty {ticket.quantity}</p>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-bold text-black">
+                                                            {ticket.price > 0 ? `Rs. ${ticket.price * ticket.quantity}` : 'Free'}
+                                                        </p>
+                                                        {ticket.price > 0 && (
+                                                            <p className="text-[10px] text-black/35 font-bold uppercase tracking-widest">Rs. {ticket.price} each</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
-                                    {!booking.isWaitlisted && (
-                                        <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                                            {(() => {
-                                                const subTotal = booking.tickets.reduce((acc, t) => acc + (t.price * t.quantity), 0);
-                                                const discount = subTotal - booking.finalAmount;
+                                {!booking.isWaitlisted && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                                        {(() => {
+                                            const subTotal = booking.tickets.reduce((acc, t) => acc + (t.price * t.quantity), 0);
+                                            const discount = subTotal - booking.finalAmount;
 
-                                                if (discount > 0.01) {
-                                                    return (
-                                                        <>
-                                                            <div className="flex justify-between items-center text-xs">
-                                                                <span className="text-black/50 font-medium">Subtotal</span>
-                                                                <span className="text-black font-medium">Rs. {subTotal.toFixed(2)}</span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center text-xs">
-                                                                <span className="text-black/50 font-medium">Discount</span>
-                                                                <span className="text-red-500 font-medium">- Rs. {discount.toFixed(2)}</span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-100">
-                                                                <span className="font-bold text-black">Total Paid</span>
-                                                                <span className="font-bold text-black">Rs. {booking.finalAmount}</span>
-                                                            </div>
-                                                        </>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
-                                        </div>
-                                    )}
+                                            if (discount > 0.01) {
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between items-center text-xs">
+                                                            <span className="text-black/50 font-medium">Subtotal</span>
+                                                            <span className="text-black font-medium">Rs. {subTotal.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-xs">
+                                                            <span className="text-black/50 font-medium">Discount</span>
+                                                            <span className="text-red-500 font-medium">- Rs. {discount.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-100">
+                                                            <span className="font-bold text-black">Total Paid</span>
+                                                            <span className="font-bold text-black">Rs. {booking.finalAmount}</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </div>
+                                )}
 
-                                    {booking.formResponse && Object.keys(booking.formResponse).length > 0 && (
-                                        <div className="space-y-4">
-                                            <h3 className="font-montserrat text-xs uppercase tracking-[0.3em] font-bold text-black/70">Registration Data</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {Object.entries(booking.formResponse).map(([key, value]) => (
+                                {booking.formResponse && Object.keys(booking.formResponse).filter(k => !k.startsWith('_')).length > 0 && (
+                                    <div className="space-y-4">
+                                        <h3 className="font-montserrat text-xs uppercase tracking-[0.3em] font-bold text-black/70">Registration Data</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {Object.entries(booking.formResponse)
+                                                .filter(([key]) => !key.startsWith('_'))
+                                                .map(([key, value]) => (
                                                     <div key={key} className="p-4 rounded-2xl border border-gray-100 bg-white">
                                                         <p className="text-[9px] uppercase tracking-widest text-black/30 font-bold mb-1">{formatLabel(key)}</p>
                                                         <p className="text-sm font-semibold text-black break-words">
-                                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                            {Array.isArray(value)
+                                                                ? value.map((v: any) => (typeof v === 'object' ? v?.name || JSON.stringify(v) : String(v))).join(', ') || '—'
+                                                                : typeof value === 'object' && value !== null
+                                                                    ? JSON.stringify(value)
+                                                                    : String(value)}
                                                         </p>
                                                     </div>
                                                 ))}
-                                            </div>
                                         </div>
-                                    )}
-
-                                    <div className="pt-4 border-t border-gray-100 text-center">
-                                        <p className="text-[10px] text-black/30 font-bold uppercase tracking-widest">
-                                            Thank you for choosing Akar Women Group
-                                        </p>
                                     </div>
+                                )}
+
+                                <div className="pt-4 border-t border-gray-100 text-center">
+                                    <p className="text-[10px] text-black/30 font-bold uppercase tracking-widest">
+                                        Thank you for choosing Akar Women Group
+                                    </p>
                                 </div>
                             </div>
                         </motion.div>

@@ -38,7 +38,7 @@ interface Booking {
 }
 
 export default function MyBookingsPage() {
-    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+    const { user, isAuthenticated, isLoading: authLoading, openAuthModal } = useAuth();
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -139,9 +139,9 @@ export default function MyBookingsPage() {
                     <p className="text-[#1a1a1a]/60 font-montserrat">
                         You need to be logged in to view your bookings.
                     </p>
-                    <Link href="/auth" className="inline-block px-8 py-3 bg-[#1a1a1a] text-white rounded-full font-bold font-montserrat">
+                    <button onClick={() => openAuthModal('/my-bookings')} className="inline-block px-8 py-3 bg-[#1a1a1a] text-white rounded-full font-bold font-montserrat">
                         Log In
-                    </Link>
+                    </button>
                 </div>
             </main>
         );

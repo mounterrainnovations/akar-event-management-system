@@ -1,0 +1,93 @@
+[
+  {
+    "id": "44a16e39-e037-48db-9de5-0e14e80bce44",
+    "description": {
+      "name": "Drawing – for kids ",
+      "brief": "Express creativity through colors and imagination on paper."
+    }
+  },
+  {
+    "id": "de7661c0-e99f-4d01-abea-1e3a88078ee4",
+    "description": {
+      "name": "Dancing - for kids",
+      "brief": "Perform energetic and expressive dance routines."
+    }
+  },
+  {
+    "id": "7b37fa2d-f319-4d4b-9a5f-8f0796e060c0",
+    "description": {
+      "name": "Singing - for kids",
+      "brief": "Showcase vocal talent through songs of choice."
+    }
+  },
+  {
+    "id": "227b65de-414c-47d9-b6f2-751e59d29209",
+    "description": {
+      "name": "Art - for kids",
+      "brief": "Create handmade crafts and artistic pieces."
+    }
+  },
+  {
+    "id": "9269a10f-d859-421e-99a9-6a0123a6ca2b",
+    "description": {
+      "name": "Drama - for kids ",
+      "brief": "Create handmade crafts and artistic pieces."
+    }
+  },
+  {
+    "id": "e18409ec-fe14-42b2-a4bc-0cb68f7b95f9",
+    "description": {
+      "name": "Poetry - for kids ",
+      "brief": "Create handmade crafts and artistic pieces."
+    }
+  },
+  {
+    "id": "69b35a06-ffce-413e-8145-444957e3bee5",
+    "description": {
+      "name": "Rangoli - for mother",
+      "brief": "Create beautiful traditional floor designs with colors."
+    }
+  },
+  {
+    "id": "594514a8-7c3c-41ec-a661-d159dbe9bd1e",
+    "description": {
+      "name": "Mehendi Designing - for mother",
+      "brief": "Showcase intricate and creative henna patterns."
+    }
+  },
+  {
+    "id": "7f4db957-b335-4979-8c9c-65c5692e2c2a",
+    "description": {
+      "name": "Dancing - For mother",
+      "brief": "Perform graceful and lively dance routines."
+    }
+  },
+  {
+    "id": "caf38bfa-b5ce-4e17-90e7-549f71adfb23",
+    "description": {
+      "name": "Singing - for mother",
+      "brief": "Present melodious songs with confidence and expression."
+    }
+  },
+  {
+    "id": "bc7455c5-422e-404d-9775-49998e7f515c",
+    "description": {
+      "name": "yoga",
+      "brief": "12"
+    }
+  },
+  {
+    "id": "0c2320e9-b95e-4857-bdd3-dda1cda504d5",
+    "description": {
+      "name": "dance",
+      "brief": "12"
+    }
+  },
+  {
+    "id": "e8a967e7-90b8-4233-bdab-6a6fadcd62c8",
+    "description": {
+      "name": "The registration fee",
+      "brief": "secures your child’s seat and supports the social cause behind this initiative, ensuring high-quality resources and meaningful training.  *"
+    }
+  }
+]
