@@ -1475,6 +1475,112 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     };
   });
 }
+
+export async function listOfflineRegistrations(): Promise<BookingDetail[]> {
+  const supabase = createSupabaseAdminClient();
+  const OFFLINE_BOOKING_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+  const { data, error } = await supabase
+    .from("event_registrations")
+    .select(
+      `
+      id,
+      event_id,
+      user_id,
+      coupon_id,
+      tickets_bought,
+      total_amount,
+      final_amount,
+      payment_status,
+      form_response,
+      created_at,
+      updated_at,
+      deleted_at,
+      name,
+      transaction_id,
+      is_verified,
+      ticket_url,
+      events (
+        name
+      ),
+      users (
+        email,
+        full_name,
+        phone
+      ),
+      event_coupons (
+        code
+      )
+    `,
+    )
+    .eq("user_id", OFFLINE_BOOKING_USER_ID)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    logger.error("Failed to list offline registrations", {
+      error: error.message,
+    });
+    throw new Error("Unable to load offline bookings");
+  }
+
+  // Fetch all tickets to map names
+  const { data: tickets } = await supabase
+    .from("event_tickets")
+    .select("id, description");
+
+  const ticketMap = new Map<string, string>();
+  if (tickets) {
+    tickets.forEach((t) => {
+      const desc = t.description as { name?: string } | null;
+      if (desc?.name && t.id) {
+        ticketMap.set(t.id.toLowerCase(), desc.name);
+      }
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data || []).map((reg: any) => {
+    const ticketsBought = (reg.tickets_bought as Record<string, number>) || {};
+    const ticketIds = Object.keys(ticketsBought);
+    const ticketNames = ticketIds.map(
+      (id) => ticketMap.get(id.toLowerCase()) || id || "Unknown Ticket",
+    );
+    const ticketNameStr =
+      ticketNames.length > 0 ? ticketNames.join(", ") : "Unknown Ticket";
+
+    return {
+      id: reg.id,
+      eventId: reg.event_id,
+      eventName: reg.events?.name || "Unknown Event",
+      ticketId: ticketIds[0] || "unknown",
+      ticketName: ticketNameStr,
+      userId: reg.user_id,
+      userEmail: reg.users?.email || null,
+      userName: reg.users?.full_name || null,
+      userPhone: reg.users?.phone || null,
+      couponId: reg.coupon_id,
+      couponCode: reg.event_coupons?.code || null,
+      quantity: reg.tickets_bought
+        ? Object.values(reg.tickets_bought as Record<string, number>).reduce(
+            (a, b) => a + b,
+            0,
+          )
+        : 0,
+      totalAmount: parseFloat(reg.total_amount),
+      finalAmount: parseFloat(reg.final_amount),
+      paymentStatus: reg.payment_status,
+      formResponse: reg.form_response,
+      createdAt: reg.created_at,
+      updatedAt: reg.updated_at,
+      deletedAt: reg.deleted_at,
+      name: reg.name,
+      transactionId: reg.transaction_id,
+      ticketsBought: reg.tickets_bought,
+      isVerified: reg.is_verified,
+      ticketUrl: reg.ticket_url || null,
+    };
+  });
+}
 export async function listPublicEvents() {
   const supabase = createSupabaseAdminClient();
 

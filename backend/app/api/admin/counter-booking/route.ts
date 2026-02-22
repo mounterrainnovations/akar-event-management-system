@@ -34,6 +34,15 @@ export async function POST(req: NextRequest) {
   const ticketsBought = payload.ticketsBought;
   const formResponse = payload.formResponse;
 
+  const bookingCategory =
+    typeof payload.bookingCategory === "string"
+      ? payload.bookingCategory
+      : "Paid";
+  const paymentMode =
+    typeof payload.paymentMode === "string" ? payload.paymentMode : "Cash";
+  const paymentStatus =
+    typeof payload.paymentStatus === "string" ? payload.paymentStatus : "Paid";
+
   if (!eventId)
     return NextResponse.json({ error: "eventId is required" }, { status: 400 });
   if (!firstName)
@@ -72,6 +81,9 @@ export async function POST(req: NextRequest) {
       email,
       phone,
       ticketsBought: ticketsBought as Record<string, number>,
+      bookingCategory,
+      paymentMode,
+      paymentStatus,
       formResponse:
         formResponse &&
         typeof formResponse === "object" &&
