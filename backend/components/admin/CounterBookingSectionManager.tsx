@@ -288,10 +288,6 @@ export function CounterBookingSectionManager() {
         scrollTop();
     };
 
-    const handleSubmit = async () => {
-        scrollTop();
-    };
-
     // ── Submit ────────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
         const errs: Record<string, string> = {};
