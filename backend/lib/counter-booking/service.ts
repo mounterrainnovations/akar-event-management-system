@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
 import { insertEventRegistration } from "@/lib/queries/event-registrations";
-import { sendBookingSuccessEmail } from "@/lib/email/service";
+import {
+  sendBookingSuccessEmail,
+  sendBookingFailureEmail,
+} from "@/lib/email/service";
+import { generateTicketPDF } from "@/lib/pdfs/ticket-generator";
 
 const logger = getLogger("counter-booking-service");
 
@@ -17,6 +21,9 @@ export interface CounterBookingInput {
   phone: string;
   ticketsBought: Record<string, number>;
   formResponse?: Record<string, unknown>;
+  bookingCategory: string;
+  paymentMode: string;
+  paymentStatus: string;
 }
 
 interface EventTicketRow {
@@ -60,6 +67,25 @@ function getTicketType(description: unknown): string {
     if (typeof d.type === "string" && d.type) return d.type;
   }
   return "Standard";
+}
+
+function mapPaymentStatusToDatabase(uiStatus: string): string {
+  const s = uiStatus.toLowerCase().trim();
+  if (
+    [
+      "paid",
+      "partial paid",
+      "adjustment",
+      "complimentary",
+      "sponsored",
+    ].includes(s)
+  ) {
+    return "paid";
+  }
+  if (["failed", "refunded", "cancelled"].includes(s)) {
+    return "failed"; // 'refunded' is not a standard type on the type definition sometimes, 'failed' is safer pending check
+  }
+  return "pending";
 }
 
 export async function createCounterBooking(input: CounterBookingInput) {
@@ -130,7 +156,8 @@ export async function createCounterBooking(input: CounterBookingInput) {
 
   const now = new Date().toISOString();
 
-  // 4. Insert registration (paid, no user_id, no transaction_id)
+  // 4. Insert registration (mapped db status, no user_id, no transaction_id)
+  const dbPaymentStatus = mapPaymentStatusToDatabase(input.paymentStatus);
   const SELECT_FIELDS = "id,name,event_id,payment_status,created_at";
 
   const registration = await insertEventRegistration<{
@@ -147,12 +174,15 @@ export async function createCounterBooking(input: CounterBookingInput) {
       bundle_id: null,
       total_amount: totalAmountStr,
       final_amount: totalAmountStr,
-      payment_status: "paid",
+      payment_status: dbPaymentStatus,
       form_response: {
         ...(input.formResponse ?? {}),
         _offline_name: input.firstName,
         _offline_email: input.email,
         _offline_phone: input.phone,
+        _offline_category: input.bookingCategory,
+        _offline_payment_mode: input.paymentMode,
+        _offline_payment_status: input.paymentStatus,
         _source: "Offline Booking",
       },
       created_at: now,
@@ -180,25 +210,95 @@ export async function createCounterBooking(input: CounterBookingInput) {
     event.address_line_1 ||
     "Check event page";
 
-  // 6. Send ticket email (fire-and-forget)
-  sendBookingSuccessEmail(
-    input.email,
-    input.firstName,
-    event.name,
-    `₹${totalAmountStr}`,
-    registration.id,
-    ticketItems,
-    registration.created_at,
-    event.event_date ?? undefined,
-    location,
-    event.terms_and_conditions ?? undefined,
-  ).catch((err) => {
-    logger.error("Failed to send counter booking ticket email", {
-      bookingId: registration.id,
-      email: input.email,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
+  // 6. Generate PDF and upload to Supabase Storage (Only if Paid)
+  let pdfBuffer: Buffer | undefined;
+
+  if (dbPaymentStatus === "paid" || dbPaymentStatus === "failed") {
+    try {
+      if (dbPaymentStatus === "paid") {
+        pdfBuffer = await generateTicketPDF({
+          eventName: event.name,
+          userName: input.firstName,
+          bookingId: registration.id,
+          amount: `₹${totalAmountStr}`,
+          location,
+          eventDate: event.event_date
+            ? new Date(event.event_date).toLocaleString()
+            : "TBA",
+          bookingDate: new Date().toISOString(),
+          tickets: ticketItems.map((t) => ({
+            name: t.name,
+            type: t.type,
+            quantity: t.quantity,
+            price: t.price,
+          })),
+          eventTerms: event.terms_and_conditions ?? undefined,
+          discountBreakdown: [], // No discounts for counter bookings yet
+        });
+
+        const fileName = `${registration.id}.pdf`;
+        const { error: uploadError } = await createSupabaseAdminClient()
+          .storage.from("tickets")
+          .upload(fileName, pdfBuffer, {
+            contentType: "application/pdf",
+            upsert: true,
+          });
+
+        if (uploadError) {
+          logger.error("Failed to upload counter ticket to Supabase Storage", {
+            registrationId: registration.id,
+            error: uploadError,
+          });
+        } else {
+          const { data: publicUrlData } = createSupabaseAdminClient()
+            .storage.from("tickets")
+            .getPublicUrl(fileName);
+
+          await createSupabaseAdminClient()
+            .from("event_registrations")
+            .update({ ticket_url: publicUrlData.publicUrl })
+            .eq("id", registration.id);
+
+          logger.info("Uploaded counter ticket and updated registration row", {
+            registrationId: registration.id,
+            url: publicUrlData.publicUrl,
+          });
+        }
+      }
+
+      // 7. Send ticket email (fire-and-forget)
+      if (dbPaymentStatus === "paid") {
+        sendBookingSuccessEmail(
+          input.email,
+          input.firstName,
+          event.name,
+          `₹${totalAmountStr}`,
+          registration.id,
+          ticketItems,
+          registration.created_at,
+          event.event_date ?? undefined,
+          location,
+          event.terms_and_conditions ?? undefined,
+          [],
+          pdfBuffer,
+        ).catch((err) => {
+          logger.error("Failed to send counter booking ticket email", {
+            bookingId: registration.id,
+            email: input.email,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+    } catch (pdfGenError) {
+      logger.error("Failed to generate or upload counter ticket PDF", {
+        bookingId: registration.id,
+        error:
+          pdfGenError instanceof Error
+            ? pdfGenError.message
+            : String(pdfGenError),
+      });
+    }
+  }
 
   return {
     bookingId: registration.id,
@@ -206,4 +306,174 @@ export async function createCounterBooking(input: CounterBookingInput) {
     totalAmount: totalAmountStr,
     eventName: event.name,
   };
+}
+
+/**
+ * Updates the payment status and generates a ticket if it newly becomes "paid"
+ */
+export async function updateCounterBookingPaymentStatus(
+  bookingId: string,
+  newPaymentStatus: string,
+) {
+  const supabase = createSupabaseAdminClient();
+  const dbPaymentStatus = mapPaymentStatusToDatabase(newPaymentStatus);
+
+  // 1. Fetch the registration and related event
+  const { data: registration, error: regError } = await supabase
+    .from("event_registrations")
+    .select(
+      `
+      *,
+      events (
+         id, name, status, event_date, address_line_1, city, state, terms_and_conditions, event_tickets(id, description, price)
+      )
+    `,
+    )
+    .eq("id", bookingId)
+    .single();
+
+  if (regError || !registration || !registration.events) {
+    throw new Error("Booking or Event not found");
+  }
+
+  const oldDbStatus = registration.payment_status;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const event = registration.events as any; // Cast for simplicity since we selected what we need
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formResponse = (registration.form_response || {}) as Record<
+    string,
+    any
+  >;
+  const isNewlyPaid = oldDbStatus !== "paid" && dbPaymentStatus === "paid";
+
+  // Update logic: set db enum, and update form_response string
+  const newFormResponse = {
+    ...formResponse,
+    _offline_payment_status: newPaymentStatus,
+  };
+
+  const { error: updateError } = await supabase
+    .from("event_registrations")
+    .update({
+      payment_status: dbPaymentStatus,
+      form_response: newFormResponse,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId);
+
+  if (updateError) {
+    throw new Error(`Failed to update booking status: ${updateError.message}`);
+  }
+
+  logger.info("Updated counter booking status", {
+    bookingId,
+    newPaymentStatus,
+    dbPaymentStatus,
+  });
+
+  // If nicely transitioned to paid, generate ticket & email
+  if (isNewlyPaid) {
+    try {
+      // Rebuild inputs for ticket generation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ticketMap = new Map(
+        (event.event_tickets || []).map((t: any) => [t.id, t]),
+      );
+      const ticketsBought = (registration.tickets_bought || {}) as Record<
+        string,
+        number
+      >;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ticketItems: any[] = [];
+      let calculatedTotal = 0;
+
+      for (const [ticketId, qty] of Object.entries(ticketsBought)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ticket = ticketMap.get(ticketId) as any;
+        if (ticket) {
+          const price = parseFloat(ticket.price) || 0;
+          calculatedTotal += price * qty;
+          ticketItems.push({
+            name: getTicketName(ticket.description),
+            quantity: qty,
+            price,
+            type: getTicketType(ticket.description),
+          });
+        }
+      }
+
+      const totalAmountStr = calculatedTotal.toFixed(2);
+      const email = formResponse._offline_email || "N/A";
+      const firstName =
+        formResponse._offline_name || registration.name || "Attendee";
+      const location =
+        [event.city, event.state].filter(Boolean).join(", ") ||
+        event.address_line_1 ||
+        "Check event page";
+
+      const pdfBuffer = await generateTicketPDF({
+        eventName: event.name,
+        userName: firstName,
+        bookingId: registration.id,
+        amount: `₹${totalAmountStr}`,
+        location,
+        eventDate: event.event_date
+          ? new Date(event.event_date).toLocaleString()
+          : "TBA",
+        bookingDate: new Date(registration.created_at).toISOString(),
+        tickets: ticketItems,
+        eventTerms: event.terms_and_conditions ?? undefined,
+        discountBreakdown: [],
+      });
+
+      const fileName = `${registration.id}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("tickets")
+        .upload(fileName, pdfBuffer, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage
+          .from("tickets")
+          .getPublicUrl(fileName);
+        await supabase
+          .from("event_registrations")
+          .update({ ticket_url: publicUrlData.publicUrl })
+          .eq("id", registration.id);
+      }
+
+      // Fire and forget email
+      sendBookingSuccessEmail(
+        email,
+        firstName,
+        event.name,
+        `₹${totalAmountStr}`,
+        registration.id,
+        ticketItems,
+        registration.created_at,
+        event.event_date ?? undefined,
+        location,
+        event.terms_and_conditions ?? undefined,
+        [],
+        pdfBuffer,
+      ).catch((err) => {
+        logger.error("Failed to send counter booking ticket email on update", {
+          bookingId: registration.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    } catch (pdfGenError) {
+      logger.error("Failed to generate/upload ticket on status update", {
+        bookingId,
+        error:
+          pdfGenError instanceof Error
+            ? pdfGenError.message
+            : String(pdfGenError),
+      });
+    }
+  }
+
+  return { success: true };
 }

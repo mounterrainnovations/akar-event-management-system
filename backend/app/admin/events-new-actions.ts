@@ -142,6 +142,34 @@ export async function listAllRegistrationsAction() {
   }
 }
 
+export async function listOfflineRegistrationsAction() {
+  const { listOfflineRegistrations } = await import("@/lib/events/service");
+  try {
+    const bookings = await listOfflineRegistrations();
+    return { success: true, bookings };
+  } catch (error) {
+    logger.error("Failed to list offline registrations action", { error });
+    return { error: "Failed to load offline bookings. Please try again." };
+  }
+}
+
+export async function updateOfflineRegistrationStatusAction(
+  bookingId: string,
+  newPaymentStatus: string,
+) {
+  const { updateCounterBookingPaymentStatus } =
+    await import("@/lib/counter-booking/service");
+  try {
+    await updateCounterBookingPaymentStatus(bookingId, newPaymentStatus);
+    return { success: true };
+  } catch (error) {
+    logger.error("Failed to update offline registration status action", {
+      error,
+    });
+    return { error: "Failed to update status. Please try again." };
+  }
+}
+
 export async function resendBookingEmailAction(booking: any) {
   try {
     const {
