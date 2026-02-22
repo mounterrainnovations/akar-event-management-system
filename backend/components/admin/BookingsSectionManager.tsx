@@ -12,10 +12,11 @@ import {
     ClipboardText,
     DownloadSimple,
     Info,
+    PaperPlaneTilt,
 } from "@phosphor-icons/react";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
-import { listAllRegistrationsAction } from "@/app/admin/events-new-actions";
+import { listAllRegistrationsAction, resendBookingEmailAction } from "@/app/admin/events-new-actions";
 import { type BookingDetail } from "@/lib/events/service";
 import { syncSingleRegistrationTransactionStatus } from "@/lib/payments/transaction-status-client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -201,6 +202,7 @@ export function BookingsSectionManager() {
     const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [syncingBookingIds, setSyncingBookingIds] = useState<Record<string, boolean>>({});
+    const [resendingEmailIds, setResendingEmailIds] = useState<Record<string, boolean>>({});
     const [actionError, setActionError] = useState<string | null>(null);
 
     const fetchBookings = useCallback(async (showLoader: boolean = true) => {
@@ -229,6 +231,29 @@ export function BookingsSectionManager() {
     useEffect(() => {
         void fetchBookings();
     }, [fetchBookings]);
+
+    async function handleResendEmail(booking: BookingDetail) {
+        setActionError(null);
+        setResendingEmailIds((current) => ({ ...current, [booking.id]: true }));
+
+        try {
+            const result = await resendBookingEmailAction(booking);
+            if (!result.success) {
+                throw new Error(result.error || "Unable to resend email");
+            }
+            toast.success("Email successfully queued for sending.");
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unable to resend email";
+            setActionError(message);
+            toast.error(message);
+        } finally {
+            setResendingEmailIds((current) => {
+                const next = { ...current };
+                delete next[booking.id];
+                return next;
+            });
+        }
+    }
 
     async function handleCheckTransactionStatus(registrationId: string) {
         setActionError(null);
@@ -542,14 +567,13 @@ export function BookingsSectionManager() {
                                 <th className="px-6 py-4 font-semibold">Form Response</th>
                                 <th className="px-6 py-4 font-semibold">Amount</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Date</th>
                                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40">
                             {filteredBookings.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center">
                                             <CalendarBlank size={40} weight="thin" className="text-muted-foreground/30 mb-3" />
                                             <p className="text-muted-foreground">No bookings found</p>
@@ -593,21 +617,10 @@ export function BookingsSectionManager() {
                                                 {booking.paymentStatus}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex flex-col items-end">
-                                                <div className="flex items-center gap-1 text-xs text-foreground font-medium">
-                                                    <CalendarBlank size={12} />
-                                                    {format(new Date(booking.createdAt), "dd MMM, yyyy")}
-                                                </div>
-                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                    <Clock size={10} />
-                                                    {format(new Date(booking.createdAt), "hh:mm a")}
-                                                </div>
-                                            </div>
-                                        </td>
+
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                {(booking.ticketUrl || booking.paymentStatus === 'paid') && (
+                                                {(booking.ticketUrl || booking.paymentStatus === 'paid' || booking.paymentStatus === 'success') && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
@@ -635,6 +648,23 @@ export function BookingsSectionManager() {
                                                     }}
                                                 >
                                                     {syncingBookingIds[booking.id] ? "Checking..." : "Check Status"}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void handleResendEmail(booking);
+                                                    }}
+                                                    title="Resend Email"
+                                                    disabled={Boolean(resendingEmailIds[booking.id])}
+                                                >
+                                                    {resendingEmailIds[booking.id] ? (
+                                                        <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                                    ) : (
+                                                        <PaperPlaneTilt size={18} weight="bold" />
+                                                    )}
                                                 </Button>
                                                 <Button
                                                     variant="ghost"

@@ -188,15 +188,15 @@ export default function JourneySection() {
                         transition={{ duration: 0.5, delay: index * 0.1 }}
                         className={`
                             snap-center shrink-0 relative
-                            w-[85vw] md:w-[900px] h-[500px]
+                            w-[85vw] md:w-[900px] h-[580px] md:h-[500px]
                             rounded-[30px] overflow-hidden
                             transition-all duration-500
                             ${activeIndex === index ? 'opacity-100 scale-100' : 'opacity-40 scale-95 grayscale'}
                         `}
                     >
-                        <div className="flex w-full h-full">
-                            {/* Left Side - Image/Visual */}
-                            <div className="w-1/2 bg-black relative flex items-end justify-center overflow-hidden">
+                        <div className="flex flex-col md:flex-row w-full h-full">
+                            {/* Top/Left Side - Image/Visual */}
+                            <div className="w-full h-[40%] md:h-full md:w-1/2 bg-black relative flex items-end justify-center overflow-hidden shrink-0">
                                 <div className="relative w-full h-full">
                                     <Image
                                         src={item.image}
@@ -210,16 +210,16 @@ export default function JourneySection() {
                                 </div>
                             </div>
 
-                            {/* Right Side - Content */}
-                            <div className="w-1/2 bg-[#1a1a1a] p-8 md:p-12 flex flex-col relative text-white">
+                            {/* Bottom/Right Side - Content */}
+                            <div className="w-full h-[60%] md:h-full md:w-1/2 bg-[#1a1a1a] p-6 md:p-12 flex flex-col relative text-white">
                                 {/* Year at top */}
-                                <div className={`${instrumentSerif.className} text-6xl md:text-8xl mb-auto`}>
+                                <div className={`${instrumentSerif.className} text-5xl md:text-8xl mb-2 md:mb-auto`}>
                                     {item.year}
                                 </div>
 
                                 {/* Content at bottom */}
-                                <div className="flex flex-col gap-6">
-                                    <h3 className={`${instrumentSerif.className} text-3xl md:text-4xl leading-tight`}>
+                                <div className="flex flex-col gap-2 md:gap-6 overflow-y-auto scrollbar-hide pb-2">
+                                    <h3 className={`${instrumentSerif.className} text-2xl md:text-4xl leading-tight`}>
                                         {item.title}
                                     </h3>
                                     <p className="text-white/60 text-sm md:text-base leading-relaxed font-light">

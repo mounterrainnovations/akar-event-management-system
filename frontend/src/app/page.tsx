@@ -463,10 +463,10 @@ export default function Home() {
 
                             <div
                                 ref={mobileScrollRef}
-                                className="w-full overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 flex gap-4"
+                                className="w-[calc(100%+32px)] -ml-4 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-[7.5vw] flex gap-4"
                             >
                                 {events.map((event, index) => (
-                                    <div key={event.id} className="snap-center shrink-0 w-[85vw] max-w-[340px] rounded-[24px] overflow-hidden bg-[#EFF2F6] shadow-lg flex flex-col">
+                                    <div key={event.id} className="snap-center shrink-0 w-[85vw] rounded-[24px] overflow-hidden bg-[#EFF2F6] shadow-lg flex flex-col">
                                         {/* Image Section */}
                                         <div className="relative h-[220px] w-full">
                                             <Image

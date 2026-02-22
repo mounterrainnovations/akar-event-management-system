@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { instrumentSerif } from '@/lib/fonts';
 import Image from 'next/image';
-import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft, X } from 'lucide-react';
 import Link from 'next/link';
 import RegistrationModal from '@/components/RegistrationModal';
 import { useAuth } from '@/context/AuthContext';
@@ -67,6 +67,7 @@ export default function EventDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+    const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
     const [hasJoinedWaitlist, setHasJoinedWaitlist] = useState(false);
     const [isCheckingWaitlist, setIsCheckingWaitlist] = useState(false);
     const [existingWaitlistBooking, setExistingWaitlistBooking] = useState<{
@@ -233,16 +234,26 @@ export default function EventDetailPage() {
                 {/* Banner Section - First */}
                 <section className="pt-32 pb-8">
                     <div className="w-full max-w-[85vw] md:max-w-7xl mx-auto px-4 md:px-12 lg:px-16">
-                        <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 bg-gray-50">
+                        <div
+                            className="relative aspect-[16/9] md:aspect-[21/9] rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 bg-gray-50 cursor-pointer group"
+                            onClick={() => setIsBannerModalOpen(true)}
+                        >
                             <Image
                                 src={event.bannerUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
                                 alt={event.name}
                                 fill
-                                className="object-cover"
+                                className="object-cover group-hover:scale-105 transition-transform duration-700"
                                 unoptimized={true}
                             />
                             {/* Overlay Gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none group-hover:bg-black/10 transition-colors duration-500" />
+                            {/* Enlarge Icon */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                                <div className="bg-black/50 backdrop-blur-md text-white px-6 py-3 rounded-full flex items-center gap-2 font-montserrat font-medium shadow-xl translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
+                                    Enlarge Image
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -263,15 +274,15 @@ export default function EventDetailPage() {
 
             {/* Event Details Content - Third */}
             <section className="bg-white pb-48 px-4 md:px-12 lg:px-16" id="details">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-16">
+                <div className="max-w-7xl mx-auto flex flex-col-reverse lg:grid lg:grid-cols-3 gap-12 lg:gap-16">
                     {/* Left Column - Main Content */}
-                    <div className="lg:col-span-2 space-y-16">
+                    <div className="lg:col-span-2 space-y-12 lg:space-y-16 mt-4 lg:mt-0">
                         {/* About */}
                         <div>
-                            <h2 className={`${instrumentSerif.className} text-[#1a1a1a] text-4xl mb-6`}>
+                            <h2 className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl md:text-4xl mb-4 md:mb-6`}>
                                 About the Event
                             </h2>
-                            <p className="font-montserrat text-[#1a1a1a]/80 text-lg leading-relaxed whitespace-pre-wrap">
+                            <p className="font-montserrat text-[#1a1a1a]/80 text-base md:text-lg leading-relaxed whitespace-pre-wrap">
                                 {event.about || "No description provided for this event."}
                             </p>
                         </div>
@@ -279,10 +290,10 @@ export default function EventDetailPage() {
                         {/* Terms and Conditions */}
                         {event.termsAndConditions && (
                             <div>
-                                <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl mb-4`}>
+                                <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-2xl md:text-3xl mb-3 md:mb-4`}>
                                     Terms and Conditions
                                 </h3>
-                                <ul className="list-disc pl-5 font-montserrat text-[#1a1a1a]/70 text-base space-y-3">
+                                <ul className="list-disc pl-5 font-montserrat text-[#1a1a1a]/70 text-sm md:text-base space-y-2 md:space-y-3">
                                     {event.termsAndConditions.split('\n').filter(line => line.trim() !== '').map((line, index) => (
                                         <li key={index}>{line.trim()}</li>
                                     ))}
@@ -292,15 +303,15 @@ export default function EventDetailPage() {
 
                         {/* Location Map */}
                         <div>
-                            <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl mb-6`}>
+                            <h3 className={`${instrumentSerif.className} text-[#1a1a1a] text-2xl md:text-3xl mb-4 md:mb-6`}>
                                 Location
                             </h3>
-                            <p className="font-montserrat text-[#1a1a1a]/80 text-lg mb-4 flex-col items-center gap-2">
+                            <p className="font-montserrat text-[#1a1a1a]/80 text-base md:text-lg mb-4 flex-col items-center gap-2">
                                 <span className="">{event.address1}</span>
                                 {event.address2 && <span>— {event.address2}</span>}
                                 <span>, {event.city}, {event.state}</span>
                             </p>
-                            <div className="w-full h-[400px] rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative grayscale hover:grayscale-0 transition-all duration-500">
+                            <div className="w-full h-[300px] md:h-[400px] rounded-2xl md:rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative grayscale hover:grayscale-0 transition-all duration-500">
                                 <iframe
                                     src={getMapEmbedUrl()}
                                     width="100%"
@@ -328,19 +339,19 @@ export default function EventDetailPage() {
 
                     {/* Right Column - Sticky Sidebar */}
                     <div className="lg:col-span-1">
-                        <div className="sticky top-32 bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 space-y-8">
+                        <div className="sticky top-28 lg:top-32 bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] md:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 space-y-6 md:space-y-8">
 
                             {/* Date & Time */}
-                            <div className="space-y-6">
-                                <div>
-                                    <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Date</p>
-                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl`}>
+                            <div className="space-y-4 md:space-y-6">
+                                <div className="hidden md:block">
+                                    <p className="font-montserrat text-[10px] md:text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-1 md:mb-2">Date</p>
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-2xl md:text-3xl`}>
                                         {eventDate ? eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'TBD'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Time</p>
-                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl`}>
+                                    <p className="font-montserrat text-[10px] md:text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-1 md:mb-2">Time</p>
+                                    <p className={`${instrumentSerif.className} text-[#1a1a1a] text-2xl md:text-3xl`}>
                                         {eventDate ? eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'TBD'}
                                     </p>
                                 </div>
@@ -352,8 +363,8 @@ export default function EventDetailPage() {
 
                                     {/* Status */}
                                     <div>
-                                        <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Status</p>
-                                        <p className={`${instrumentSerif.className} text-[#1a1a1a] text-3xl capitalize`}>
+                                        <p className="font-montserrat text-[10px] md:text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-1 md:mb-2">Status</p>
+                                        <p className={`${instrumentSerif.className} text-[#1a1a1a] text-2xl md:text-3xl capitalize`}>
                                             {event.status === 'published' ? 'Upcoming' : (event.status === 'waitlist' ? 'Waitlist' : event.status)}
                                         </p>
                                     </div>
@@ -365,10 +376,10 @@ export default function EventDetailPage() {
                                     <div className="h-px bg-gray-100" />
                                     {/* Price */}
                                     <div>
-                                        <p className="font-montserrat text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-2">Starting From</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <p className={`${instrumentSerif.className} text-[#1a1a1a] text-5xl`}>₹{minPrice}</p>
-                                            <span className="font-montserrat text-sm text-[#1a1a1a]/50">/ person</span>
+                                        <p className="font-montserrat text-[10px] md:text-xs uppercase tracking-widest text-[#1a1a1a]/50 font-bold mb-1 md:mb-2">Starting From</p>
+                                        <div className="flex items-baseline gap-1 md:gap-2">
+                                            <p className={`${instrumentSerif.className} text-[#1a1a1a] text-4xl md:text-5xl`}>₹{minPrice}</p>
+                                            <span className="font-montserrat text-xs md:text-sm text-[#1a1a1a]/50">/ person</span>
                                         </div>
                                     </div>
                                 </>
@@ -376,7 +387,7 @@ export default function EventDetailPage() {
 
                             <button
                                 onClick={handleBookNowClick}
-                                className={`w-full py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${(event.status === 'published' || event.status === 'waitlist')
+                                className={`w-full py-4 md:py-5 rounded-full font-montserrat font-semibold tracking-wide transition-all duration-300 shadow-xl shadow-black/10 ${(event.status === 'published' || event.status === 'waitlist')
                                     ? (event.status === 'waitlist' && hasJoinedWaitlist)
                                         ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
                                         : 'bg-[#1a1a1a] text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98]'
@@ -396,7 +407,7 @@ export default function EventDetailPage() {
                                         : 'Registration Closed'}
                             </button>
 
-                            <p className="font-montserrat text-xs text-center text-[#1a1a1a]/40">
+                            <p className="font-montserrat text-[10px] md:text-xs text-center text-[#1a1a1a]/40">
                                 {event.status === 'published'
                                     ? 'Limited seats available'
                                     : event.status === 'waitlist'
@@ -426,6 +437,37 @@ export default function EventDetailPage() {
                     eventStatus={event.status}
                     existingWaitlistBooking={existingWaitlistBooking}
                 />
+            )}
+
+            {/* Banner Full Screen Modal */}
+            {isBannerModalOpen && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 md:p-8 cursor-pointer animate-in fade-in duration-300"
+                    onClick={() => setIsBannerModalOpen(false)}
+                >
+                    <div className="relative w-full h-full max-w-7xl flex flex-col items-center justify-center">
+                        <button
+                            className="absolute top-4 right-4 md:top-0 md:right-0 z-[110] p-3 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-sm transition-all"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsBannerModalOpen(false);
+                            }}
+                            title="Close"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        <div className="relative w-full h-full max-h-[85vh] animate-in zoom-in-95 duration-300">
+                            <Image
+                                src={event.bannerUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
+                                alt={event.name}
+                                fill
+                                className="object-contain"
+                                unoptimized={true}
+                            />
+                        </div>
+                    </div>
+                </div>
             )}
         </main>
     );

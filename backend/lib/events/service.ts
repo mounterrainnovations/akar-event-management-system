@@ -974,7 +974,6 @@ async function insertEventRelations(params: {
       });
     }
   }
-
 }
 
 async function replaceEventRelations(params: {
@@ -984,13 +983,17 @@ async function replaceEventRelations(params: {
 }) {
   const { supabase, eventId, input } = params;
 
-  const [bundleDeleteResult, formFieldDeleteResult, couponDeleteResult, ticketDeleteResult] =
-    await Promise.all([
-      supabase.from("event_bundle_offers").delete().eq("event_id", eventId),
-      supabase.from("event_form_fields").delete().eq("event_id", eventId),
-      supabase.from("event_coupons").delete().eq("event_id", eventId),
-      supabase.from("event_tickets").delete().eq("event_id", eventId),
-    ]);
+  const [
+    bundleDeleteResult,
+    formFieldDeleteResult,
+    couponDeleteResult,
+    ticketDeleteResult,
+  ] = await Promise.all([
+    supabase.from("event_bundle_offers").delete().eq("event_id", eventId),
+    supabase.from("event_form_fields").delete().eq("event_id", eventId),
+    supabase.from("event_coupons").delete().eq("event_id", eventId),
+    supabase.from("event_tickets").delete().eq("event_id", eventId),
+  ]);
 
   if (
     bundleDeleteResult.error ||
@@ -1374,8 +1377,6 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     event_coupons: { code: string | null } | null;
   };
 
-  // We'll fetch registrations and join with related tables
-  // Note: Using select with joins in Supabase/PostgREST
   const { data, error } = await supabase
     .from("event_registrations")
     .select(
@@ -1425,8 +1426,8 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
   if (tickets) {
     tickets.forEach((t) => {
       const desc = t.description as { name?: string } | null;
-      if (desc?.name) {
-        ticketMap.set(t.id, desc.name);
+      if (desc?.name && t.id) {
+        ticketMap.set(t.id.toLowerCase(), desc.name);
       }
     });
   }
@@ -1436,7 +1437,7 @@ export async function listAllRegistrations(): Promise<BookingDetail[]> {
     const ticketsBought = (reg.tickets_bought as Record<string, number>) || {};
     const ticketIds = Object.keys(ticketsBought);
     const ticketNames = ticketIds.map(
-      (id) => ticketMap.get(id) || "Unknown Ticket",
+      (id) => ticketMap.get(id.toLowerCase()) || id || "Unknown Ticket",
     );
     const ticketNameStr =
       ticketNames.length > 0 ? ticketNames.join(", ") : "Unknown Ticket";

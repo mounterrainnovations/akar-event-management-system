@@ -444,7 +444,7 @@ export function EventsNewCreate({
       } else {
         toast.error(
           result.error ||
-            (mode === "edit" ? "Failed to update event" : "Failed to create event"),
+          (mode === "edit" ? "Failed to update event" : "Failed to create event"),
         );
       }
     } catch (err) {
@@ -913,10 +913,10 @@ export function EventsNewCreate({
                       Event Date <span className="text-red-500">*</span>
                       {(!formData.registrationStart ||
                         !formData.registrationEnd) && (
-                        <span className="text-xs font-normal text-muted-foreground ml-2">
-                          (Set registration dates first)
-                        </span>
-                      )}
+                          <span className="text-xs font-normal text-muted-foreground ml-2">
+                            (Set registration dates first)
+                          </span>
+                        )}
                     </label>
                     <DateTimePicker
                       date={
@@ -1138,13 +1138,6 @@ export function EventsNewCreate({
                       Create discount codes for your event
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addCoupon}
-                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
-                  >
-                    <Plus weight="bold" /> Add Coupon
-                  </button>
                 </div>
 
                 <div className="space-y-4">
@@ -1229,6 +1222,16 @@ export function EventsNewCreate({
                       </div>
                     ))
                   )}
+                </div>
+
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={addCoupon}
+                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
+                  >
+                    <Plus weight="bold" /> Add Coupon
+                  </button>
                 </div>
               </div>
             )}
@@ -1423,13 +1426,6 @@ export function EventsNewCreate({
                                   Options{" "}
                                   <span className="text-red-500">*</span>
                                 </label>
-                                <button
-                                  type="button"
-                                  onClick={() => addFormFieldOption(index)}
-                                  className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
-                                >
-                                  <Plus className="h-3 w-3" /> Add Option
-                                </button>
                               </div>
                               <div className="space-y-4">
                                 {field.options.map((option, optIndex) => (
@@ -1480,9 +1476,9 @@ export function EventsNewCreate({
                                             if (
                                               targetField.isHidden &&
                                               targetField.fieldName !==
-                                                field.fieldName &&
+                                              field.fieldName &&
                                               targetField.fieldName.trim() !==
-                                                ""
+                                              ""
                                             ) {
                                               const isTriggered =
                                                 option.triggers?.includes(
@@ -1522,15 +1518,24 @@ export function EventsNewCreate({
                                             f.fieldName !== field.fieldName &&
                                             f.fieldName.trim() !== "",
                                         ).length === 0 && (
-                                          <span className="text-xs text-muted-foreground italic">
-                                            No hidden fields available to
-                                            trigger.
-                                          </span>
-                                        )}
+                                            <span className="text-xs text-muted-foreground italic">
+                                              No hidden fields available to
+                                              trigger.
+                                            </span>
+                                          )}
                                       </div>
                                     </div>
                                   </div>
                                 ))}
+                              </div>
+                              <div className="flex justify-start pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => addFormFieldOption(index)}
+                                  className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                                >
+                                  <Plus className="h-3 w-3" /> Add Option
+                                </button>
                               </div>
                               {errors[`field_${index}_options`] && (
                                 <p className="text-xs text-red-500">
@@ -1541,36 +1546,36 @@ export function EventsNewCreate({
                             {field.options.filter(
                               (opt) => opt.value.trim() !== "",
                             ).length > 0 && (
-                              <div className="space-y-1.5">
-                                <label className="text-xs font-medium">
-                                  Default Value (Optional)
-                                </label>
-                                <Select
-                                  value={field.answer || ""}
-                                  onValueChange={(value) =>
-                                    updateNestedField(
-                                      index,
-                                      "answer",
-                                      value,
-                                      "formFields",
-                                    )
-                                  }
-                                >
-                                  <SelectTrigger className="h-9 w-full">
-                                    <SelectValue placeholder="Select a default..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {field.options
-                                      .filter((opt) => opt.value.trim() !== "")
-                                      .map((opt, i) => (
-                                        <SelectItem key={i} value={opt.value}>
-                                          {opt.label}
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
+                                <div className="space-y-1.5">
+                                  <label className="text-xs font-medium">
+                                    Default Value (Optional)
+                                  </label>
+                                  <Select
+                                    value={field.answer || ""}
+                                    onValueChange={(value) =>
+                                      updateNestedField(
+                                        index,
+                                        "answer",
+                                        value,
+                                        "formFields",
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="h-9 w-full">
+                                      <SelectValue placeholder="Select a default..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {field.options
+                                        .filter((opt) => opt.value.trim() !== "")
+                                        .map((opt, i) => (
+                                          <SelectItem key={i} value={opt.value}>
+                                            {opt.label}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                           </>
                         )}
 
@@ -1607,13 +1612,6 @@ export function EventsNewCreate({
                       Set up tiers or activities and pricing
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addTicket}
-                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
-                  >
-                    <Plus weight="bold" /> Add Tier / Activity
-                  </button>
                 </div>
 
                 <div className="space-y-4">
@@ -1799,7 +1797,7 @@ export function EventsNewCreate({
                             .map((field, fIdx) => {
                               const currentConfig =
                                 (ticket.visibilityConfig as any)?.[
-                                  field.fieldName
+                                field.fieldName
                                 ] || [];
                               const hasActiveRules = currentConfig.length > 0;
 
@@ -1866,11 +1864,10 @@ export function EventsNewCreate({
                                               "tickets",
                                             );
                                           }}
-                                          className={`px-2 py-1 rounded border text-[11px] transition-all flex items-center gap-1.5 ${
-                                            isSelected
+                                          className={`px-2 py-1 rounded border text-[11px] transition-all flex items-center gap-1.5 ${isSelected
                                               ? "bg-primary border-primary text-primary-foreground shadow-sm"
                                               : "bg-background border-border hover:border-primary/40 text-muted-foreground"
-                                          }`}
+                                            }`}
                                         >
                                           {isSelected && (
                                             <CheckCircle
@@ -1892,16 +1889,26 @@ export function EventsNewCreate({
                               f.fieldType === "dropdown" &&
                               f.options.length > 0,
                           ).length === 0 && (
-                            <p className="italic text-muted-foreground text-[10px] text-center py-2">
-                              No dropdown fields available. Add dropdown fields
-                              in "Form Fields" step to configure conditional
-                              visibility.
-                            </p>
-                          )}
+                              <p className="italic text-muted-foreground text-[10px] text-center py-2">
+                                No dropdown fields available. Add dropdown fields
+                                in "Form Fields" step to configure conditional
+                                visibility.
+                              </p>
+                            )}
                         </div>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={addTicket}
+                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
+                  >
+                    <Plus weight="bold" /> Add Tier / Activity
+                  </button>
                 </div>
               </div>
             )}
@@ -1917,13 +1924,6 @@ export function EventsNewCreate({
                       Configure "Buy X Get Y Free" offers
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addOffer}
-                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
-                  >
-                    <Plus weight="bold" /> Add Bundle Offer
-                  </button>
                 </div>
 
                 <div className="space-y-6">
@@ -2114,28 +2114,26 @@ export function EventsNewCreate({
                                       "bundleOffers" as any,
                                     );
                                   }}
-                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[11px] transition-all text-left ${
-                                    offer.applicableTicketIds.includes(
-                                      ticket.name || `Tier ${tIdx + 1}`,
-                                    )
+                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[11px] transition-all text-left ${offer.applicableTicketIds.includes(
+                                    ticket.name || `Tier ${tIdx + 1}`,
+                                  )
                                       ? "bg-primary/10 border-primary text-primary font-medium"
                                       : "bg-background border-border hover:border-primary/40 text-muted-foreground"
-                                  } ${!ticket.name ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    } ${!ticket.name ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
                                   <div
-                                    className={`size-3 rounded-full flex items-center justify-center border ${
-                                      offer.applicableTicketIds.includes(
-                                        ticket.name || `Tier ${tIdx + 1}`,
-                                      )
+                                    className={`size-3 rounded-full flex items-center justify-center border ${offer.applicableTicketIds.includes(
+                                      ticket.name || `Tier ${tIdx + 1}`,
+                                    )
                                         ? "border-primary bg-primary"
                                         : "border-muted-foreground/30"
-                                    }`}
+                                      }`}
                                   >
                                     {offer.applicableTicketIds.includes(
                                       ticket.name || `Tier ${tIdx + 1}`,
                                     ) && (
-                                      <div className="size-1 rounded-full bg-white" />
-                                    )}
+                                        <div className="size-1 rounded-full bg-white" />
+                                      )}
                                   </div>
                                   <span className="truncate">
                                     {ticket.name ||
@@ -2153,6 +2151,16 @@ export function EventsNewCreate({
                       </div>
                     ))
                   )}
+                </div>
+
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={addOffer}
+                    className="rounded-md border border-primary text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/5 flex items-center gap-1"
+                  >
+                    <Plus weight="bold" /> Add Bundle Offer
+                  </button>
                 </div>
               </div>
             )}
