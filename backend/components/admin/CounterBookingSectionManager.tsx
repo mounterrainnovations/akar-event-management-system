@@ -289,6 +289,17 @@ export function CounterBookingSectionManager() {
     };
 
     const handleSubmit = async () => {
+        scrollTop();
+    };
+
+    // ── Submit ────────────────────────────────────────────────────────────────
+    const handleSubmit = async () => {
+        const errs: Record<string, string> = {};
+        if (!firstName.trim()) errs.firstName = "Name is required";
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Valid email is required";
+        if (!phone.trim()) errs.phone = "Phone number is required";
+        if (Object.keys(errs).length) { setFieldErrors(errs); return; }
+
         setSubmitting(true);
         setErrorMsg(null);
         setFieldErrors({});
