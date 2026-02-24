@@ -22,7 +22,7 @@ export default async function WorkDetailPage(props: { params: Promise<{ id: stri
 
             <article className="relative z-10 pt-[120px] max-w-4xl mx-auto px-4 md:px-12 lg:px-16">
                 <div className="mb-10">
-                    <Link href="/Work" className="inline-flex items-center gap-2 text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors font-medium text-sm mb-8">
+                    <Link href="/work" className="inline-flex items-center gap-2 text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors font-medium text-sm mb-8">
                         <ArrowLeft size={16} />
                         Back to works
                     </Link>

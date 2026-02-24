@@ -32,6 +32,7 @@ import {
   uploadEventBannerAction,
 } from "@/app/admin/events-new-actions";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { RichTextEditor } from "./RichTextEditor";
 
 type EventsNewCreateProps = {
   includeDeleted?: boolean;
@@ -185,6 +186,12 @@ export function EventsNewCreate({
     router.push(backLink);
   };
 
+  const getPlainText = (value: string) =>
+    value
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .trim();
+
   // Validation
   const validateStep1 = () => {
     const newErrors: any = {};
@@ -205,7 +212,8 @@ export function EventsNewCreate({
       newErrors.registrationStart = "Registration start date is required";
     if (!formData.registrationEnd)
       newErrors.registrationEnd = "Registration end date is required";
-    if (!formData.about.trim()) newErrors.about = "Event details are required";
+    if (!getPlainText(formData.about))
+      newErrors.about = "Event details are required";
 
     if (formData.registrationStart && formData.registrationEnd) {
       if (
@@ -989,11 +997,9 @@ export function EventsNewCreate({
                     Event Details (About){" "}
                     <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Describe the event..."
-                    value={formData.about}
-                    onChange={(e) => updateField("about", e.target.value)}
+                  <RichTextEditor
+                    content={formData.about}
+                    onChange={(html) => updateField("about", html)}
                   />
                   {errors.about && (
                     <p className="text-xs text-red-500">{errors.about}</p>

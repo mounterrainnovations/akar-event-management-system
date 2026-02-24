@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { getBackendUrl } from "@/lib/backend";
 
 export type WorkCategory = "upcoming" | "past" | "article";
 
@@ -15,7 +15,7 @@ export type WorkItem = {
 };
 
 export async function fetchWorks(category?: WorkCategory): Promise<WorkItem[]> {
-  const url = new URL("/api/works", BACKEND_URL);
+  const url = new URL("/api/works", getBackendUrl());
   if (category) {
     url.searchParams.set("category", category);
   }
@@ -31,7 +31,7 @@ export async function fetchWorks(category?: WorkCategory): Promise<WorkItem[]> {
 }
 
 export async function fetchWorkById(id: string): Promise<WorkItem> {
-  const url = `${BACKEND_URL}/api/works/${id}`;
+  const url = `${getBackendUrl()}/api/works/${id}`;
   const res = await fetch(url, {
     next: { revalidate: 60 },
   });

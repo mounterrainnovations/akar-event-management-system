@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getLogger } from "@/lib/logger";
+import { getPublicMediaUrl } from "@/lib/media/service";
 
 const logger = getLogger("work-service");
 
@@ -16,6 +17,43 @@ export type WorkItem = {
   createdAt: string;
   updatedAt: string;
 };
+
+const WORK_COVER_BUCKET = "media";
+
+function resolveCoverImageUrl(value: string | null): string | null {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  return getPublicMediaUrl(value, WORK_COVER_BUCKET);
+}
+
+type WorkRow = {
+  id: string;
+  title: string;
+  author: string;
+  content: string;
+  category: WorkCategory;
+  cover_image_url: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapWorkRow(row: WorkRow): WorkItem {
+  return {
+    id: row.id,
+    title: row.title,
+    author: row.author,
+    content: row.content,
+    category: row.category,
+    coverImageUrl: resolveCoverImageUrl(row.cover_image_url),
+    isPublished: row.is_published,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 export async function listWorks(options?: {
   category?: WorkCategory;
@@ -41,17 +79,7 @@ export async function listWorks(options?: {
     throw new Error("Failed to list works");
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    title: row.title,
-    author: row.author,
-    content: row.content,
-    category: row.category,
-    coverImageUrl: row.cover_image_url,
-    isPublished: row.is_published,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return (data || []).map((row) => mapWorkRow(row as WorkRow));
 }
 
 export async function getWorkById(id: string): Promise<WorkItem | null> {
@@ -70,17 +98,7 @@ export async function getWorkById(id: string): Promise<WorkItem | null> {
     return null;
   }
 
-  return {
-    id: data.id,
-    title: data.title,
-    author: data.author,
-    content: data.content,
-    category: data.category,
-    coverImageUrl: data.cover_image_url,
-    isPublished: data.is_published,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
+  return mapWorkRow(data as WorkRow);
 }
 
 export async function createWork(
@@ -105,17 +123,7 @@ export async function createWork(
     throw new Error("Failed to create work");
   }
 
-  return {
-    id: data.id,
-    title: data.title,
-    author: data.author,
-    content: data.content,
-    category: data.category,
-    coverImageUrl: data.cover_image_url,
-    isPublished: data.is_published,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
+  return mapWorkRow(data as WorkRow);
 }
 
 export async function updateWork(
@@ -144,17 +152,7 @@ export async function updateWork(
     throw new Error("Failed to update work");
   }
 
-  return {
-    id: data.id,
-    title: data.title,
-    author: data.author,
-    content: data.content,
-    category: data.category,
-    coverImageUrl: data.cover_image_url,
-    isPublished: data.is_published,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
+  return mapWorkRow(data as WorkRow);
 }
 
 export async function deleteWork(id: string): Promise<void> {

@@ -125,7 +125,7 @@ export default function WorkPage() {
                                 </div>
                             ) : (
                                 works.map((work) => (
-                                    <Link key={work.id} href={`/Work/${work.id}`} className="group relative outline-none block">
+                                    <Link key={work.id} href={`/work/${work.id}`} className="group relative outline-none block">
                                         <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#f1f1f1] mb-6 shadow-sm border border-[#1a1a1a]/5">
                                             {work.coverImageUrl ? (
                                                 <img

@@ -467,21 +467,42 @@ export default function RegistrationModal({
         }
     };
 
+    const isEmptyValue = (value: any) => {
+        if (Array.isArray(value)) return value.length === 0;
+        if (typeof value === 'string') return value.trim().length === 0;
+        return value === undefined || value === null;
+    };
+
+    const validateInfoStep = () => {
+        const name = typeof formValues.name === 'string' ? formValues.name.trim() : '';
+        const email = typeof formValues.email === 'string' ? formValues.email.trim() : '';
+        const phone = typeof formValues.phone === 'string' ? formValues.phone.trim() : '';
+
+        if (!name || !email || !phone) {
+            setError('Please fill in mandatory fields (Name, Email, Phone)');
+            return false;
+        }
+
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            setError('Please enter a valid email address.');
+            return false;
+        }
+
+        for (const field of visibleFormFields) {
+            if (field.isRequired && isEmptyValue(formValues[field.fieldName])) {
+                setError(`Please fill in ${field.label}`);
+                return false;
+            }
+        }
+
+        setError(null);
+        return true;
+    };
+
     const handleNext = () => {
         if (step === 1) {
-            // Validate mandatory fields
-            if (!formValues.name || !formValues.email || !formValues.phone) {
-                setError('Please fill in mandatory fields (Name, Email, Phone)');
-                return;
-            }
-            // Check custom required fields among VISIBLE ones only
-            for (const field of visibleFormFields) {
-                if (field.isRequired && !formValues[field.fieldName]) {
-                    setError(`Please fill in ${field.label}`);
-                    return;
-                }
-            }
-            setError(null);
+            if (!validateInfoStep()) return;
             if (eventStatus === 'waitlist') {
                 handleSubmit();
                 return;
@@ -528,7 +549,10 @@ export default function RegistrationModal({
     }
 
     const handleSubmit = async () => {
-        if (eventStatus !== 'waitlist' && !Object.keys(selectedTickets).length) return;
+        if (eventStatus !== 'waitlist' && !Object.keys(selectedTickets).length) {
+            setError('Please select at least one ticket to continue with booking.');
+            return;
+        }
 
         if (!isAuthenticated || !user?.id) {
             setError('Please log in to continue with booking.');

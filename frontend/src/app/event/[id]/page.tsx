@@ -61,6 +61,31 @@ interface EventDetailData {
     }>;
 }
 
+function stripHtml(value: string) {
+    return value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .trim();
+}
+
+function escapeHtml(value: string) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function getAboutHtml(value: string | null) {
+    if (!value || !value.trim()) return "";
+    const trimmed = value.trim();
+    if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+        return trimmed;
+    }
+    return `<p>${escapeHtml(trimmed).replace(/\n/g, "<br />")}</p>`;
+}
+
 export default function EventDetailPage() {
     const params = useParams();
     const id = params?.id as string;
@@ -263,6 +288,8 @@ export default function EventDetailPage() {
 
     const { event, tickets, formFields } = data;
     const eventDate = event.eventDate ? new Date(event.eventDate) : null;
+    const aboutHtml = getAboutHtml(event.about);
+    const aboutText = stripHtml(event.about || "");
 
     const handleBookNowClick = () => {
         if (event.status === 'waitlist' && hasJoinedWaitlist) {
@@ -403,10 +430,17 @@ export default function EventDetailPage() {
                             </div>
                             {/* Mobile: truncated with read more */}
                             <div className="md:hidden">
-                                <p className={`font-montserrat text-[#1a1a1a]/75 text-sm leading-relaxed whitespace-pre-wrap ${!aboutExpanded ? 'line-clamp-3' : ''}`}>
-                                    {event.about || "No description provided for this event."}
-                                </p>
-                                {event.about && event.about.length > 120 && (
+                                {aboutHtml ? (
+                                    <div
+                                        className={`font-montserrat text-[#1a1a1a]/75 text-sm leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-[#E91E63] [&_a]:underline [&_a]:underline-offset-2 ${!aboutExpanded ? 'max-h-24 overflow-hidden' : ''}`}
+                                        dangerouslySetInnerHTML={{ __html: aboutHtml }}
+                                    />
+                                ) : (
+                                    <p className="font-montserrat text-[#1a1a1a]/75 text-sm leading-relaxed">
+                                        No description provided for this event.
+                                    </p>
+                                )}
+                                {aboutText.length > 120 && (
                                     <button
                                         onClick={() => setAboutExpanded(!aboutExpanded)}
                                         className="font-montserrat text-sm font-semibold text-[#E91E63] mt-1.5 hover:text-[#d81b60] transition-colors"
@@ -416,9 +450,16 @@ export default function EventDetailPage() {
                                 )}
                             </div>
                             {/* Desktop: full text */}
-                            <p className="hidden md:block font-montserrat text-[#1a1a1a]/75 text-sm leading-relaxed whitespace-pre-wrap">
-                                {event.about || "No description provided for this event."}
-                            </p>
+                            {aboutHtml ? (
+                                <div
+                                    className="hidden md:block font-montserrat text-[#1a1a1a]/75 text-sm leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-[#E91E63] [&_a]:underline [&_a]:underline-offset-2"
+                                    dangerouslySetInnerHTML={{ __html: aboutHtml }}
+                                />
+                            ) : (
+                                <p className="hidden md:block font-montserrat text-[#1a1a1a]/75 text-sm leading-relaxed">
+                                    No description provided for this event.
+                                </p>
+                            )}
                         </div>
 
                         {/* Terms and Conditions */}

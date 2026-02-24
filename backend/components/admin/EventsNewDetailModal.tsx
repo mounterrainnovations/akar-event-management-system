@@ -51,6 +51,15 @@ function formatVisibilityConfig(config: any) {
         .join("; ");
 }
 
+function toRenderableHtml(value: string | null | undefined) {
+    if (!value || !value.trim()) return "";
+    const trimmed = value.trim();
+    if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+        return trimmed;
+    }
+    return trimmed.replace(/\n/g, "<br />");
+}
+
 function Section({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
     return (
         <div className="space-y-3">
@@ -331,9 +340,16 @@ export async function EventsNewDetailModal({
                             <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
                                 <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
                                     <h5 className="mb-1 text-xs font-semibold text-muted-foreground uppercase">About</h5>
-                                    <div className="max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-foreground/80 scrollbar-thin scrollbar-thumb-muted">
-                                        {event.about || "No description"}
-                                    </div>
+                                    {event.about ? (
+                                        <div
+                                            className="max-h-32 overflow-y-auto text-xs text-foreground/80 scrollbar-thin scrollbar-thumb-muted [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                            dangerouslySetInnerHTML={{ __html: toRenderableHtml(event.about) }}
+                                        />
+                                    ) : (
+                                        <div className="max-h-32 overflow-y-auto text-xs text-foreground/80 scrollbar-thin scrollbar-thumb-muted">
+                                            No description
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
                                     <h5 className="mb-1 text-xs font-semibold text-muted-foreground uppercase">Terms</h5>

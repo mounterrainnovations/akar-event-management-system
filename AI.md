@@ -26,6 +26,23 @@ payment_mode: upi, net_banking, debit_card, credit_card
 
 bundle_offer_type: same_tier, cross_tier
 
+work_category: upcoming, past, article
+
+### Works
+create table public.works (
+  id uuid not null default gen_random_uuid (),
+  title text not null,
+  author text not null,
+  content text not null,
+  category public.work_category not null,
+  cover_image_url text null,
+  is_published boolean null default true,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  deleted_at timestamp with time zone null,
+  constraint works_pkey primary key (id)
+) TABLESPACE pg_default;
+
 ### Events
 
 create table public.events (
