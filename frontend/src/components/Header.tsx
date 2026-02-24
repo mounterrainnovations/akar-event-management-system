@@ -205,15 +205,16 @@ export default function Header() {
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.3 }}
                                 className="fixed inset-0 bg-[#1a1a1a]/95 backdrop-blur-md md:hidden"
-                                style={{ top: 0 }}
+                                style={{ top: '80px' }}
                                 onClick={() => setIsMobileMenuOpen(false)}
                             />
                             <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                className="md:hidden border-t border-white/5"
+                                className="fixed left-0 right-0 md:hidden bg-[#1a1a1a]/95 backdrop-blur-md border-t border-white/5 overflow-y-auto"
+                                style={{ top: '80px', maxHeight: 'calc(100vh - 80px)' }}
                             >
                                 <nav className="flex flex-col px-8 py-6 gap-1">
                                     {primaryNavItems.map((item) => (

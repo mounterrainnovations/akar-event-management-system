@@ -82,16 +82,33 @@ export default function EventDetailPage() {
 
     const inlineCtaRef = useRef<HTMLDivElement>(null);
 
-    // IntersectionObserver to hide floating CTA once inline CTA is visible
+    const footerRef = useRef<HTMLElement | null>(null);
+
+    // IntersectionObserver to hide floating CTA once inline CTA or footer is visible
     useEffect(() => {
         if (!inlineCtaRef.current) return;
+        footerRef.current = document.querySelector('footer');
+
+        let inlineVisible = false;
+        let footerVisible = false;
+
+        const targets: Element[] = [inlineCtaRef.current];
+        if (footerRef.current) targets.push(footerRef.current);
+
         const observer = new IntersectionObserver(
-            ([entry]) => {
-                setShowFloatingCta(!entry.isIntersecting);
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.target === inlineCtaRef.current) {
+                        inlineVisible = entry.isIntersecting;
+                    } else if (entry.target === footerRef.current) {
+                        footerVisible = entry.isIntersecting;
+                    }
+                });
+                setShowFloatingCta(!inlineVisible && !footerVisible);
             },
-            { threshold: 0.3 }
+            { threshold: 0.1 }
         );
-        observer.observe(inlineCtaRef.current);
+        targets.forEach((t) => observer.observe(t));
         return () => observer.disconnect();
     }, [data]);
 
