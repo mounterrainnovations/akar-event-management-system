@@ -151,6 +151,9 @@ function mapEventDetailToFormData(detail: EventDetail): EventFormData {
                 (ticketId) => ticketNameById.get(ticketId) || ticketId,
             ),
         })),
+        importantLinks: Array.isArray(event.important_links)
+            ? (event.important_links as { description: string; url: string }[])
+            : [],
     };
 }
 

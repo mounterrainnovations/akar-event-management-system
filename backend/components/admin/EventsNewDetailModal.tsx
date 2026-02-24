@@ -15,6 +15,7 @@ import {
     CheckCircle,
     ArrowLeft,
     PencilSimple,
+    LinkSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { getEventAdminDetail, type EventDetail } from "@/lib/events/service";
 import { EventStatusButton } from "./EventStatusButton";
@@ -343,6 +344,27 @@ export async function EventsNewDetailModal({
                             </div>
                         </Section>
 
+                        {/* Important Links */}
+                        {Array.isArray(event.important_links) && event.important_links.length > 0 && (
+                            <Section title="Important Links" icon={LinkSimple}>
+                                <div className="space-y-2">
+                                    {(event.important_links as { description: string; url: string }[]).map((link, i) => (
+                                        <a
+                                            key={i}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/10 px-3 py-2 text-xs font-medium text-primary hover:bg-muted/20 transition-colors group"
+                                        >
+                                            <LinkSimple className="size-3.5 shrink-0" weight="bold" />
+                                            <span className="flex-1 truncate">{link.description || link.url}</span>
+                                            <ArrowLeft className="size-3.5 rotate-180 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" weight="bold" />
+                                        </a>
+                                    ))}
+                                </div>
+                            </Section>
+                        )}
+
                         {/* Registration Settings */}
                         <Section title="Registration" icon={Clock}>
                             <KeyValueGrid
@@ -365,7 +387,6 @@ export async function EventsNewDetailModal({
                                         <thead className="bg-muted/30 font-medium text-muted-foreground">
                                             <tr>
                                                 <th className="px-3 py-2">Price</th>
-                                                <th className="px-3 py-2 text-center">Qty (Sold/Total)</th>
                                                 <th className="px-3 py-2 text-center">Max/Person</th>
                                                 <th className="px-3 py-2">Status</th>
                                                 <th className="px-3 py-2">Condition</th>
@@ -375,9 +396,6 @@ export async function EventsNewDetailModal({
                                             {tickets.map((t) => (
                                                 <tr key={t.id}>
                                                     <td className="px-3 py-2 font-medium">{formatCurrency(t.price)}</td>
-                                                    <td className="px-3 py-2 text-center">
-                                                        {t.soldCount} / {t.quantity ?? "∞"}
-                                                    </td>
                                                     <td className="px-3 py-2 text-center font-medium">
                                                         {t.maxQuantityPerPerson}
                                                     </td>

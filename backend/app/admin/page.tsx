@@ -20,7 +20,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { CalendarBlank, CalendarPlus, Image, SignOut, CaretRight, Slideshow, Users, Star, Briefcase, BookOpen, ChartLineUp, GearSix, Ticket } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, CalendarPlus, Image, SignOut, CaretRight, Slideshow, Users, Star, Briefcase, BookOpen, ChartLineUp, GearSix, Ticket, House } from "@phosphor-icons/react/dist/ssr";
 import { listSectionMediaState } from "@/lib/media/website-media-service";
 import { MediaSectionManager } from "@/components/admin/MediaSectionManager";
 import { listWebsiteSectionRules } from "@/lib/media/website-sections";
@@ -29,13 +29,15 @@ import { LeadsSectionManager } from "@/components/admin/LeadsSectionManager";
 import { BookingsSectionManager } from "@/components/admin/BookingsSectionManager";
 import { WorkSectionManager } from "@/components/admin/WorkSectionManager";
 import { CounterBookingSectionManager } from "@/components/admin/CounterBookingSectionManager";
+import { DashboardSectionManager } from "@/components/admin/DashboardSectionManager";
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
 import { listWorks } from "@/lib/works/service";
 
-type AdminSection = "media" | "events" | "leads" | "bookings" | "work" | "counter-booking";
+type AdminSection = "dashboard" | "media" | "events" | "leads" | "bookings" | "work" | "counter-booking";
 type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications";
 
 const navItems: Array<{ title: string; section: AdminSection; category?: MediaCategory; icon: typeof Image; enabled: boolean }> = [
+  { title: "Dashboard", section: "dashboard", icon: House, enabled: true },
   { title: "Media", section: "media", icon: Image, enabled: true },
   { title: "Events", section: "events", icon: CalendarPlus, enabled: true },
   { title: "Bookings", section: "bookings", icon: BookOpen, enabled: true },
@@ -61,12 +63,14 @@ const mediaCategories: Array<{
   ];
 
 function parseSection(value?: string): AdminSection {
+  if (value === "dashboard") return "dashboard";
   if (value === "events") return "events";
   if (value === "leads") return "leads";
   if (value === "bookings") return "bookings";
   if (value === "work") return "work";
   if (value === "counter-booking") return "counter-booking";
-  return "media";
+  if (value === "media") return "media";
+  return "dashboard";
 }
 
 function parseMediaCategory(value?: string): MediaCategory | null {
@@ -193,7 +197,9 @@ export default async function AdminPage({
         <header className="flex h-14 items-center gap-3 border-b px-4">
           <SidebarTrigger />
           <div className="flex items-center gap-1.5 text-sm">
-            {activeSection === "events" ? (
+            {activeSection === "dashboard" ? (
+              <h1 className="font-semibold">Dashboard</h1>
+            ) : activeSection === "events" ? (
               <h1 className="font-semibold">Events</h1>
             ) : activeSection === "leads" ? (
               <h1 className="font-semibold">Leads</h1>
@@ -217,7 +223,9 @@ export default async function AdminPage({
           </div>
         </header>
 
-        {activeSection === "events" ? (
+        {activeSection === "dashboard" ? (
+          <DashboardSectionManager />
+        ) : activeSection === "events" ? (
           <EventsNewSectionManager
             includeDeleted={includeDeleted}
             selectedEventId={selectedEventId}

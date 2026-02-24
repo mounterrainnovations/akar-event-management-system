@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation';
 import { instrumentSerif } from '@/lib/fonts';
 import Image from 'next/image';
-import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft, X, Info, Users, Star } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Clock, User, ArrowLeft, X, Info, Users, Star, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import RegistrationModal from '@/components/RegistrationModal';
 import { useAuth } from '@/context/AuthContext';
@@ -29,6 +29,7 @@ interface EventDetailData {
         termsAndConditions: string | null;
         status: string;
         locationUrl: string | null;
+        importantLinks: Array<{ description: string; url: string }> | null;
     };
     tickets: Array<{
         id: string;
@@ -417,6 +418,36 @@ export default function EventDetailPage() {
                                         <li key={index}>{line.trim()}</li>
                                     ))}
                                 </ul>
+                            </div>
+                        )}
+
+                        {/* Important Links */}
+                        {event.importantLinks && event.importantLinks.length > 0 && (
+                            <div className="bg-white rounded-2xl p-5 md:p-6 lg:p-8 shadow-sm border border-gray-100">
+                                <div className="flex items-center gap-2.5 mb-4 md:mb-5">
+                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
+                                        <ExternalLink className="w-4 h-4 text-blue-500" />
+                                    </div>
+                                    <h2 className="font-montserrat text-[#1a1a1a] text-base md:text-lg font-bold">Important Links</h2>
+                                </div>
+                                <div className="space-y-2.5">
+                                    {event.importantLinks.map((link, index) => {
+                                        const href = link.url.match(/^https?:\/\//) ? link.url : `https://${link.url}`;
+                                        return (
+                                            <a
+                                                key={index}
+                                                href={href}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-4 py-3 font-montserrat text-sm font-medium text-[#1a1a1a] hover:bg-blue-50/50 hover:border-blue-100 transition-all group"
+                                            >
+                                                <ExternalLink className="w-4 h-4 text-blue-500 shrink-0" />
+                                                <span className="flex-1 truncate">{link.description || link.url}</span>
+                                                <ArrowLeft className="w-3.5 h-3.5 rotate-180 text-[#1a1a1a]/30 group-hover:text-blue-500 transition-colors shrink-0" />
+                                            </a>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
 

@@ -29,6 +29,7 @@ type EventRow = {
   deleted_at: string | null;
   location_url: string | null;
   verification_required: boolean;
+  important_links: JsonValue | null;
 };
 
 type TicketRow = {
@@ -256,6 +257,7 @@ export type EventWriteInput = {
   status?: string | null;
   locationUrl?: string | null;
   verificationRequired?: boolean;
+  importantLinks?: { description: string; url: string }[] | null;
   coupons?: Omit<CouponWriteInput, "eventId">[];
   formFields?: Omit<FormFieldWriteInput, "eventId">[];
   tickets?: Omit<TicketWriteInput, "eventId">[];
@@ -308,7 +310,7 @@ export type BundleOfferWriteInput = {
 const logger = getLogger("events-service");
 
 const EVENT_SELECT_FIELDS =
-  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required,location_url";
+  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required,location_url,important_links";
 const TICKET_SELECT_FIELDS =
   "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person,visibility_config";
 const COUPON_SELECT_FIELDS =
@@ -443,6 +445,7 @@ function mapEventWriteInput(input: EventWriteInput) {
     registration_end: input.registrationEnd ?? null,
     location_url: input.locationUrl ?? null,
     verification_required: input.verificationRequired ?? false,
+    important_links: input.importantLinks ?? null,
     ...(input.status ? { status: input.status } : {}),
   };
 }
@@ -1702,6 +1705,7 @@ export async function getPublicEventDetail(eventId: string) {
       termsAndConditions: event.terms_and_conditions,
       status: event.status,
       locationUrl: event.location_url,
+      importantLinks: event.important_links,
     },
     tickets: (tickets ?? []).map(mapTicket),
     formFields: (formFields ?? []).map(mapFormField),
