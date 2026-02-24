@@ -20,6 +20,7 @@ jobs:
             cd ~/akar-event-management-system/backend && \
             git pull origin main && \
             pm2 stop nextjs-app && \
+            pkill -f 'next build' || true && \
             npm install && \
             rm -rf .next && \
             npm run build && \
