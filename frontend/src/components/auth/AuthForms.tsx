@@ -277,7 +277,7 @@ export default function AuthForms({ mode, onToggleMode }: AuthFormsProps) {
 
                     <div className="space-y-2">
                         <AuthInput
-                            label="Password"
+                            label={mode === 'register' ? 'Create a New Password' : 'Password'}
                             id="password"
                             type="password"
                             placeholder="********"

@@ -1,4 +1,4 @@
-name : Depoloy Backend on EC2
+name: Depoloy Backend on EC2
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    steps:      
+    steps:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -21,6 +21,7 @@ jobs:
             git pull origin main && \
             pm2 stop nextjs-app && \
             npm install && \
+            rm -rf .next && \
             npm run build && \
             pm2 start npm --name nextjs-app -- run start && \
             pm2 save
