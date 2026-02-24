@@ -15,6 +15,7 @@ import {
   Tag,
   ListDashes,
   Ticket,
+  LinkSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import {
   Select,
@@ -99,6 +100,9 @@ export type EventFormData = {
 
   // Step 6: Offers (Bundles)
   bundleOffers: BundleOfferData[];
+
+  // Important Links
+  importantLinks: { description: string; url: string }[];
 };
 
 type BundleOfferData = {
@@ -136,6 +140,7 @@ const INITIAL_DATA: EventFormData = {
     },
   ], // Default one ticket
   bundleOffers: [],
+  importantLinks: [],
 };
 
 export function EventsNewCreate({
@@ -395,6 +400,13 @@ export function EventsNewCreate({
         locationUrl: formData.locationUrl,
         status: status,
         verificationRequired: false, // Default
+        importantLinks: formData.importantLinks.filter(
+          (l) => l.description.trim() || l.url.trim(),
+        ).length > 0
+          ? formData.importantLinks.filter(
+            (l) => l.description.trim() || l.url.trim(),
+          )
+          : null,
         coupons: formData.coupons.map((c) => ({
           code: c.code,
           discountValue: c.discountValue,
@@ -692,6 +704,34 @@ export function EventsNewCreate({
     setFormData((prev) => ({
       ...prev,
       bundleOffers: prev.bundleOffers.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Important Link Handlers
+  const addLink = () => {
+    setFormData((prev) => ({
+      ...prev,
+      importantLinks: [...prev.importantLinks, { description: "", url: "" }],
+    }));
+  };
+
+  const removeLink = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      importantLinks: prev.importantLinks.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateLink = (
+    index: number,
+    field: "description" | "url",
+    value: string,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      importantLinks: prev.importantLinks.map((link, i) =>
+        i === index ? { ...link, [field]: value } : link,
+      ),
     }));
   };
 
@@ -1007,6 +1047,68 @@ export function EventsNewCreate({
                       {errors.termsAndConditions}
                     </p>
                   )}
+                </div>
+
+                {/* Important Links */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                      <LinkSimple size={16} weight="bold" className="text-primary" />
+                      Important Links
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addLink}
+                      className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1"
+                    >
+                      <Plus weight="bold" /> Add Link
+                    </button>
+                  </div>
+                  {formData.importantLinks.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">
+                      No important links added. Click &quot;Add Link&quot; to add one.
+                    </p>
+                  )}
+                  <div className="space-y-3">
+                    {formData.importantLinks.map((link, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/5 p-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Link {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeLink(index)}
+                            className="p-1 text-muted-foreground hover:text-red-500"
+                            title="Remove link"
+                          >
+                            <Trash size={14} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                          placeholder="Description (e.g. Event Website)"
+                          value={link.description}
+                          onChange={(e) =>
+                            updateLink(index, "description", e.target.value)
+                          }
+                        />
+                        <input
+                          type="url"
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                          placeholder="URL (e.g. https://example.com)"
+                          value={link.url}
+                          onChange={(e) =>
+                            updateLink(index, "url", e.target.value)
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1865,8 +1967,8 @@ export function EventsNewCreate({
                                             );
                                           }}
                                           className={`px-2 py-1 rounded border text-[11px] transition-all flex items-center gap-1.5 ${isSelected
-                                              ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                                              : "bg-background border-border hover:border-primary/40 text-muted-foreground"
+                                            ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                                            : "bg-background border-border hover:border-primary/40 text-muted-foreground"
                                             }`}
                                         >
                                           {isSelected && (
@@ -2117,16 +2219,16 @@ export function EventsNewCreate({
                                   className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[11px] transition-all text-left ${offer.applicableTicketIds.includes(
                                     ticket.name || `Tier ${tIdx + 1}`,
                                   )
-                                      ? "bg-primary/10 border-primary text-primary font-medium"
-                                      : "bg-background border-border hover:border-primary/40 text-muted-foreground"
+                                    ? "bg-primary/10 border-primary text-primary font-medium"
+                                    : "bg-background border-border hover:border-primary/40 text-muted-foreground"
                                     } ${!ticket.name ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
                                   <div
                                     className={`size-3 rounded-full flex items-center justify-center border ${offer.applicableTicketIds.includes(
                                       ticket.name || `Tier ${tIdx + 1}`,
                                     )
-                                        ? "border-primary bg-primary"
-                                        : "border-muted-foreground/30"
+                                      ? "border-primary bg-primary"
+                                      : "border-muted-foreground/30"
                                       }`}
                                   >
                                     {offer.applicableTicketIds.includes(
