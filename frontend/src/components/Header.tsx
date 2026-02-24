@@ -197,88 +197,100 @@ export default function Header() {
                 {/* Mobile Menu */}
                 <AnimatePresence>
                     {isMobileMenuOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3, ease: 'easeInOut' }}
-                            className="md:hidden border-t border-white/5"
-                        >
-                            <nav className="flex flex-col px-8 py-6 gap-1">
-                                {primaryNavItems.map((item) => (
-                                    <Link
-                                        key={item.name}
-                                        href={item.href}
-                                        className="text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        {item.name}
-                                    </Link>
-                                ))}
-                                <div className="w-8 h-[1px] bg-white/15 my-3" />
-                                {secondaryNavItems.map((item) => (
-                                    <Link
-                                        key={item.name}
-                                        href={item.href}
-                                        className="text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        {item.name}
-                                    </Link>
-                                ))}
-                                <div className="w-8 h-[1px] bg-white/15 my-3" />
-                                {isAuthenticated && user ? (
-                                    <>
-                                        <div className="py-2.5 flex items-center gap-3 text-white/70 mb-2">
-                                            <div className="w-8 h-8 rounded-full bg-[#1a1a1a] shrink-0 flex items-center justify-center">
-                                                <User className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-black uppercase tracking-widest text-white/40">Signed in as</span>
-                                                <span className="text-sm font-bold text-white truncate max-w-[200px]">{user.name}</span>
-                                            </div>
-                                        </div>
+                        <>
+                            {/* Full-screen backdrop */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="fixed inset-0 bg-[#1a1a1a]/95 backdrop-blur-md md:hidden"
+                                style={{ top: 0 }}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                className="md:hidden border-t border-white/5"
+                            >
+                                <nav className="flex flex-col px-8 py-6 gap-1">
+                                    {primaryNavItems.map((item) => (
                                         <Link
-                                            href="/my-bookings"
-                                            className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
+                                            key={item.name}
+                                            href={item.href}
+                                            className="text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
                                             onClick={() => setIsMobileMenuOpen(false)}
                                         >
-                                            <Ticket className="w-4 h-4" />
-                                            My Bookings
+                                            {item.name}
                                         </Link>
+                                    ))}
+                                    <div className="w-8 h-[1px] bg-white/15 my-3" />
+                                    {secondaryNavItems.map((item) => (
                                         <Link
-                                            href="/settings"
-                                            className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
+                                            key={item.name}
+                                            href={item.href}
+                                            className="text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
                                             onClick={() => setIsMobileMenuOpen(false)}
                                         >
-                                            <Settings className="w-4 h-4" />
-                                            Settings
+                                            {item.name}
                                         </Link>
+                                    ))}
+                                    <div className="w-8 h-[1px] bg-white/15 my-3" />
+                                    {isAuthenticated && user ? (
+                                        <>
+                                            <div className="py-2.5 flex items-center gap-3 text-white/70 mb-2">
+                                                <div className="w-8 h-8 rounded-full bg-[#1a1a1a] shrink-0 flex items-center justify-center">
+                                                    <User className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-black uppercase tracking-widest text-white/40">Signed in as</span>
+                                                    <span className="text-sm font-bold text-white truncate max-w-[200px]">{user.name}</span>
+                                                </div>
+                                            </div>
+                                            <Link
+                                                href="/my-bookings"
+                                                className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                            >
+                                                <Ticket className="w-4 h-4" />
+                                                My Bookings
+                                            </Link>
+                                            <Link
+                                                href="/settings"
+                                                className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                            >
+                                                <Settings className="w-4 h-4" />
+                                                Settings
+                                            </Link>
+                                            <button
+                                                onClick={() => {
+                                                    handleLogout();
+                                                    setIsMobileMenuOpen(false);
+                                                }}
+                                                className="flex items-center gap-3 text-[#ff5a5a] text-[14px] font-normal py-2.5 hover:text-red-400 transition-colors text-left"
+                                            >
+                                                <X className="w-4 h-4" />
+                                                Sign out
+                                            </button>
+                                        </>
+                                    ) : (
                                         <button
                                             onClick={() => {
-                                                handleLogout();
+                                                openAuthModal();
                                                 setIsMobileMenuOpen(false);
                                             }}
-                                            className="flex items-center gap-3 text-[#ff5a5a] text-[14px] font-normal py-2.5 hover:text-red-400 transition-colors text-left"
+                                            className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors text-left"
                                         >
-                                            <X className="w-4 h-4" />
-                                            Sign out
+                                            <User className="w-4 h-4" />
+                                            Sign In
                                         </button>
-                                    </>
-                                ) : (
-                                    <button
-                                        onClick={() => {
-                                            openAuthModal();
-                                            setIsMobileMenuOpen(false);
-                                        }}
-                                        className="flex items-center gap-3 text-white/70 text-[14px] font-normal py-2.5 hover:text-white transition-colors text-left"
-                                    >
-                                        <User className="w-4 h-4" />
-                                        Sign In
-                                    </button>
-                                )}
-                            </nav>
-                        </motion.div>
+                                    )}
+                                </nav>
+                            </motion.div>
+                        </>
                     )}
                 </AnimatePresence>
             </header>
