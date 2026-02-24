@@ -381,6 +381,12 @@ export default function RegistrationModal({
 
     // Handlers
     const handleInputChange = (fieldName: string, value: any) => {
+        if (fieldName === 'phone' && typeof value === 'string') {
+            const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+            setFormValues(prev => ({ ...prev, [fieldName]: digitsOnly }));
+            return;
+        }
+
         setFormValues(prev => ({ ...prev, [fieldName]: value }));
 
         // Auto-map to ticket if the value matches a ticket name
@@ -467,21 +473,48 @@ export default function RegistrationModal({
         }
     };
 
+    const isEmptyValue = (value: any) => {
+        if (Array.isArray(value)) return value.length === 0;
+        if (typeof value === 'string') return value.trim().length === 0;
+        return value === undefined || value === null;
+    };
+
+    const validateInfoStep = () => {
+        const name = typeof formValues.name === 'string' ? formValues.name.trim() : '';
+        const email = typeof formValues.email === 'string' ? formValues.email.trim() : '';
+        const phone = typeof formValues.phone === 'string' ? formValues.phone.trim() : '';
+
+        if (!name || !email || !phone) {
+            setError('Please fill in mandatory fields (Name, Email, Phone)');
+            return false;
+        }
+
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            setError('Please enter a valid email address.');
+            return false;
+        }
+
+        const phonePattern = /^\d{10}$/;
+        if (!phonePattern.test(phone)) {
+            setError('Please enter a valid 10-digit phone number.');
+            return false;
+        }
+
+        for (const field of visibleFormFields) {
+            if (field.isRequired && isEmptyValue(formValues[field.fieldName])) {
+                setError(`Please fill in ${field.label}`);
+                return false;
+            }
+        }
+
+        setError(null);
+        return true;
+    };
+
     const handleNext = () => {
         if (step === 1) {
-            // Validate mandatory fields
-            if (!formValues.name || !formValues.email || !formValues.phone) {
-                setError('Please fill in mandatory fields (Name, Email, Phone)');
-                return;
-            }
-            // Check custom required fields among VISIBLE ones only
-            for (const field of visibleFormFields) {
-                if (field.isRequired && !formValues[field.fieldName]) {
-                    setError(`Please fill in ${field.label}`);
-                    return;
-                }
-            }
-            setError(null);
+            if (!validateInfoStep()) return;
             if (eventStatus === 'waitlist') {
                 handleSubmit();
                 return;
@@ -528,7 +561,10 @@ export default function RegistrationModal({
     }
 
     const handleSubmit = async () => {
-        if (eventStatus !== 'waitlist' && !Object.keys(selectedTickets).length) return;
+        if (eventStatus !== 'waitlist' && !Object.keys(selectedTickets).length) {
+            setError('Please select at least one ticket to continue with booking.');
+            return;
+        }
 
         if (!isAuthenticated || !user?.id) {
             setError('Please log in to continue with booking.');
@@ -700,7 +736,17 @@ export default function RegistrationModal({
                                                             </div>
                                                             <div className="space-y-1">
                                                                 <label className="text-[9px] font-bold uppercase tracking-widest text-[#1a1a1a]/60">Phone Number *</label>
-                                                                <input required value={formValues.phone} onChange={e => handleInputChange('phone', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-montserrat text-[#1a1a1a] focus:ring-2 focus:ring-[#1a1a1a]/10 outline-none" placeholder="+91 00000 00000" />
+                                                                <input
+                                                                    required
+                                                                    type="tel"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]{10}"
+                                                                    maxLength={10}
+                                                                    value={formValues.phone}
+                                                                    onChange={e => handleInputChange('phone', e.target.value)}
+                                                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-montserrat text-[#1a1a1a] focus:ring-2 focus:ring-[#1a1a1a]/10 outline-none"
+                                                                    placeholder="10-digit mobile number"
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
