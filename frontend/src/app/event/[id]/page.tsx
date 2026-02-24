@@ -424,6 +424,12 @@ export default function EventDetailPage() {
                         {/* Important Links */}
                         {event.importantLinks && event.importantLinks.length > 0 && (
                             <div className="bg-white rounded-2xl p-5 md:p-6 lg:p-8 shadow-sm border border-gray-100">
+                                <div className="flex items-center gap-2.5 mb-4 md:mb-5">
+                                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
+                                        <ExternalLink className="w-4 h-4 text-blue-500" />
+                                    </div>
+                                    <h2 className="font-montserrat text-[#1a1a1a] text-base md:text-lg font-bold">Important Links</h2>
+                                </div>
                                 <div className="space-y-2.5">
                                     {event.importantLinks.map((link, index) => {
                                         const href = link.url.match(/^https?:\/\//) ? link.url : `https://${link.url}`;
