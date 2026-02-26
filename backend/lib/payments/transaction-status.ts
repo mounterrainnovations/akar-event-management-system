@@ -58,6 +58,7 @@ async function syncSingleRegistrationTransaction(
         callbackStatus: callbackData.status,
         gatewayMessage: callbackData.errorMessage || callbackData.error || null,
         paymentMode: callbackData.mode || null,
+        skipFailureEmail: true,
       });
     }
 
