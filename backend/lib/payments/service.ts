@@ -63,6 +63,7 @@ type CallbackBusinessUpdateInput = {
   callbackStatus: string;
   gatewayMessage?: string | null;
   paymentMode?: string | null;
+  skipFailureEmail?: boolean;
 };
 
 type RegistrationTransactionLookup = {
@@ -953,7 +954,7 @@ export async function applyCallbackBusinessStatus(
             pdfBuffer,
           );
           logger.info("Sent booking success email", { registrationId, email });
-        } else {
+        } else if (!input.skipFailureEmail) {
           await sendBookingFailureEmail(email, name, eventName, amount, row.id);
           logger.info("Sent booking failure email", { registrationId, email });
         }

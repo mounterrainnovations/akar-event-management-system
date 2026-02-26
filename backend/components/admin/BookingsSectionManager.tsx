@@ -661,17 +661,19 @@ export function BookingsSectionManager() {
                                                         <DownloadSimple size={18} weight="bold" />
                                                     </Button>
                                                 )}
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 px-2 text-[11px]"
-                                                    disabled={Boolean(syncingBookingIds[booking.id])}
-                                                    onClick={() => {
-                                                        void handleCheckTransactionStatus(booking.id);
-                                                    }}
-                                                >
-                                                    {syncingBookingIds[booking.id] ? "Checking..." : "Check Status"}
-                                                </Button>
+                                                {booking.paymentStatus.toLowerCase() !== "paid" && booking.paymentStatus.toLowerCase() !== "success" && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 px-2 text-[11px]"
+                                                        disabled={Boolean(syncingBookingIds[booking.id])}
+                                                        onClick={() => {
+                                                            void handleCheckTransactionStatus(booking.id);
+                                                        }}
+                                                    >
+                                                        {syncingBookingIds[booking.id] ? "Checking..." : "Check Status"}
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

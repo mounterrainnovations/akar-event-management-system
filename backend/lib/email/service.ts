@@ -236,10 +236,15 @@ export async function sendBookingFailureEmail(
     to: [{ email, name }],
     templateKey: TEMPLATE_KEY,
     mergeInfo: {
+      EVENT_NAME: eventName,
       event_name: eventName,
+      Event_Name: eventName,
       name: name,
       amount: amount,
+      Amount: amount,
+      BOOKING_ID: bookingId,
       booking_id: bookingId,
+      Booking_ID: bookingId,
       status: "Failed",
     },
   });
