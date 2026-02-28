@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { getBackendUrl } from '@/lib/backend';
 import { supabase } from '@/lib/supabase';
+import { getProxiedImageUrl } from '@/lib/utils';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -333,7 +334,7 @@ export default function EventDetailPage() {
                     >
                         {/* Background Image */}
                         <Image
-                            src={event.bannerUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
+                            src={getProxiedImageUrl(event.bannerUrl) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
                             alt={event.name}
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-700"
@@ -742,7 +743,7 @@ export default function EventDetailPage() {
 
                         <div className="relative w-full h-full max-h-[85vh] animate-in zoom-in-95 duration-300">
                             <Image
-                                src={event.bannerUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
+                                src={getProxiedImageUrl(event.bannerUrl) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}
                                 alt={event.name}
                                 fill
                                 className="object-contain"

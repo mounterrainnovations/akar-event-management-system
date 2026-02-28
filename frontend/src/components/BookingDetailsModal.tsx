@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, MapPin, Ticket, CreditCard, User, FileText, CheckCircle2, Hourglass, XCircle, Clock, Download } from 'lucide-react';
 import { instrumentSerif } from '@/lib/fonts';
 import Image from 'next/image';
+import { getProxiedImageUrl } from '@/lib/utils';
 
 // Define interface matching the Booking type from page.tsx (or a subset relevant for display)
 interface BookingDetail {
@@ -209,7 +210,7 @@ export default function BookingDetailsModal({ isOpen, onClose, booking }: Bookin
                             {booking.event.bannerUrl ? (
                                 <div className="relative w-full h-52 md:h-64 bg-gray-100 overflow-hidden">
                                     <Image
-                                        src={booking.event.bannerUrl}
+                                        src={getProxiedImageUrl(booking.event.bannerUrl) as string}
                                         alt={booking.event.name}
                                         fill
                                         className="object-cover"

@@ -9,6 +9,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { instrumentSerif } from '@/lib/fonts';
 import { getBackendUrl } from '@/lib/backend';
+import { getProxiedImageUrl } from '@/lib/utils';
 
 const container = {
     hidden: {},
@@ -67,7 +68,7 @@ export default function EventsPage() {
                     date: event.eventDate || new Date().toISOString(),
                     location: `${event.city}, ${event.state}`,
                     category: 'Event', // Default category since not in DB
-                    image: event.bannerUrl || 'https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1170&auto=format&fit=crop',
+                    image: getProxiedImageUrl(event.bannerUrl) || 'https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1170&auto=format&fit=crop',
                     status: event.status
                 }));
 

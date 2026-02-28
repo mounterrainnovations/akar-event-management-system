@@ -10,6 +10,7 @@ import { getBackendUrl } from '@/lib/backend';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import BookingDetailsModal from '@/components/BookingDetailsModal';
+import { getProxiedImageUrl } from '@/lib/utils';
 
 interface Booking {
     id: string;
@@ -218,7 +219,7 @@ export default function MyBookingsPage() {
                                             <div className="relative w-full md:w-72 h-48 md:h-auto shrink-0 bg-gray-100">
                                                 {booking.event.bannerUrl ? (
                                                     <Image
-                                                        src={booking.event.bannerUrl}
+                                                        src={getProxiedImageUrl(booking.event.bannerUrl) as string}
                                                         alt={booking.event.name}
                                                         fill
                                                         className="object-cover transition-transform duration-700 group-hover:scale-105"

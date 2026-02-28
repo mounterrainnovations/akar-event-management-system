@@ -1,4 +1,5 @@
 import { getBackendUrl } from "@/lib/backend";
+import { getProxiedImageUrl } from "@/lib/utils";
 
 export type WebsiteSection =
   | "highlights"
@@ -54,7 +55,16 @@ export async function fetchSectionMedia(
     }
 
     const data = (await response.json()) as WebsiteMediaResponse;
-    return Array.isArray(data.items) ? data.items : [];
+    if (Array.isArray(data.items)) {
+      return data.items.map((item) => ({
+        ...item,
+        previewUrl: getProxiedImageUrl(item.previewUrl) || item.previewUrl,
+        thumbnailUrl: item.thumbnailUrl
+          ? getProxiedImageUrl(item.thumbnailUrl)
+          : null,
+      }));
+    }
+    return [];
   } catch (error) {
     console.warn("website-media request errored", {
       section,

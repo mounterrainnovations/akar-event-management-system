@@ -8,6 +8,7 @@ import { instrumentSerif } from '@/lib/fonts';
 import JourneySection from '@/components/JourneySection';
 import { supabase } from '@/lib/supabase';
 import { fetchSectionMedia } from '@/lib/websiteMedia';
+import { getProxiedImageUrl } from '@/lib/utils';
 
 const fallbackHeroImages = [
     '/1.jpg',
@@ -106,7 +107,7 @@ export default function Home() {
                             location: `${event.city || ''}, ${event.country || ''}`.replace(/^, /, '').replace(/, $/, '') || 'Location TBA',
                             description: event.about || 'No description available.',
                             tag: 'Event', // You might want to add a tag field to your DB or derive it
-                            image: event.base_event_banner || '/1.jpg', // Fallback image
+                            image: getProxiedImageUrl(event.base_event_banner) || '/1.jpg', // Fallback image
                         };
                     });
                     setEvents(mappedEvents);
