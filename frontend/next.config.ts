@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/supabase-api/:path*",
+        destination: "https://hflfauratacalmqlwdjd.supabase.co/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

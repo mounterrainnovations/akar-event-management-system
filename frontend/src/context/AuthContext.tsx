@@ -81,34 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (email: string, password: string): Promise<{ error: string | null }> => {
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-            const data = await res.json();
-
-            if (!res.ok) {
-                return { error: data.error || 'Login failed' };
-            }
-
-            // Manually set the session in the client so that onAuthStateChange fires
-            // and local storage gets updated without hitting the blocked .co endpoint
-            const { error: setSessionError } = await supabase.auth.setSession({
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token,
-            });
-
-            if (setSessionError) {
-                return { error: setSessionError.message };
-            }
-
-            closeAuthModal();
-            return { error: null };
-        } catch (error: any) {
-            return { error: error.message || 'Network error' };
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            return { error: error.message };
         }
+        closeAuthModal();
+        return { error: null };
     };
 
     const signUp = async (
@@ -128,8 +106,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { error: data.error || 'Sign up failed' };
         }
 
-        // Use the backend login route to get the session without hitting .co directly
-        return login(email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            return { error: error.message || 'Account created, but sign in failed' };
+        }
+        closeAuthModal();
+        return { error: null };
     };
 
     const sendPasswordResetOtp = async (email: string): Promise<{ error: string | null }> => {
