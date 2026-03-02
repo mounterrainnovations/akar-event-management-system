@@ -4,34 +4,48 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { instrumentSerif } from '@/lib/fonts';
+import { fetchJourneyItems } from '@/lib/journey';
+import { getProxiedImageUrl } from '@/lib/utils';
 
-const journeyData = [
+type JourneyDisplayItem = {
+    id: string;
+    year: string;
+    title: string;
+    description: string;
+    image: string;
+};
+
+const fallbackJourneyData: JourneyDisplayItem[] = [
     {
+        id: 'fallback-2022',
         year: '2022',
         title: 'Where Courage Found Its Space',
         description: 'AKAR began with a simple truth: empowered women create empowered communities. It started as a safe space where women could speak freely, rebuild confidence, and support one another. There were no headlines, only heartfelt conversations. In those quiet moments, the foundation of change was laid.',
-        // Using a sophisticated abstract/minimalist image as placeholder
         image: '/2022.jpeg'
     },
     {
+        id: 'fallback-2023',
         year: '2023',
         title: 'Empowerment in Action',
         description: 'By 2023, the circle had grown stronger. Women from different backgrounds came together, sharing experiences and lifting each other higher. Conversations turned into collaboration and mentorship. Confidence became action. Empowerment was no longer a concept—it was visible in every woman who stepped forward.',
         image: '/2023.jpeg'
     },
     {
+        id: 'fallback-2024',
         year: '2024',
         title: 'Stories That Changed Narratives',
         description: 'In 2024, AKAR amplified powerful stories of resilience through its magazine and community platforms. Women who once faced doubt began leading with courage and clarity. Their journeys inspired others to believe in themselves. Empowerment expanded beyond celebration—it began shaping the next generation.',
         image: '/2024.jpg'
     },
     {
+        id: 'fallback-2025',
         year: '2025',
         title: 'Recognition That Inspired Many',
         description: 'The “Manzile Aur Hum – Women Achievers Award 2025” honored women who created real impact. It was a moment of pride, recognition, and collective strength. Each award celebrated perseverance and leadership. Empowerment stepped onto a larger stage.',
         image: '/2025.jpg'
     },
     {
+        id: 'fallback-2026',
         year: '2026',
         title: 'A Movement Creating Lasting Change',
         description: 'By 2026, AKAR evolved into a movement driving meaningful change. It stands as a platform for leadership, mentorship, and opportunity. What began as a belief is now shaping confident women and stronger communities. The journey continues with purpose and power.',
@@ -40,23 +54,43 @@ const journeyData = [
 ];
 
 export default function JourneySection() {
+    const [journeyData, setJourneyData] = useState<JourneyDisplayItem[]>(fallbackJourneyData);
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
 
-    // Update active index on scroll
+    useEffect(() => {
+        const fetchJourney = async () => {
+            try {
+                const items = await fetchJourneyItems();
+                if (!items.length) return;
+
+                setJourneyData(
+                    items.map((item) => ({
+                        id: item.id,
+                        year: String(item.year),
+                        title: item.title,
+                        description: item.content,
+                        image: getProxiedImageUrl(item.poster) || item.poster,
+                    })),
+                );
+            } catch (err) {
+                console.error('Error fetching journey timeline:', err);
+            }
+        };
+
+        fetchJourney();
+    }, []);
+
     useEffect(() => {
         const handleScroll = () => {
             if (scrollRef.current) {
                 const container = scrollRef.current;
                 const containerWidth = container.offsetWidth;
 
-                // Calculate the center of the container
                 const containerCenter = container.getBoundingClientRect().left + containerWidth / 2;
-
-                // Find the card whose center is closest to the container's center
                 const cards = Array.from(container.children).slice(0, journeyData.length);
 
                 let closestIndex = 0;
@@ -91,15 +125,13 @@ export default function JourneySection() {
                 container.removeEventListener('scroll', handleScroll);
             }
         };
-    }, []);
+    }, [journeyData.length]);
 
-    // Enable horizontal scrolling with mouse wheel
     useEffect(() => {
         const container = scrollRef.current;
         if (!container) return;
 
         const handleWheel = (e: WheelEvent) => {
-            // If deltaX is 0 and deltaY is present (vertical scroll intent), map to horizontal
             if (Math.abs(e.deltaX) < 10 && Math.abs(e.deltaY) > 0) {
                 e.preventDefault();
                 container.scrollLeft += e.deltaY;
@@ -112,6 +144,12 @@ export default function JourneySection() {
             container.removeEventListener('wheel', handleWheel);
         };
     }, []);
+
+    useEffect(() => {
+        if (activeIndex >= journeyData.length) {
+            setActiveIndex(Math.max(journeyData.length - 1, 0));
+        }
+    }, [activeIndex, journeyData.length]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (scrollRef.current) {
@@ -141,8 +179,8 @@ export default function JourneySection() {
         if (scrollRef.current) {
             const container = scrollRef.current;
             const card = container.children[index] as HTMLElement;
+            if (!card) return;
 
-            // Center the card
             const cardRect = card.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
             const scrollLeft = container.scrollLeft + (cardRect.left - containerRect.left) - (containerRect.width / 2) + (cardRect.width / 2);
@@ -170,7 +208,6 @@ export default function JourneySection() {
                 </motion.h2>
             </div>
 
-            {/* Cards Scroll Container */}
             <div
                 ref={scrollRef}
                 className={`flex gap-4 md:gap-8 overflow-x-auto pb-12 px-4 md:px-[25vw] scrollbar-hide items-center w-full relative cursor-grab active:cursor-grabbing select-none ${isDragging ? '' : 'snap-x snap-mandatory'}`}
@@ -182,7 +219,7 @@ export default function JourneySection() {
             >
                 {journeyData.map((item, index) => (
                     <motion.div
-                        key={index}
+                        key={item.id}
                         initial={{ opacity: 0, scale: 0.9 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -205,19 +242,16 @@ export default function JourneySection() {
                                         draggable={false}
                                         className="object-cover opacity-80"
                                     />
-                                    {/* Gradient overlay to blend with black bg if needed */}
                                     <div className="absolute inset-0 bg-black/20" />
                                 </div>
                             </div>
 
                             {/* Bottom/Right Side - Content */}
                             <div className="w-full h-[60%] md:h-full md:w-1/2 bg-[#1a1a1a] p-6 md:p-12 flex flex-col relative text-white">
-                                {/* Year at top */}
                                 <div className={`${instrumentSerif.className} text-5xl md:text-8xl mb-2 md:mb-auto`}>
                                     {item.year}
                                 </div>
 
-                                {/* Content at bottom */}
                                 <div className="flex flex-col gap-2 md:gap-6 overflow-y-auto scrollbar-hide pb-2">
                                     <h3 className={`${instrumentSerif.className} text-2xl md:text-4xl leading-tight`}>
                                         {item.title}
@@ -232,23 +266,17 @@ export default function JourneySection() {
                     </motion.div>
                 ))}
 
-                {/* Spacer for last item alignment */}
                 <div className="w-[1vw] shrink-0" />
             </div>
 
-            {/* Timeline */}
             <div className="container mx-auto px-12 mt-8 md:mt-12">
                 <div className="relative w-full h-px bg-[#1a1a1a]/20 flex justify-between items-center">
-
-                    {/* Progress Line (Optional - can be complex to animate perfectly with scroll, omitting for clean simple dots) */}
-
                     {journeyData.map((item, index) => (
                         <button
-                            key={index}
+                            key={`${item.id}-year`}
                             onClick={() => scrollToYear(index)}
                             className="relative group focus:outline-none"
                         >
-                            {/* Year Label */}
                             <div className={`
                                 absolute -top-8 left-1/2 -translate-x-1/2 
                                 ${instrumentSerif.className} text-lg md:text-2xl transition-all duration-300
@@ -257,7 +285,6 @@ export default function JourneySection() {
                                 {item.year}
                             </div>
 
-                            {/* Dot */}
                             <div className={`
                                 w-3 h-3 md:w-4 md:h-4 rounded-full transition-all duration-300 border border-[#1a1a1a]/10
                                 ${activeIndex === index ? 'bg-[#1a1a1a] scale-125' : 'bg-[#e5e5e5] hover:bg-[#d4d4d4]'}

@@ -33,7 +33,6 @@ export async function createWorkAction(formData: FormData) {
       bucketName: "media",
     });
     coverImageUrl = uploaded.file_path; // Storing the file path to retrieve URL later, or direct URL.
-    // wait, uploadMediaFile returns `media` row which has `file_path` and `bucket_name`. We should just use the path, but the DB expects the url or we construct it. Let's just construct it here for simplicity or use `file_path`.
   }
 
   try {
@@ -47,10 +46,10 @@ export async function createWorkAction(formData: FormData) {
     });
   } catch (error) {
     logger.error("Failed to create work", { error });
-    redirect("/admin?section=works&error=Failed+to+create");
+    redirect("/admin?section=work&error=Failed+to+create");
   }
 
-  redirect("/admin?section=works&success=Work+created");
+  redirect("/admin?section=work&success=Work+created");
 }
 
 export async function updateWorkAction(formData: FormData) {
@@ -58,7 +57,7 @@ export async function updateWorkAction(formData: FormData) {
   if (!session) redirect("/login?error=Please+sign+in+again");
 
   const id = formData.get("id")?.toString();
-  if (!id) redirect("/admin?section=works&error=Invalid+ID");
+  if (!id) redirect("/admin?section=work&error=Invalid+ID");
 
   const title = formData.get("title")?.toString();
   const author = formData.get("author")?.toString();
@@ -88,10 +87,10 @@ export async function updateWorkAction(formData: FormData) {
     });
   } catch (error) {
     logger.error("Failed to update work", { error });
-    redirect("/admin?section=works&error=Failed+to+update");
+    redirect("/admin?section=work&error=Failed+to+update");
   }
 
-  redirect("/admin?section=works&success=Work+updated");
+  redirect("/admin?section=work&success=Work+updated");
 }
 
 export async function deleteWorkAction(formData: FormData) {
@@ -99,14 +98,14 @@ export async function deleteWorkAction(formData: FormData) {
   if (!session) redirect("/login?error=Please+sign+in+again");
 
   const id = formData.get("id")?.toString();
-  if (!id) redirect("/admin?section=works&error=Invalid+ID");
+  if (!id) redirect("/admin?section=work&error=Invalid+ID");
 
   try {
     await deleteWork(id);
   } catch (error) {
     logger.error("Failed to delete work", { error });
-    redirect("/admin?section=works&error=Failed+to+delete");
+    redirect("/admin?section=work&error=Failed+to+delete");
   }
 
-  redirect("/admin?section=works&success=Work+deleted");
+  redirect("/admin?section=work&success=Work+deleted");
 }
