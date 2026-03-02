@@ -28,10 +28,12 @@ import { EventsNewSectionManager } from "@/components/admin/EventsNewSectionMana
 import { LeadsSectionManager } from "@/components/admin/LeadsSectionManager";
 import { BookingsSectionManager } from "@/components/admin/BookingsSectionManager";
 import { WorkSectionManager } from "@/components/admin/WorkSectionManager";
+import { JourneySectionManager } from "@/components/admin/JourneySectionManager";
 import { CounterBookingSectionManager } from "@/components/admin/CounterBookingSectionManager";
 import { DashboardSectionManager } from "@/components/admin/DashboardSectionManager";
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
 import { listWorks } from "@/lib/works/service";
+import { listJourneyItems } from "@/lib/journey/service";
 
 type AdminSection = "dashboard" | "media" | "events" | "leads" | "bookings" | "work" | "counter-booking";
 type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications";
@@ -117,8 +119,10 @@ export default async function AdminPage({
   }
 
   let allWorks: Awaited<ReturnType<typeof listWorks>> = [];
+  let journeyItems: Awaited<ReturnType<typeof listJourneyItems>> = [];
   if (activeSection === "work") {
     allWorks = await listWorks({ includeDrafts: true });
+    journeyItems = await listJourneyItems();
   }
 
   return (
@@ -245,7 +249,10 @@ export default async function AdminPage({
           </section>
         ) : activeSection === "work" ? (
           <section className="p-6">
-            <WorkSectionManager works={allWorks} />
+            <div className="space-y-10">
+              <WorkSectionManager works={allWorks} />
+              <JourneySectionManager items={journeyItems} />
+            </div>
           </section>
         ) : mediaCategory ? (
           <section className="p-6">
