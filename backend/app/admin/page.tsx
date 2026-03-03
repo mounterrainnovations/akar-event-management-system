@@ -36,7 +36,7 @@ import { listWorks } from "@/lib/works/service";
 import { listJourneyItems } from "@/lib/journey/service";
 
 type AdminSection = "dashboard" | "media" | "events" | "leads" | "bookings" | "work" | "counter-booking";
-type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications";
+type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications" | "past-events";
 
 const navItems: Array<{ title: string; section: AdminSection; category?: MediaCategory; icon: typeof Image; enabled: boolean }> = [
   { title: "Dashboard", section: "dashboard", icon: House, enabled: true },
@@ -62,6 +62,7 @@ const mediaCategories: Array<{
     { id: "hero-carousel", label: "Hero Carousel", description: "Background images for the hero section", icon: Slideshow, enabled: true },
     { id: "members", label: "Members", description: "Team and member photos", icon: Users, enabled: true },
     { id: "publications", label: "Publications", description: "PDF publications and documents", icon: BookOpen, enabled: true },
+    { id: "past-events", label: "Past Events", description: "Images shown in the carousel on event pages", icon: CalendarBlank, enabled: true },
   ];
 
 function parseSection(value?: string): AdminSection {
@@ -76,7 +77,7 @@ function parseSection(value?: string): AdminSection {
 }
 
 function parseMediaCategory(value?: string): MediaCategory | null {
-  if (value === "highlights" || value === "hero-carousel" || value === "members" || value === "publications") {
+  if (value === "highlights" || value === "hero-carousel" || value === "members" || value === "publications" || value === "past-events") {
     return value;
   }
   return null;

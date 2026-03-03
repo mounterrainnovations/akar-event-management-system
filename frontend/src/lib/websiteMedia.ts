@@ -5,7 +5,8 @@ export type WebsiteSection =
   | "highlights"
   | "hero-carousel"
   | "members"
-  | "publications";
+  | "publications"
+  | "past-events";
 
 export type WebsiteMediaItem = {
   id: string;

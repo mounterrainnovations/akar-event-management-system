@@ -2,7 +2,8 @@ export type WebsiteSection =
   | "highlights"
   | "hero-carousel"
   | "members"
-  | "publications";
+  | "publications"
+  | "past-events";
 
 export type SectionRules = {
   section: WebsiteSection;
@@ -40,6 +41,13 @@ const SECTION_RULES: Record<WebsiteSection, SectionRules> = {
     minImages: 0,
     maxImages: 50,
     imagesOnly: false,
+  },
+  "past-events": {
+    section: "past-events",
+    label: "Past Events",
+    minImages: 0,
+    maxImages: 200,
+    imagesOnly: true,
   },
 };
 

@@ -12,6 +12,7 @@ import { useToast } from '@/context/ToastContext';
 import { getBackendUrl } from '@/lib/backend';
 import { supabase } from '@/lib/supabase';
 import { getProxiedImageUrl } from '@/lib/utils';
+import PastEventsCarousel from '@/components/PastEventsCarousel';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -676,6 +677,13 @@ export default function EventDetailPage() {
                             </div>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            {/* ===== PAST EVENTS CAROUSEL ===== */}
+            <section className="pb-6 md:pb-10 lg:pb-14 px-4 lg:px-0">
+                <div className="max-w-7xl mx-auto">
+                    <PastEventsCarousel />
                 </div>
             </section>
 

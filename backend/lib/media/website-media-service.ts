@@ -196,7 +196,12 @@ export async function uploadFilesToSection(params: {
   let nextDisplayOrder = await getNextDisplayOrder(section);
   const supabase = createSupabaseAdminClient();
 
-  const bucketName = section === "members" ? "members" : undefined;
+  const bucketName =
+    section === "members"
+      ? "members"
+      : section === "past-events"
+        ? "pastEvents"
+        : undefined;
 
   let storedThumbnailId: string | undefined = undefined;
   if (thumbnailFile && thumbnailFile.size > 0) {
