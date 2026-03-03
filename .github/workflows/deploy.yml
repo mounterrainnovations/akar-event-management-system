@@ -19,10 +19,10 @@ jobs:
           script: |
             cd ~/akar-event-management-system/backend && \
             git pull origin main && \
-            pm2 stop nextjs-app && \
+            pm2 delete nextjs-app || true && \
             pkill -f '[n]ext build' || true && \
             npm install && \
             rm -rf .next && \
             npm run build && \
-            pm2 start npm --name nextjs-app -- run start && \
+            pm2 start ~/start.sh --name nextjs-app && \
             pm2 save
