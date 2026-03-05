@@ -30,6 +30,7 @@ type EventRow = {
   location_url: string | null;
   verification_required: boolean;
   important_links: JsonValue | null;
+  highlights: string[] | null;
 };
 
 type TicketRow = {
@@ -120,6 +121,7 @@ export type EventSummary = {
   verificationRequired: boolean;
   locationUrl: string | null;
   createdAt: string;
+  highlights: string[] | null;
   metrics: {
     ticketTypes: number;
     activeCoupons: number;
@@ -258,6 +260,7 @@ export type EventWriteInput = {
   locationUrl?: string | null;
   verificationRequired?: boolean;
   importantLinks?: { description: string; url: string }[] | null;
+  highlights?: string[] | null;
   coupons?: Omit<CouponWriteInput, "eventId">[];
   formFields?: Omit<FormFieldWriteInput, "eventId">[];
   tickets?: Omit<TicketWriteInput, "eventId">[];
@@ -310,7 +313,7 @@ export type BundleOfferWriteInput = {
 const logger = getLogger("events-service");
 
 const EVENT_SELECT_FIELDS =
-  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required,location_url,important_links";
+  "id,name,base_event_banner,event_date,address_line_1,address_line_2,city,state,country,about,terms_and_conditions,registration_start,registration_end,status,created_at,updated_at,deleted_at,verification_required,location_url,important_links,highlights";
 const TICKET_SELECT_FIELDS =
   "id,event_id,description,price,quantity,sold_count,discount_start,discount_end,status,created_at,updated_at,deleted_at,max_qty_per_person,visibility_config";
 const COUPON_SELECT_FIELDS =
@@ -446,6 +449,7 @@ function mapEventWriteInput(input: EventWriteInput) {
     location_url: input.locationUrl ?? null,
     verification_required: input.verificationRequired ?? false,
     important_links: input.importantLinks ?? null,
+    highlights: input.highlights ?? null,
     ...(input.status ? { status: input.status } : {}),
   };
 }
@@ -612,7 +616,11 @@ export async function listEventAdminSummaries(params?: {
       .returns<Array<Pick<FormFieldRow, "id" | "event_id">>>(),
     supabase
       .from("event_registrations")
-      .select("id,event_id,tickets_bought,final_amount,payment_status")
+      .select(
+        "id,event_id,tickets_bought,final_amount,payment_status,deleted_at",
+      )
+      .eq("payment_status", "paid")
+      .is("deleted_at", null)
       .returns<
         Array<
           Pick<
@@ -622,6 +630,7 @@ export async function listEventAdminSummaries(params?: {
             | "tickets_bought"
             | "final_amount"
             | "payment_status"
+            | "deleted_at"
           >
         >
       >(),
@@ -699,6 +708,7 @@ export async function listEventAdminSummaries(params?: {
       verificationRequired: event.verification_required,
       locationUrl: event.location_url,
       createdAt: event.created_at,
+      highlights: event.highlights,
       metrics: {
         ticketTypes: eventTickets.length,
         activeCoupons: eventCoupons.filter((coupon) => coupon.is_active).length,
@@ -819,26 +829,29 @@ export async function getEventAdminDetail(params: {
     bundleOffers: (bundleOffers ?? []).map(mapBundleOffer),
     registrations: mappedRegistrations,
     analytics: {
-      registrations: mappedRegistrations.length,
+      registrations: mappedRegistrations.filter(
+        (entry) => entry.paymentStatus === "paid" && !entry.deletedAt,
+      ).length,
       paidRegistrations: mappedRegistrations.filter(
-        (entry) => entry.paymentStatus === "paid",
+        (entry) => entry.paymentStatus === "paid" && !entry.deletedAt,
       ).length,
       pendingRegistrations: mappedRegistrations.filter(
-        (entry) => entry.paymentStatus !== "paid",
+        (entry) => entry.paymentStatus === "pending" && !entry.deletedAt,
       ).length,
-      totalQuantity: mappedRegistrations.reduce(
-        (acc, entry) =>
-          acc +
-          Object.values(entry.ticketsBought).reduce(
-            (ticketAcc, ticketQty) => ticketAcc + ticketQty,
-            0,
-          ),
-        0,
-      ),
-      totalRevenue: mappedRegistrations.reduce(
-        (acc, entry) => acc + entry.finalAmount,
-        0,
-      ),
+      totalQuantity: mappedRegistrations
+        .filter((entry) => entry.paymentStatus === "paid" && !entry.deletedAt)
+        .reduce(
+          (acc, entry) =>
+            acc +
+            Object.values(entry.ticketsBought).reduce(
+              (ticketAcc, ticketQty) => ticketAcc + ticketQty,
+              0,
+            ),
+          0,
+        ),
+      totalRevenue: mappedRegistrations
+        .filter((entry) => entry.paymentStatus === "paid" && !entry.deletedAt)
+        .reduce((acc, entry) => acc + entry.finalAmount, 0),
     },
   } satisfies EventDetail;
 }
@@ -1633,6 +1646,7 @@ export async function listPublicEvents() {
       about: event.about,
       registrationStart: event.registration_start,
       registrationEnd: event.registration_end,
+      highlights: event.highlights,
     }));
 }
 export async function getPublicEventDetail(eventId: string) {
@@ -1706,6 +1720,7 @@ export async function getPublicEventDetail(eventId: string) {
       status: event.status,
       locationUrl: event.location_url,
       importantLinks: event.important_links,
+      highlights: event.highlights,
     },
     tickets: (tickets ?? []).map(mapTicket),
     formFields: (formFields ?? []).map(mapFormField),

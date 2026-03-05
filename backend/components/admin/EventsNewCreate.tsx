@@ -82,6 +82,7 @@ export type EventFormData = {
   registrationEnd: string;
   about: string;
   termsAndConditions: string[];
+  highlights: string[];
 
   // Step 2: Address
   addressLine1: string;
@@ -122,6 +123,7 @@ const INITIAL_DATA: EventFormData = {
   registrationEnd: "",
   about: "",
   termsAndConditions: ["", "", ""], // Minimum 3 required
+  highlights: ["", "", "", ""],
   addressLine1: "",
   addressLine2: "",
   city: "",
@@ -400,6 +402,7 @@ export function EventsNewCreate({
         termsAndConditions: formData.termsAndConditions
           .filter((t) => t.trim())
           .join("\n"),
+        highlights: formData.highlights ? formData.highlights.map(h => h.trim()).filter(h => h) : [],
         addressLine1: formData.addressLine1,
         addressLine2: formData.addressLine2,
         city: formData.city,
@@ -1004,6 +1007,33 @@ export function EventsNewCreate({
                   {errors.about && (
                     <p className="text-xs text-red-500">{errors.about}</p>
                   )}
+                </div>
+
+                {/* Highlights */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">
+                      Event Highlights (Optional)
+                    </label>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {[0, 1, 2, 3].map((index) => (
+                      <div key={index} className="space-y-1.5">
+                        <label className="text-xs text-muted-foreground">Highlight {index + 1}</label>
+                        <input
+                          type="text"
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                          placeholder={`Enter highlight ${index + 1}`}
+                          value={formData.highlights?.[index] || ""}
+                          onChange={(e) => {
+                            const newHighlights = [...(formData.highlights || ["", "", "", ""])];
+                            newHighlights[index] = e.target.value;
+                            updateField("highlights", newHighlights);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Terms */}

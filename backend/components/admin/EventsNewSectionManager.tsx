@@ -103,6 +103,11 @@ function mapEventDetailToFormData(detail: EventDetail): EventFormData {
         terms.push("");
     }
 
+    const eventHighlights = Array.isArray(event.highlights) ? [...event.highlights] : [];
+    while (eventHighlights.length < 4) {
+        eventHighlights.push("");
+    }
+
     return {
         name: event.name || "",
         baseEventBanner: event.base_event_banner ?? null,
@@ -111,6 +116,7 @@ function mapEventDetailToFormData(detail: EventDetail): EventFormData {
         registrationEnd: event.registration_end ?? "",
         about: event.about ?? "",
         termsAndConditions: terms,
+        highlights: eventHighlights,
         addressLine1: event.address_line_1 ?? "",
         addressLine2: event.address_line_2 ?? "",
         city: event.city ?? "",

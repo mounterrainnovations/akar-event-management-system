@@ -32,6 +32,7 @@ interface EventDetailData {
         status: string;
         locationUrl: string | null;
         importantLinks: Array<{ description: string; url: string }> | null;
+        highlights: string[] | null;
     };
     tickets: Array<{
         id: string;
@@ -86,6 +87,81 @@ function getAboutHtml(value: string | null) {
         return trimmed;
     }
     return `<p>${escapeHtml(trimmed).replace(/\n/g, "<br />")}</p>`;
+}
+
+function HighlightsCarousel({ highlights }: { highlights: string[] }) {
+    const [active, setActive] = React.useState(0);
+    const startX = useRef<number | null>(null);
+    const isPaused = useRef(false);
+    const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const goTo = useCallback((index: number) => {
+        setActive(Math.max(0, Math.min(index, highlights.length - 1)));
+    }, [highlights.length]);
+
+    // Auto-scroll every 2.5 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (!isPaused.current) {
+                setActive(prev => (prev + 1) % highlights.length);
+            }
+        }, 2500);
+        return () => clearInterval(interval);
+    }, [highlights.length]);
+
+    const pauseTemporarily = () => {
+        isPaused.current = true;
+        if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
+        resumeTimeout.current = setTimeout(() => { isPaused.current = false; }, 3000);
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        startX.current = e.touches[0].clientX;
+        pauseTemporarily();
+    };
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (startX.current === null) return;
+        const diff = startX.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) goTo(active + (diff > 0 ? 1 : -1));
+        startX.current = null;
+    };
+
+    return (
+        <div className="relative">
+            <div
+                className="flex overflow-hidden"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+            >
+                {highlights.map((highlight, index) => (
+                    <div
+                        key={index}
+                        className="flex-shrink-0 w-full px-1"
+                        style={{ transform: `translateX(-${active * 100}%)`, transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1)' }}
+                    >
+                        <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white border border-pink-100 shadow-sm px-5 py-6 text-center">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#E91E63]/20 to-[#E91E63]/5 mb-1">
+                                <Star className="w-5 h-5 text-[#E91E63]" fill="currentColor" />
+                            </div>
+                            <p className="font-montserrat text-sm font-semibold text-[#1a1a1a] leading-snug">{highlight}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {/* Dot indicators */}
+            <div className="flex justify-center gap-2 mt-3">
+                {highlights.map((_, index) => (
+                    <button
+                        key={index}
+                        onClick={() => { pauseTemporarily(); goTo(index); }}
+                        className={`h-2 rounded-full transition-all duration-300 ${index === active ? 'w-6 bg-[#E91E63]' : 'w-2 bg-[#E91E63]/25'
+                            }`}
+                        aria-label={`Highlight ${index + 1}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
 }
 
 export default function EventDetailPage() {
@@ -375,6 +451,32 @@ export default function EventDetailPage() {
                     </div>
                 </div>
             </section>
+
+            {/* ===== EVENT HIGHLIGHTS (after banner) ===== */}
+            {event.highlights && event.highlights.filter(h => h && h.trim()).length > 0 && (
+                <section className="max-w-7xl mx-auto pb-2 md:pb-4">
+                    {/* Desktop + Tablet: grid layout */}
+                    <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                        {event.highlights.filter(h => h && h.trim()).slice(0, 4).map((highlight, index) => (
+                            <div
+                                key={index}
+                                className="group relative flex flex-col items-center justify-center gap-2 rounded-2xl bg-white border border-pink-100 shadow-sm px-5 py-5 text-center hover:shadow-md hover:border-pink-200 transition-all duration-300"
+                            >
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#E91E63]/20 to-[#E91E63]/5 mb-1 group-hover:scale-110 transition-transform duration-300">
+                                    <Star className="w-4 h-4 text-[#E91E63]" fill="currentColor" />
+                                </div>
+                                <p className="font-montserrat text-sm font-semibold text-[#1a1a1a] leading-snug">{highlight}</p>
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-0 bg-gradient-to-r from-[#E91E63] to-pink-400 rounded-full group-hover:w-10 transition-all duration-300" />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Mobile: swipeable carousel */}
+                    <div className="sm:hidden">
+                        <HighlightsCarousel highlights={event.highlights.filter(h => h && h.trim()).slice(0, 4)} />
+                    </div>
+                </section>
+            )}
 
             {/* ===== MOBILE INFO BLOCK (below hero) ===== */}
             <section className="md:hidden px-1 pb-4">

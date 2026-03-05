@@ -16,6 +16,7 @@ import {
     ArrowLeft,
     PencilSimple,
     LinkSimple,
+    Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { getEventAdminDetail, type EventDetail } from "@/lib/events/service";
 import { EventStatusButton } from "./EventStatusButton";
@@ -359,6 +360,23 @@ export async function EventsNewDetailModal({
                                 </div>
                             </div>
                         </Section>
+
+                        {/* Event Highlights */}
+                        {Array.isArray(event.highlights) && event.highlights.filter(Boolean).length > 0 && (
+                            <Section title="Event Highlights" icon={Star}>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {event.highlights.filter(Boolean).slice(0, 4).map((h, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-start gap-2 rounded-lg border border-pink-200/60 bg-pink-50/40 px-3 py-2.5"
+                                        >
+                                            <Star className="size-3.5 shrink-0 text-pink-500 mt-0.5" weight="fill" />
+                                            <span className="text-xs font-medium text-foreground/80 leading-snug">{h}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Section>
+                        )}
 
                         {/* Important Links */}
                         {Array.isArray(event.important_links) && event.important_links.length > 0 && (
