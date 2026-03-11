@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { flushSync } from "react-dom";
 import { type PastEventItem } from "@/lib/past-events/service";
 import { Plus, Trash, PencilSimple, X, Image as ImageIcon } from "@phosphor-icons/react";
 import { createPastEventAction, updatePastEventAction, deletePastEventAction } from "@/app/admin/past-events.actions";
@@ -73,8 +74,10 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
       } else {
         await createPastEventAction(formData);
       }
+      // If we reach here without redirect, show success and close
       toast.success(editingEvent ? "Past event updated successfully" : "Past event created successfully");
       closeModal();
+      setIsSubmitting(false);
       // Small delay to show toast before reload
       setTimeout(() => {
         window.location.reload();
@@ -82,15 +85,40 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
     } catch (error: any) {
       // Check if it's a Next.js redirect (which is not a real error)
       if (error?.digest?.startsWith("NEXT_REDIRECT")) {
-        // This is a redirect, let it happen
+        // This is a redirect - the action succeeded!
+        // Use flushSync to ensure state updates happen immediately before redirect
+        flushSync(() => {
+          closeModal();
+          setIsSubmitting(false);
+        });
+        toast.success(editingEvent ? "Past event updated successfully" : "Past event created successfully");
+        // Next.js will handle the redirect automatically
         return;
       }
       
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
-      if (errorMessage.includes("413") || errorMessage.includes("Request Entity Too Large") || errorMessage.includes("too large")) {
-        toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`);
+      // Handle network errors and 413 errors
+      let errorMessage = "An error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Check for 413 or file size errors
+      const isSizeError = 
+        errorMessage.includes("413") || 
+        errorMessage.includes("Request Entity Too Large") || 
+        errorMessage.includes("too large") ||
+        errorMessage.includes("PayloadTooLargeError") ||
+        error?.status === 413 ||
+        error?.statusCode === 413;
+      
+      if (isSizeError) {
+        toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB. Please choose a smaller file.`);
       } else {
-        toast.error(errorMessage || "Failed to save past event");
+        toast.error(errorMessage || "Failed to save past event. Please try again.");
       }
       setIsSubmitting(false);
     }
@@ -234,6 +262,7 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
                       if (error) {
                         toast.error(error);
                         e.target.value = "";
+                        setIsSubmitting(false);
                       }
                     }
                   }}
@@ -242,6 +271,11 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
                 <p className="text-xs text-muted-foreground">
                   Maximum file size: {MAX_FILE_SIZE_MB} MB. Supported formats: PNG, JPEG
                 </p>
+                {isSubmitting && (
+                  <p className="text-xs text-amber-600 font-medium">
+                    Uploading... Please do not close this window.
+                  </p>
+                )}
               </div>
 
               <button
