@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { fetchSectionMedia, type WebsiteMediaItem } from '@/lib/websiteMedia';
+import { fetchPastEvents, type PastEvent } from '@/lib/pastEvents';
 import { ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function PastEventsCarousel() {
-    const [images, setImages] = useState<WebsiteMediaItem[]>([]);
+    const [events, setEvents] = useState<PastEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -18,10 +18,17 @@ export default function PastEventsCarousel() {
     useEffect(() => {
         let active = true;
         async function load() {
-            const items = await fetchSectionMedia('past-events', { active: true });
-            if (!active) return;
-            setImages(items);
-            setLoading(false);
+            try {
+                const items = await fetchPastEvents();
+                if (!active) return;
+                setEvents(items);
+            } catch (error) {
+                console.error('Failed to load past events:', error);
+            } finally {
+                if (active) {
+                    setLoading(false);
+                }
+            }
         }
         load();
         return () => {
@@ -41,9 +48,9 @@ export default function PastEventsCarousel() {
         if (cardWidth <= 0) return;
         const nextIndex = Math.round(scrollLeft / cardWidth);
         if (!Number.isNaN(nextIndex)) {
-            setActiveIndex(Math.max(0, Math.min(images.length - 1, nextIndex)));
+            setActiveIndex(Math.max(0, Math.min(events.length - 1, nextIndex)));
         }
-    }, []);
+    }, [events.length]);
 
     useEffect(() => {
         const el = scrollRef.current;
@@ -56,7 +63,7 @@ export default function PastEventsCarousel() {
             el.removeEventListener('scroll', onScroll);
             window.removeEventListener('resize', updateScrollState);
         };
-    }, [images.length, updateScrollState]);
+    }, [events.length, updateScrollState]);
 
     const scrollToIndex = useCallback((index: number) => {
         const el = scrollRef.current;
@@ -71,7 +78,7 @@ export default function PastEventsCarousel() {
         const nextIndex =
             direction === 'left'
                 ? Math.max(0, activeIndex - 1)
-                : Math.min(images.length - 1, activeIndex + 1);
+                : Math.min(events.length - 1, activeIndex + 1);
         scrollToIndex(nextIndex);
     };
 
@@ -79,12 +86,12 @@ export default function PastEventsCarousel() {
         if (autoTimerRef.current) {
             window.clearInterval(autoTimerRef.current);
         }
-        if (images.length <= 1 || isHovering) {
+        if (events.length <= 1 || isHovering) {
             return;
         }
         autoTimerRef.current = window.setInterval(() => {
             setActiveIndex((prev) => {
-                const next = (prev + 1) % images.length;
+                const next = (prev + 1) % events.length;
                 scrollToIndex(next);
                 return next;
             });
@@ -94,9 +101,9 @@ export default function PastEventsCarousel() {
                 window.clearInterval(autoTimerRef.current);
             }
         };
-    }, [images.length, isHovering, scrollToIndex]);
+    }, [events.length, isHovering, scrollToIndex]);
 
-    if (loading || images.length === 0) return null;
+    if (loading || events.length === 0) return null;
 
     return (
         <div className="w-full relative mt-8">
@@ -149,41 +156,46 @@ export default function PastEventsCarousel() {
                 className="scrollbar-hide flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-                {images.map((img, index) => {
-                    const label = img.title || img.description || img.fileName || `Past Event ${index + 1}`;
+                {events.map((event, index) => {
+                    if (!event.imageUrl) return null;
                     return (
                         <div
-                            key={img.id}
+                            key={event.id}
                             data-carousel-card="true"
                             className="w-full flex-[0_0_100%] snap-start"
                         >
                             <div className="max-w-5xl mx-auto">
                                 <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-2xl md:rounded-[2rem] lg:rounded-[3rem] overflow-hidden border border-white/20 bg-gray-50 cursor-pointer group">
                                     <Image
-                                        src={img.previewUrl}
-                                        alt={label}
+                                        src={event.imageUrl}
+                                        alt={event.title || 'Past Event'}
                                         fill
                                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                                         unoptimized
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/5" />
                                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.25),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                    <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-10 md:px-7 md:pb-7">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="font-montserrat text-white text-sm md:text-base font-semibold truncate">
-                                                {label}
-                                            </p>
-                                            <span className="font-montserrat text-white/70 text-[10px] md:text-xs font-medium shrink-0">
-                                                {String(index + 1).padStart(2, '0')}/{String(images.length).padStart(2, '0')}
-                                            </span>
-                                        </div>
-                                        {img.description && (
-                                            <p className="font-montserrat text-white/70 text-xs md:text-sm mt-1 truncate">
-                                                {img.description}
+                                    <div className="absolute bottom-0 right-0 px-5 pb-5 md:px-7 md:pb-7">
+                                        <span className="font-montserrat text-white/70 text-[10px] md:text-xs font-medium shrink-0">
+                                            {String(index + 1).padStart(2, '0')}/{String(events.length).padStart(2, '0')}
+                                        </span>
+                                    </div>
+                                </div>
+                                {/* Title and Description below image */}
+                                {(event.title || event.description) && (
+                                    <div className="mt-6 space-y-3">
+                                        {event.title && (
+                                            <h3 className="font-montserrat text-[#1a1a1a] text-base md:text-lg font-semibold">
+                                                {event.title}
+                                            </h3>
+                                        )}
+                                        {event.description && (
+                                            <p className="font-montserrat text-[#1a1a1a]/70 text-sm md:text-base">
+                                                {event.description}
                                             </p>
                                         )}
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     );
