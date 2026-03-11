@@ -34,6 +34,8 @@ import { DashboardSectionManager } from "@/components/admin/DashboardSectionMana
 import { listAllUsers, type LeadUser } from "@/lib/leads/service";
 import { listWorks } from "@/lib/works/service";
 import { listJourneyItems } from "@/lib/journey/service";
+import { listPastEvents } from "@/lib/past-events/service";
+import { PastEventsSectionManager } from "@/components/admin/PastEventsSectionManager";
 
 type AdminSection = "dashboard" | "media" | "events" | "leads" | "bookings" | "work" | "counter-booking";
 type MediaCategory = "highlights" | "hero-carousel" | "members" | "publications" | "past-events";
@@ -124,6 +126,11 @@ export default async function AdminPage({
   if (activeSection === "work") {
     allWorks = await listWorks({ includeDrafts: true });
     journeyItems = await listJourneyItems();
+  }
+
+  let pastEvents: Awaited<ReturnType<typeof listPastEvents>> = [];
+  if (activeSection === "media" && mediaCategory === "past-events") {
+    pastEvents = await listPastEvents();
   }
 
   return (
@@ -254,6 +261,10 @@ export default async function AdminPage({
               <WorkSectionManager works={allWorks} />
               <JourneySectionManager items={journeyItems} />
             </div>
+          </section>
+        ) : mediaCategory === "past-events" ? (
+          <section className="p-6">
+            <PastEventsSectionManager pastEvents={pastEvents} />
           </section>
         ) : mediaCategory ? (
           <section className="p-6">
