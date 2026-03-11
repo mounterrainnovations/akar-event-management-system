@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { type PastEventItem } from "@/lib/past-events/service";
 import { Plus, Trash, PencilSimple, X, Image as ImageIcon } from "@phosphor-icons/react";
 import { createPastEventAction, updatePastEventAction, deletePastEventAction } from "@/app/admin/past-events.actions";
+import { toast } from "react-toastify";
+
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEventItem[] }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<PastEventItem | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openCreateModal = () => {
     setEditingEvent(null);
@@ -22,6 +28,72 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingEvent(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const validateFile = (file: File | null): string | null => {
+    if (!file) {
+      if (!editingEvent) {
+        return "Image is required";
+      }
+      return null;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return `File size exceeds ${MAX_FILE_SIZE_MB} MB limit. File size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+    if (!allowedTypes.includes(file.type)) {
+      return "Invalid file type. Only PNG and JPEG images are allowed.";
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const imageFile = formData.get("imageFile");
+    const file = imageFile instanceof File && imageFile.size > 0 ? imageFile : null;
+
+    const fileError = validateFile(file);
+    if (fileError) {
+      toast.error(fileError);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (editingEvent) {
+        await updatePastEventAction(formData);
+      } else {
+        await createPastEventAction(formData);
+      }
+      toast.success(editingEvent ? "Past event updated successfully" : "Past event created successfully");
+      closeModal();
+      // Small delay to show toast before reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error: any) {
+      // Check if it's a Next.js redirect (which is not a real error)
+      if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+        // This is a redirect, let it happen
+        return;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      if (errorMessage.includes("413") || errorMessage.includes("Request Entity Too Large") || errorMessage.includes("too large")) {
+        toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`);
+      } else {
+        toast.error(errorMessage || "Failed to save past event");
+      }
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -109,7 +181,7 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
             </h3>
 
             <form
-              action={editingEvent ? updatePastEventAction : createPastEventAction}
+              onSubmit={handleSubmit}
               className="space-y-4"
             >
               {editingEvent && (
@@ -149,20 +221,35 @@ export function PastEventsSectionManager({ pastEvents }: { pastEvents: PastEvent
                   Image {editingEvent ? "(Optional - leave empty to keep current)" : "(Required)"}
                 </label>
                 <input
+                  ref={fileInputRef}
                   id="imageFile"
                   name="imageFile"
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   required={!editingEvent}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const error = validateFile(file);
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                      }
+                    }
+                  }}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Maximum file size: {MAX_FILE_SIZE_MB} MB. Supported formats: PNG, JPEG
+                </p>
               </div>
 
               <button
                 type="submit"
-                className="w-full rounded-lg bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+                disabled={isSubmitting}
+                className="w-full rounded-lg bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {editingEvent ? "Update Past Event" : "Create Past Event"}
+                {isSubmitting ? "Saving..." : editingEvent ? "Update Past Event" : "Create Past Event"}
               </button>
             </form>
           </div>

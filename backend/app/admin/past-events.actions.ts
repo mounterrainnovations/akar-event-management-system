@@ -22,12 +22,21 @@ export async function createPastEventAction(formData: FormData) {
   let imageUrl: string | null = null;
   const imageFile = formData.get("imageFile");
   if (imageFile instanceof File && imageFile.size > 0) {
-    const uploaded = await uploadMediaFile({
-      userId: session.sub,
-      file: imageFile,
-      bucketName: "pastEvents",
-    });
-    imageUrl = uploaded.file_path;
+    try {
+      const uploaded = await uploadMediaFile({
+        userId: session.sub,
+        file: imageFile,
+        bucketName: "pastEvents",
+      });
+      imageUrl = uploaded.file_path;
+    } catch (error) {
+      logger.error("Failed to upload image for past event", { error });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      if (errorMessage.includes("too large") || errorMessage.includes("413")) {
+        throw new Error("File is too large. Maximum size is 5 MB.");
+      }
+      throw new Error("Failed to upload image. Please try again.");
+    }
   }
 
   try {
@@ -38,7 +47,8 @@ export async function createPastEventAction(formData: FormData) {
     });
   } catch (error) {
     logger.error("Failed to create past event", { error });
-    redirect("/admin?section=media&mediaCategory=past-events&error=Failed+to+create");
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(errorMessage || "Failed to create past event");
   }
 
   redirect("/admin?section=media&mediaCategory=past-events&success=Past+event+created");
@@ -57,12 +67,21 @@ export async function updatePastEventAction(formData: FormData) {
   let imageUrl: string | undefined = undefined;
   const imageFile = formData.get("imageFile");
   if (imageFile instanceof File && imageFile.size > 0) {
-    const uploaded = await uploadMediaFile({
-      userId: session.sub,
-      file: imageFile,
-      bucketName: "pastEvents",
-    });
-    imageUrl = uploaded.file_path;
+    try {
+      const uploaded = await uploadMediaFile({
+        userId: session.sub,
+        file: imageFile,
+        bucketName: "pastEvents",
+      });
+      imageUrl = uploaded.file_path;
+    } catch (error) {
+      logger.error("Failed to upload image for past event", { error });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      if (errorMessage.includes("too large") || errorMessage.includes("413")) {
+        throw new Error("File is too large. Maximum size is 5 MB.");
+      }
+      throw new Error("Failed to upload image. Please try again.");
+    }
   }
 
   try {
@@ -73,7 +92,8 @@ export async function updatePastEventAction(formData: FormData) {
     });
   } catch (error) {
     logger.error("Failed to update past event", { error });
-    redirect("/admin?section=media&mediaCategory=past-events&error=Failed+to+update");
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(errorMessage || "Failed to update past event");
   }
 
   redirect("/admin?section=media&mediaCategory=past-events&success=Past+event+updated");
