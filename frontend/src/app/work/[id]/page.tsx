@@ -1,9 +1,9 @@
 import React from "react";
+import { WorkCarousel } from "./WorkCarousel";
 import { instrumentSerif } from "@/lib/fonts";
 import { fetchWorkById } from "@/lib/works";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
 import { notFound } from "next/navigation";
 
 export default async function WorkDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -20,46 +20,34 @@ export default async function WorkDetailPage(props: { params: Promise<{ id: stri
         <main className="min-h-screen relative bg-white pb-32">
             <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.10]" style={{ backgroundImage: 'url("/event_bg.png")', backgroundSize: 'cover' }} />
 
-            <article className="relative z-10 pt-[120px] max-w-4xl mx-auto px-4 md:px-12 lg:px-16">
-                <div className="mb-10">
-                    <Link href="/work" className="inline-flex items-center gap-2 text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors font-medium text-sm mb-8">
+            <article className="relative z-10 pt-[120px]">
+                <div className="max-w-7xl mx-auto px-4 md:px-12 lg:px-16 mb-6">
+                    <Link href="/work" className="inline-flex items-center gap-2 text-[#1a1a1a]/60 hover:text-[#1a1a1a] transition-colors font-medium text-sm">
                         <ArrowLeft size={16} />
                         Back to works
                     </Link>
-
-                    <div className="flex items-center gap-4 mb-6">
-                        <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-[#1a1a1a]/60 bg-[#1a1a1a]/5 px-3 py-1 rounded-full">
-                            {work.category}
-                        </span>
-                        <span className="text-sm font-medium text-[#1a1a1a]/50">
-                            {format(new Date(work.createdAt), "MMMM do, yyyy")}
-                        </span>
-                    </div>
-
-                    <h1 className={`${instrumentSerif.className} text-4xl md:text-5xl lg:text-6xl text-[#1a1a1a] leading-[1.05] mb-6`}>
-                        {work.title}
-                    </h1>
-
-                    <p className="text-lg font-medium text-[#1a1a1a]/80">
-                        By {work.author}
-                    </p>
                 </div>
 
-                {work.coverImageUrl && (
-                    <div className="w-full aspect-video rounded-2xl overflow-hidden bg-neutral-100 mb-12 shadow-sm border border-[#1a1a1a]/5">
-                        <img src={work.coverImageUrl} alt={work.title} className="w-full h-full object-cover" />
-                    </div>
-                )}
+                <div className="max-w-7xl mx-auto px-4 md:px-12 lg:px-16 mb-12">
+                    <WorkCarousel 
+                        images={[work.coverImageUrl, ...(work.images || [])].filter(Boolean) as string[]} 
+                        title={work.title} 
+                        category={work.category}
+                        author={work.author}
+                    />
+                </div>
 
                 {/* Content Body */}
-                <div
-                    className="prose prose-lg prose-neutral max-w-none text-[#1a1a1a]/80"
-                    dangerouslySetInnerHTML={{ __html: work.content }}
-                    style={{
-                        // Add some basic styling here just in case Tailwind Prose isn't configured
-                        lineHeight: "1.8",
-                    }}
-                />
+                <div className="max-w-4xl mx-auto px-4 md:px-12 lg:px-16">
+                    <div
+                        className="prose prose-lg prose-neutral max-w-none text-[#1a1a1a]/80"
+                        dangerouslySetInnerHTML={{ __html: work.content }}
+                        style={{
+                            // Add some basic styling here just in case Tailwind Prose isn't configured
+                            lineHeight: "1.8",
+                        }}
+                    />
+                </div>
 
                 {/* Global Styles for the injected HTML content to make sure it looks beautiful and matches the minimal aesthetic */}
                 <style dangerouslySetInnerHTML={{

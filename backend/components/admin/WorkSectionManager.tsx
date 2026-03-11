@@ -10,16 +10,22 @@ export function WorkSectionManager({ works }: { works: WorkItem[] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingWork, setEditingWork] = useState<WorkItem | null>(null);
     const [editorContent, setEditorContent] = useState("");
+    const [existingImages, setExistingImages] = useState<string[]>([]);
+    const [removedImages, setRemovedImages] = useState<string[]>([]);
 
     const openCreateModal = () => {
         setEditingWork(null);
         setEditorContent("");
+        setExistingImages([]);
+        setRemovedImages([]);
         setIsModalOpen(true);
     };
 
     const openEditModal = (work: WorkItem) => {
         setEditingWork(work);
         setEditorContent(work.content);
+        setExistingImages(work.images || []);
+        setRemovedImages([]);
         setIsModalOpen(true);
     };
 
@@ -27,6 +33,11 @@ export function WorkSectionManager({ works }: { works: WorkItem[] }) {
         setIsModalOpen(false);
         setEditingWork(null);
         setEditorContent("");
+    };
+
+    const handleRemoveImage = (img: string) => {
+        setExistingImages(prev => prev.filter(i => i !== img));
+        setRemovedImages(prev => [...prev, img]);
     };
 
     return (
@@ -130,12 +141,35 @@ export function WorkSectionManager({ works }: { works: WorkItem[] }) {
                                     </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-sm font-medium">Cover Image (Optional)</label>
+                                    <label className="text-sm font-medium">Cover Image</label>
                                     <input type="file" name="coverFile" accept="image/*" className="w-full rounded-lg border px-3 py-1.5 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-1 file:text-xs file:font-medium file:text-primary-foreground hover:file:bg-primary/90" />
+                                </div>
+                                <div className="space-y-1 col-span-1 md:col-span-2">
+                                    <label className="text-sm font-medium">Additional Images</label>
+                                    <input type="file" name="images" multiple accept="image/*" className="w-full rounded-lg border px-3 py-1.5 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-1 file:text-xs file:font-medium file:text-primary-foreground hover:file:bg-primary/90" />
+                                    <input type="hidden" name="existingImages" value={JSON.stringify(existingImages)} />
+                                    <input type="hidden" name="removedImages" value={JSON.stringify(removedImages)} />
                                 </div>
                             </div>
 
-                            <div className="space-y-1 flex-1 flex flex-col relative">
+                            {/* Show existing images to remove */}
+                            {existingImages.length > 0 && (
+                                <div className="space-y-2 mt-2">
+                                    <label className="text-sm font-medium">Current Additional Images</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {existingImages.map(img => (
+                                            <div key={img} className="relative w-24 h-24 rounded-lg shadow-sm border overflow-hidden group">
+                                                <img src={img} className="w-full h-full object-cover" alt="" />
+                                                <button type="button" onClick={() => handleRemoveImage(img)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <X weight="bold" className="text-white size-6" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-1 flex-1 flex flex-col relative mt-2">
                                 <label className="text-sm font-medium">Content</label>
                                 <input type="hidden" name="content" value={editorContent} />
                                 <RichTextEditor content={editorContent} onChange={setEditorContent} />

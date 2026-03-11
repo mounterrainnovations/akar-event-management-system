@@ -24,7 +24,7 @@ const secondaryNavItems = [
 export default function Header() {
     const pathname = usePathname();
     const isEventPage = pathname === '/event' || pathname?.startsWith('/event/');
-    const isWorkPage = pathname === '/work';
+    const isWorkPage = pathname === '/work' || pathname?.startsWith('/work/');
     const isContactPage = pathname === '/contact';
     const isHighlightsPage = pathname === '/highlights';
     const isAboutPage = pathname === '/about';
