@@ -13,6 +13,7 @@ export type WorkItem = {
   content: string;
   category: WorkCategory;
   coverImageUrl: string | null;
+  images: string[];
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +37,7 @@ type WorkRow = {
   content: string;
   category: WorkCategory;
   cover_image_url: string | null;
+  images: string[] | null;
   is_published: boolean;
   created_at: string;
   updated_at: string;
@@ -49,6 +51,7 @@ function mapWorkRow(row: WorkRow): WorkItem {
     content: row.content,
     category: row.category,
     coverImageUrl: resolveCoverImageUrl(row.cover_image_url),
+    images: (row.images || []).map(img => resolveCoverImageUrl(img)).filter(Boolean) as string[],
     isPublished: row.is_published,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -113,6 +116,7 @@ export async function createWork(
       content: input.content,
       category: input.category,
       cover_image_url: input.coverImageUrl,
+      images: input.images,
       is_published: input.isPublished,
     })
     .select()
@@ -138,6 +142,7 @@ export async function updateWork(
   if (input.category !== undefined) updates.category = input.category;
   if (input.coverImageUrl !== undefined)
     updates.cover_image_url = input.coverImageUrl;
+  if (input.images !== undefined) updates.images = input.images;
   if (input.isPublished !== undefined) updates.is_published = input.isPublished;
 
   const { data, error } = await supabase

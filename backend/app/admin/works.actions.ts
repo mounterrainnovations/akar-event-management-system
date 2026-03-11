@@ -35,6 +35,19 @@ export async function createWorkAction(formData: FormData) {
     coverImageUrl = uploaded.file_path; // Storing the file path to retrieve URL later, or direct URL.
   }
 
+  const imagesFiles = formData.getAll("images");
+  const images: string[] = [];
+  for (const file of imagesFiles) {
+    if (file instanceof File && file.size > 0) {
+      const uploaded = await uploadMediaFile({
+        userId: session.sub,
+        file: file,
+        bucketName: "media",
+      });
+      images.push(uploaded.file_path);
+    }
+  }
+
   try {
     await createWork({
       title,
@@ -42,6 +55,7 @@ export async function createWorkAction(formData: FormData) {
       content,
       category,
       coverImageUrl,
+      images,
       isPublished,
     });
   } catch (error) {
@@ -76,6 +90,58 @@ export async function updateWorkAction(formData: FormData) {
     coverImageUrl = uploaded.file_path;
   }
 
+  const imagesFiles = formData.getAll("images");
+  let images: string[] | undefined = undefined;
+  
+  if (imagesFiles.length > 0) {
+    images = [];
+    for (const file of imagesFiles) {
+      if (file instanceof File && file.size > 0) {
+        const uploaded = await uploadMediaFile({
+          userId: session.sub,
+          file: file,
+          bucketName: "media",
+        });
+        images.push(uploaded.file_path);
+      }
+    }
+    // Only update images if the user tried to upload actual images
+    // Wait, the input might be empty because user didn't select new images, 
+    // so if they didn't, we just skip updating this field.
+    if (images.length === 0) {
+        images = undefined;
+    }
+  }
+
+  const removedImagesStr = formData.get("removedImages")?.toString();
+  let finalImagesToKeep: string[] | undefined = undefined;
+  
+  if (removedImagesStr) {
+    try {
+      const removedImages = JSON.parse(removedImagesStr) as string[];
+      if (removedImages.length > 0) {
+        // If we want to remove existing images without uploading new ones, we must fetch existing images.
+        // Wait, instead of fetching, let's just accept 'existingImages' array from the client 
+        // that handles the actual state of images.
+        const existingImagesStr = formData.get("existingImages")?.toString();
+        if (existingImagesStr) {
+           const existingImages = JSON.parse(existingImagesStr) as string[];
+           images = [...existingImages, ...(images || [])];
+        }
+      }
+    } catch(e) {}
+  } else {
+      const existingImagesStr = formData.get("existingImages")?.toString();
+      if (existingImagesStr) {
+         try {
+             // We get the remaining existing images
+             const existingImages = JSON.parse(existingImagesStr) as string[];
+             // Only if the client sends this field, we modify the array.
+             images = [...existingImages, ...(images || [])];
+         } catch(e) {}
+      }
+  }
+
   try {
     await updateWork(id, {
       ...(title && { title }),
@@ -83,6 +149,7 @@ export async function updateWorkAction(formData: FormData) {
       ...(content && { content }),
       ...(category && { category }),
       ...(coverImageUrl && { coverImageUrl }),
+      ...(images !== undefined && { images }),
       isPublished,
     });
   } catch (error) {

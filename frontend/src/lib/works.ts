@@ -9,6 +9,7 @@ export type WorkItem = {
   content: string;
   category: WorkCategory;
   coverImageUrl: string | null;
+  images?: string[];
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
