@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { instrumentSerif } from '@/lib/fonts';
 import { fetchSectionMedia, type WebsiteMediaItem } from '@/lib/websiteMedia';
 import { FileText } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const container = {
     hidden: {},
@@ -28,6 +29,7 @@ const wordAnim = {
 export default function PublicationsPage() {
     const [publications, setPublications] = useState<WebsiteMediaItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const { isAuthenticated, openAuthModal } = useAuth();
 
     useEffect(() => {
         async function loadPublications() {
@@ -111,7 +113,14 @@ export default function PublicationsPage() {
                                 <div
                                     key={item.id}
                                     className="group cursor-pointer flex flex-col"
-                                    onClick={() => window.open(item.previewUrl, '_blank')}
+                                    onClick={(e) => {
+                                        if (item.mimeType === 'application/pdf' && !isAuthenticated) {
+                                            e.preventDefault();
+                                            openAuthModal();
+                                        } else {
+                                            window.open(item.previewUrl, '_blank');
+                                        }
+                                    }}
                                 >
                                     <div className="aspect-[3/4] bg-[#f8f8f8] border border-[#1a1a1a]/5 transition-colors group-hover:bg-[#f1f1f1] rounded-[1.5rem] overflow-hidden mb-5 relative flex flex-col items-center justify-center">
                                         {item.thumbnailUrl ? (

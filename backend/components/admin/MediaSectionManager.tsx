@@ -10,8 +10,7 @@ import { Eye, EyeSlash, Trash, UploadSimple, X, Image } from "@phosphor-icons/re
 import { type WebsiteSectionState } from "@/lib/media/website-media-service";
 import { toast } from "react-toastify";
 
-const MAX_FILE_SIZE_MB = 5;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "application/pdf"];
 
 type MediaSectionManagerProps = {
@@ -21,9 +20,13 @@ type MediaSectionManagerProps = {
 };
 
 export function MediaSectionManager({ title, description, section }: MediaSectionManagerProps) {
+  const MAX_FILE_SIZE_MB = section.section === "publications" ? 20 : 5;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
@@ -92,6 +95,7 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
   }
 
   function closeModal() {
+    if (isUploading) return;
     setIsUploadOpen(false);
     setSelectedFiles([]);
     setIsDragging(false);
@@ -239,7 +243,8 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
             <button
               type="button"
               onClick={closeModal}
-              className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              disabled={isUploading}
+              className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <X className="size-5" />
             </button>
@@ -251,7 +256,10 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
             </p>
 
             <form
-              action={uploadSectionMediaAction}
+              action={(formData) => {
+                setIsUploading(true);
+                uploadSectionMediaAction(formData).finally(() => setIsUploading(false));
+              }}
               className="mt-5 space-y-4"
             >
               <input type="hidden" name="section" value={section.section} />
@@ -350,10 +358,10 @@ export function MediaSectionManager({ title, description, section }: MediaSectio
 
               <button
                 type="submit"
-                disabled={selectedFiles.length === 0}
+                disabled={selectedFiles.length === 0 || isUploading}
                 className="w-full rounded-lg bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Upload {selectedFiles.length > 0 ? `${selectedFiles.length} file(s)` : ""}
+                {isUploading ? "Uploading..." : `Upload ${selectedFiles.length > 0 ? `${selectedFiles.length} file(s)` : ""}`}
               </button>
             </form>
           </div>
